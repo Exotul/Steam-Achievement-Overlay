@@ -1,0 +1,64 @@
+{
+  "name": "steam-achievements-overlay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Desktop-Overlay, das neu freigeschaltete Steam-Achievements über laufenden Spielen einblendet.",
+  "author": "Markus",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "electron-updater": "^6.8.9"
+  },
+  "build": {
+    "appId": "de.trophaenschrank.overlay",
+    "productName": "Trophäenschrank",
+    "files": [
+      "main.js",
+      "lib/**/*",
+      "overlay/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!.env"
+        ]
+      },
+      {
+        "from": "../frontend/dist",
+        "to": "frontend-dist"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/app-icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "DEIN_GITHUB_NAME",
+        "repo": "trophaenschrank"
+      }
+    ],
+    "artifactName": "Trophaeenschrank-Setup-${version}.${ext}"
+  }
+}

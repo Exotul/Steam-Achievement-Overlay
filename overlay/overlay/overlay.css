@@ -1,0 +1,850 @@
+#stack {
+  position: fixed;
+  top: 40px;
+  right: 40px;
+  display: flex;
+  flex-direction: column;
+  /* Rechtsbuendig, damit die Meldungen an der rechten Bildschirmkante
+     ausgerichtet bleiben - wie bei einer Konsole. */
+  align-items: flex-end;
+  gap: 16px;
+  pointer-events: none;
+  /* Der Einflug kommt von ausserhalb des Bildschirms; ohne das wuerde am
+     rechten Rand eine Bildlaufleiste entstehen. */
+  overflow: visible;
+}
+
+/* ---------- Standard-Achievement-Toast ---------- */
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  /* Waechst mit dem Bildschirm mit: auf einem kleinen Monitor 620 px, auf
+     einem grossen bis 900 px. Feste Breite (statt min/max), damit alle
+     Meldungen gleich breit sind und nicht je nach Textlaenge springen. */
+  width: clamp(660px, 40vw, 960px);
+  background: rgba(21, 25, 32, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 4px solid var(--tier-color, #8b93e0);
+  border-radius: 18px;
+  padding: 26px 34px 26px 26px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--tier-glow, transparent);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  will-change: transform, opacity;
+  animation: toast-in 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    toast-out 0.5s cubic-bezier(0.6, 0, 0.75, 0) forwards var(--display-time, 8.1s);
+}
+
+/* Von ausserhalb des rechten Bildschirmrands hereinfliegen, mit leichtem
+   Ueberschwingen nach links - dadurch wirkt die Bewegung gebremst statt
+   abrupt gestoppt. */
+@keyframes toast-in {
+  0% {
+    transform: translateX(calc(100% + 60px));
+    opacity: 0;
+  }
+  55% {
+    transform: translateX(-14px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Wieder nach rechts hinausfliegen. Kurz nach links ausholen, damit die
+   Bewegung Schwung bekommt. */
+@keyframes toast-out {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  18% {
+    transform: translateX(-12px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(100% + 60px));
+    opacity: 0;
+  }
+}
+
+/* diagonaler Lichtstreif, läuft einmal über die Karte - ab Silber aufwärts */
+.toast--shine::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.22) 48%,
+    rgba(255, 255, 255, 0.06) 54%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  animation: shine-sweep 1.1s ease-out forwards;
+  animation-delay: 0.25s;
+  pointer-events: none;
+}
+
+@keyframes shine-sweep {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* pulsierender Glow-Rahmen - ab Gold aufwärts etwas kräftiger */
+.toast--glow {
+  animation: toast-in 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    toast-out 0.5s cubic-bezier(0.6, 0, 0.75, 0) forwards var(--display-time, 8.1s),
+    glow-pulse 1.6s ease-in-out 0.5s 2;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--tier-glow, transparent);
+  }
+  50% {
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.65), 0 0 22px 2px var(--tier-glow, transparent);
+  }
+}
+
+.toast__icon-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+}
+
+.toast__icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 14px;
+  display: block;
+  animation: icon-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.12s;
+  transform: scale(0.4);
+  opacity: 0;
+}
+
+@keyframes icon-pop {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Ring-Puls um das Icon - ab Platin */
+.ring-pulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 16px;
+  border: 2px solid var(--tier-color, #8b93e0);
+  opacity: 0;
+  animation: ring-pulse 1.3s ease-out 0.5s 2;
+}
+
+@keyframes ring-pulse {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.toast__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.toast__eyebrow {
+  margin: 0 0 2px;
+  font-size: 0.98rem;
+  letter-spacing: 0.04em;
+  color: var(--tier-color, #8b93e0);
+}
+
+.toast__name {
+  margin: 0 0 4px;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast__desc {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: #c2c8d4;
+  /* lange Beschreibungen auf zwei Zeilen begrenzen, damit das Popup
+     nicht unkontrolliert in die Hoehe waechst */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.toast__meta {
+  margin: 0;
+  font-size: 1.02rem;
+  /* Einzeilig halten - bei der Spielstart-Meldung stehen rechts noch
+     Zeit- und Schwierigkeitsanzeige, sonst bricht die Zeile unschoen um. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #9aa1b0;
+  font-family: 'Space Mono', monospace;
+}
+
+/* ---------- Trophaeenart deutlich sichtbar ---------- */
+
+/* Rauten-Symbol auf der Ecke des Achievement-Icons */
+.toast__tier-gem {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 22px;
+  height: 22px;
+  line-height: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  animation: gem-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.34s;
+  transform: scale(0);
+  opacity: 0;
+}
+
+@keyframes gem-pop {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Beschriftete Plakette rechts im Toast */
+.toast__tier-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 9px 19px;
+  border-radius: 999px;
+  background: var(--tier-color, #8b93e0);
+  box-shadow: 0 0 18px -4px var(--tier-glow, transparent);
+  animation: badge-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.28s;
+  transform: scale(0.6);
+  opacity: 0;
+}
+
+@keyframes badge-in {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.toast__tier-label {
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #12151c;
+}
+
+/* kleine Funken, die von Icon-Mitte wegfliegen - Gold/Platin/Diamant */
+.sparkle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--size, 5px);
+  height: var(--size, 5px);
+  border-radius: 50%;
+  background: var(--spark-color, #fff);
+  opacity: 0;
+  pointer-events: none;
+  animation: sparkle-fly var(--dur, 0.7s) ease-out forwards;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes sparkle-fly {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist, 28px)) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* ---------- Diamant-Feier (ganzes Spiel abgeschlossen) ---------- */
+
+#diamond-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 90px;
+  pointer-events: none;
+}
+
+.diamond-card {
+  position: relative;
+  width: 560px;
+  padding: 30px 40px;
+  border-radius: 18px;
+  text-align: center;
+  background: rgba(15, 18, 24, 0.97);
+  overflow: hidden;
+  transform: scale(0.85);
+  opacity: 0;
+  animation: diamond-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) forwards,
+    diamond-out 0.5s ease forwards 7.6s;
+  box-shadow: 0 30px 80px -16px rgba(0, 0, 0, 0.75);
+}
+
+@keyframes diamond-in {
+  0% {
+    transform: scale(0.8) translateY(-10px);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.04) translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes diamond-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.95) translateY(-10px);
+    opacity: 0;
+  }
+}
+
+/* rotierender, unscharfer Regenbogen-Rahmen hinter der Karte */
+.diamond-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 20px;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    #5fd3e8,
+    #9a8cf2,
+    #5fd3e8,
+    #9a8cf2,
+    #5fd3e8
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: diamond-border-spin 3.5s linear infinite;
+  opacity: 0.85;
+}
+
+@keyframes diamond-border-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* leiser, weiter Glanz-Sweep über die ganze Karte, mehrfach */
+.diamond-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.14) 48%,
+    transparent 66%
+  );
+  transform: translateX(-140%);
+  animation: shine-sweep 1.6s ease-in-out 0.5s 3;
+}
+
+.diamond-card__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  animation: icon-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.2s;
+  transform: scale(0.4);
+  opacity: 0;
+  box-shadow: 0 0 24px 4px rgba(95, 211, 232, 0.35);
+}
+
+.diamond-card__eyebrow {
+  margin: 0 0 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: #9aa1b0;
+}
+
+.diamond-card__title {
+  margin: 0 0 4px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #5fd3e8, #9a8cf2, #5fd3e8);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-text 2.4s linear infinite;
+}
+
+@keyframes shimmer-text {
+  to {
+    background-position: -220% center;
+  }
+}
+
+.diamond-card__game {
+  margin: 0;
+  font-size: 1rem;
+  color: #cfd3dc;
+}
+
+.diamond-sparkle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 2px;
+  pointer-events: none;
+  opacity: 0;
+  animation: sparkle-fly var(--dur, 1.1s) ease-out forwards;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ---------- Spielstart-Meldung ---------- */
+
+.toast__progress {
+  margin-top: 8px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+.toast__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--tier-color, #8b93e0);
+  transform-origin: left center;
+  animation: progress-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.3s;
+  transform: scaleX(0);
+}
+
+@keyframes progress-grow {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ---------- Schwierigkeitsanzeige ---------- */
+
+.toast__side {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.difficulty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: var(--diff-color);
+  box-shadow: 0 0 18px -6px var(--diff-color);
+  animation: badge-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.32s;
+  transform: scale(0.6);
+  opacity: 0;
+}
+
+.difficulty__value {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.82);
+}
+
+.difficulty__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Komplettierungszeit ---------- */
+
+.playtime {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: badge-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform: scale(0.6);
+  opacity: 0;
+}
+
+.playtime__value {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #e8eaf0;
+}
+
+.playtime__label {
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 3px;
+  color: #9aa1b0;
+}
+
+/* ---------- Status-Abzeichen (unten rechts) ---------- */
+
+.status-badge {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 16px 10px 12px;
+  border-radius: 14px;
+  background: rgba(21, 25, 32, 0.92);
+  border: 1px solid rgba(95, 211, 232, 0.35);
+  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.7), 0 0 18px -8px rgba(95, 211, 232, 0.5);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  pointer-events: none;
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.status-badge--hidden {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.status-badge__logo {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.status-badge__text {
+  min-width: 0;
+}
+
+.status-badge__game {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.status-badge__progress {
+  margin: 2px 0 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.74rem;
+  color: #9aa1b0;
+}
+
+/* ---------- Animiertes Logo in Stufenfarbe ---------- */
+
+.toast__logo {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+}
+
+.toast__logo-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: center;
+  animation: logo-enter 0.75s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+  animation-delay: 0.18s;
+  transform: scale(0.55) rotate(-25deg);
+  opacity: 0;
+  filter: drop-shadow(0 0 10px var(--tier-glow, transparent));
+}
+
+@keyframes logo-enter {
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Der Umriss wird gezeichnet, statt einfach da zu sein. */
+.toast__logo-outline {
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+  animation: logo-draw 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.22s;
+}
+
+@keyframes logo-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Die Flaeche fuellt sich danach sanft. */
+.toast__logo-fill {
+  opacity: 0;
+  animation: logo-fill 0.7s ease forwards;
+  animation-delay: 0.6s;
+}
+
+@keyframes logo-fill {
+  to {
+    opacity: 0.16;
+  }
+}
+
+/* Ein Glanzlicht laeuft einmal ueber die obere Haelfte. */
+.toast__logo-shine {
+  opacity: 0;
+  transform-origin: 50px 50px;
+  animation: logo-shine 1.1s ease-out forwards;
+  animation-delay: 0.75s;
+}
+
+@keyframes logo-shine {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  35% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.1;
+    transform: translateY(0);
+  }
+}
+
+/* Sanftes Atmen, solange die Meldung steht. */
+.toast__logo::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--tier-glow, transparent) 0%, transparent 70%);
+  opacity: 0;
+  animation: logo-breathe 2.6s ease-in-out 1s infinite;
+  pointer-events: none;
+}
+
+@keyframes logo-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.06);
+  }
+}
+
+/* ---------- Schmale XP-Meldung ---------- */
+
+.xp-toast {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: clamp(420px, 26vw, 620px);
+  padding: 14px 22px 14px 16px;
+  border-radius: 14px;
+  background: rgba(21, 25, 32, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--tier-platin, #8b93e0);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.65);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    toast-out 0.45s cubic-bezier(0.6, 0, 0.75, 0) forwards 4.5s;
+}
+
+.xp-toast--levelup {
+  border-left-color: #5fd3e8;
+  border-color: rgba(95, 211, 232, 0.4);
+  box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 22px -8px rgba(95, 211, 232, 0.6);
+  animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    toast-out 0.45s cubic-bezier(0.6, 0, 0.75, 0) forwards 6.5s;
+}
+
+/* Der Ladebalken beim Start bleibt stehen, bis er fertig ist. */
+.xp-toast--loading {
+  animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.xp-toast__level {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  flex-shrink: 0;
+}
+
+.xp-toast__level-num {
+  font-family: 'Oswald', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+  color: #e8eaf0;
+}
+
+.xp-toast--levelup .xp-toast__level-num {
+  background: linear-gradient(90deg, #5fd3e8, #9a8cf2, #5fd3e8);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-text 2.2s linear infinite, levelnum-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.75s both;
+}
+
+@keyframes levelnum-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.45);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.xp-toast__level-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  margin-top: 3px;
+}
+
+.xp-toast__level-up {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #5fd3e8;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.xp-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.xp-toast__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.xp-toast__gain {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #e8eaf0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xp-toast__counts {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  color: #9aa1b0;
+  white-space: nowrap;
+}
+
+.xp-toast__bar {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.xp-toast__bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--tier-platin, #8b93e0);
+  /* Der Zuwachs soll sichtbar wachsen, nicht springen. */
+  transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.xp-toast--levelup .xp-toast__bar-fill {
+  background: linear-gradient(90deg, #5fd3e8, #9a8cf2);
+}
+
+/* Kurzes Aufleuchten im Moment des Levelaufstiegs. */
+.xp-toast--flash {
+  animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    toast-out 0.45s cubic-bezier(0.6, 0, 0.75, 0) forwards 6.5s,
+    levelup-flash 0.7s ease-out;
+}
+
+@keyframes levelup-flash {
+  0% {
+    box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 0 0 rgba(95, 211, 232, 0.9);
+  }
+  100% {
+    box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 0 26px rgba(95, 211, 232, 0);
+  }
+}

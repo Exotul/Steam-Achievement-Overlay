@@ -1,0 +1,62 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* dezente Schicht-Textur statt eines Farb-Gradienten als Deko */
+body {
+  background-image: radial-gradient(circle at 15% -10%, #232a37 0%, transparent 45%),
+    radial-gradient(circle at 100% 0%, #1d2836 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--tier-diamant-a);
+  color: #0c1116;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--tier-diamant-a);
+  outline-offset: 2px;
+}

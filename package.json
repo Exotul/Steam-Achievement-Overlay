@@ -1,0 +1,9 @@
+{
+  "name": "steam-achievements-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Trophäenschrank - Steam-Achievement-Overlay und Dashboard",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\""
+  }
+}

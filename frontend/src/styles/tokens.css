@@ -1,0 +1,33 @@
+:root {
+  /* --- Basisfarben: kühles Anthrazit-Blau, kein reines Schwarz --- */
+  --bg: #171b23;
+  --bg-raised: #1e232d;
+  --bg-inset: #12151c;
+  --ink: #e8eaf0;
+  --ink-dim: #9aa1b0;
+  --ink-faint: #5f6675;
+  --hairline: #2b313d;
+
+  /* --- Trophäen-Stufen: an die Metalle/Materialien angelehnt --- */
+  --tier-kupfer: #c07a42;
+  --tier-kupfer-glow: #c07a4255;
+  --tier-silber: #b9c1cc;
+  --tier-silber-glow: #b9c1cc4d;
+  --tier-gold: #d3a13a;
+  --tier-gold-glow: #d3a13a55;
+  --tier-platin: #8b93e0;
+  --tier-platin-glow: #8b93e055;
+  --tier-diamant-a: #5fd3e8;
+  --tier-diamant-b: #9a8cf2;
+  --tier-diamant-glow: #5fd3e866;
+  --diamond-gradient: linear-gradient(90deg, var(--tier-diamant-a), var(--tier-diamant-b));
+
+  /* --- Typografie --- */
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-num: 'Space Mono', monospace;
+
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+}
