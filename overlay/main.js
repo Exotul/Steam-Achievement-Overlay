@@ -1,7 +1,8 @@
 const { ladeKonfiguration, schluesselFehlt, BENUTZER_CONFIG } = require('./lib/config');
 const konfig = ladeKonfiguration(__dirname);
 const path = require('path');
-const { app, BrowserWindow, Tray, Menu, screen, nativeImage, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, screen, nativeImage, shell, dialog, ipcMain } =
+  require('electron');
 const SteamClient = require('./lib/steamClient');
 const { ensureBackendRunning } = require('./lib/backendManager');
 const { LocalWatcher, findSteamPath } = require('./lib/localWatcher');
@@ -48,6 +49,7 @@ logger.info(`Konfiguration geladen aus ${konfig.quelle}`);
 if (konfig.uebernommen) {
   logger.info(`Bisherige .env nach ${konfig.benutzerConfig} übernommen - sie übersteht künftig Updates`);
 }
+const steamKey = require('./lib/steamKey');
 const SteamOverlayDetector = require('./lib/steamOverlayDetector');
 const {
   findVerifiedSource,
@@ -767,6 +769,7 @@ function buildTrayMenu(statusLine) {
     { label: 'Protokoll öffnen', click: () => shell.openPath(logger.logFile) },
     { label: 'Protokollordner öffnen', click: () => shell.openPath(logger.logDir) },
     { label: 'Steam-API-Schlüssel prüfen…', click: handleKeycheck },
+    { label: 'Steam-Schlüssel eintragen…', click: handleSchluesselEintragen },
     { label: 'Lokale Erkennung prüfen…', click: handleDiagnose },
     recorder
       ? { label: 'Aufzeichnung beenden und speichern', click: stopRecording }
@@ -1124,37 +1127,143 @@ async function handleDiagnose() {
  * Der Schluessel ist der EINZIGE Handgriff - das Sitzungsgeheimnis erzeugt
  * die App beim Anlegen der Konfiguration selbst.
  */
-async function zeigeEinrichtung() {
+let setupWindow = null;
+
+/**
+ * Einrichtungsfenster fuer den persoenlichen Steam-Schluessel.
+ *
+ * Warum ein eigenes Fenster und kein Systemdialog: Der Schluessel muss
+ * EINGEGEBEN werden, und dialog.showMessageBox kann keine Eingabe. Die
+ * Zwischenloesung - "oeffne diese Textdatei und ersetze den Platzhalter" -
+ * funktioniert, aber daran scheitert jeder, der die App nur benutzen und
+ * nicht selbst bauen will. Genau die Leute sollen sie benutzen koennen.
+ *
+ * Loest auf mit true, sobald ein Schluessel gespeichert wurde, sonst mit
+ * false (auf "Spaeter" geklickt oder Fenster geschlossen).
+ */
+function zeigeEinrichtung() {
+  return new Promise((fertig) => {
+    let erfolgreich = false;
+
+    setupWindow = new BrowserWindow({
+      width: 660,
+      height: 760,
+      resizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      title: 'Trophaeenschrank einrichten',
+      backgroundColor: '#171b23',
+      // Erst zeigen, wenn fertig gezeichnet - sonst blitzt ein weisses
+      // Fenster auf, und das ist der allererste Eindruck der App.
+      show: false,
+      autoHideMenuBar: true,
+      icon: path.join(__dirname, 'assets', 'app-icon.png'),
+      webPreferences: {
+        preload: path.join(__dirname, 'setup', 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    setupWindow.loadFile(path.join(__dirname, 'setup', 'setup.html'));
+    setupWindow.once('ready-to-show', () => setupWindow.show());
+
+    const behandler = {
+      'setup:konfig-pfad': () => steamKey.BENUTZER_CONFIG,
+
+      'setup:schluesselseite': () => {
+        shell.openExternal('https://steamcommunity.com/dev/apikey');
+        return true;
+      },
+
+      'setup:speichern': async (_e, eingabe) => {
+        // Format zuerst: kostet nichts und faengt den haeufigsten Fall ab
+        // (halb kopiert, Leerzeichen mitgenommen), ohne Steam zu fragen.
+        const form = steamKey.formatPruefen(eingabe);
+        if (!form.ok) return { ok: false, grund: form.grund };
+
+        const bei = await steamKey.beiSteamPruefen(form.schluessel);
+
+        // Kein Netz oder Steam gestoert: Der Schluessel kann trotzdem richtig
+        // sein. Ihn deswegen abzulehnen waere falsch - also speichern und
+        // ehrlich ins Protokoll schreiben, dass nicht geprueft werden konnte.
+        if (!bei.ok && !bei.unklar) return { ok: false, grund: bei.grund };
+
+        try {
+          steamKey.speichereSchluessel(form.schluessel);
+        } catch (err) {
+          return { ok: false, grund: 'Speichern fehlgeschlagen: ' + err.message };
+        }
+
+        if (bei.ok) {
+          logger.info('Steam-Schluessel eingerichtet und von Steam bestaetigt');
+        } else {
+          logger.warn('Steam-Schluessel gespeichert, aber nicht pruefbar: ' + bei.grund);
+        }
+
+        erfolgreich = true;
+        // Kurz stehen lassen, damit die Bestaetigung im Fenster lesbar ist.
+        setTimeout(schliessen, 900);
+        return { ok: true };
+      },
+
+      'setup:spaeter': () => {
+        schliessen();
+        return true;
+      },
+    };
+
+    // Die Behandler gelten nur, solange das Fenster offen ist. Ohne das
+    // scheitert ein zweiter Aufruf ueber das Tray-Menue mit "second handler
+    // for the same channel".
+    Object.entries(behandler).forEach(([kanal, fn]) => ipcMain.handle(kanal, fn));
+
+    function aufraeumen() {
+      Object.keys(behandler).forEach((kanal) => ipcMain.removeHandler(kanal));
+    }
+
+    function schliessen() {
+      if (setupWindow && !setupWindow.isDestroyed()) setupWindow.destroy();
+    }
+
+    setupWindow.on('closed', () => {
+      setupWindow = null;
+      aufraeumen();
+      fertig(erfolgreich);
+    });
+  });
+}
+
+/**
+ * Einrichtung aus dem Tray-Menue heraus, also bei bereits laufender App.
+ * Ein neuer Schluessel wirkt erst nach einem Neustart, weil das Backend ihn
+ * beim Starten als Umgebungsvariable mitbekommt - deshalb wird hier
+ * ausdruecklich danach gefragt.
+ */
+async function handleSchluesselEintragen() {
+  if (setupWindow && !setupWindow.isDestroyed()) {
+    setupWindow.focus();
+    return;
+  }
+
+  const gespeichert = await zeigeEinrichtung();
+  if (!gespeichert) return;
+
   const { response } = await dialog.showMessageBox({
     type: 'info',
-    title: 'Trophäenschrank einrichten',
-    message: 'Es fehlt noch dein persönlicher Steam-Schlüssel.',
+    title: 'Schluessel gespeichert',
+    message: 'Der Schluessel wurde uebernommen.',
     detail:
-      'Die App liest deine Achievements über Steams offizielle Schnittstelle.\n' +
-      'Dafür braucht jede Person einen eigenen Schlüssel - er ist kostenlos,\n' +
-      'in einer Minute geholt und darf nicht weitergegeben werden.\n\n' +
-      'So geht es:\n' +
-      '  1. "Schlüssel holen" anklicken - der Browser öffnet Steam.\n' +
-      '     Als Domain reicht ein beliebiger Text, z. B. localhost.\n' +
-      '  2. Den angezeigten Schlüssel kopieren (32 Zeichen).\n' +
-      '  3. "Konfiguration öffnen" anklicken - eine Textdatei geht auf.\n' +
-      '  4. Dort DEIN_STEAM_API_KEY durch den kopierten Schlüssel ersetzen,\n' +
-      '     speichern, und den Trophäenschrank neu starten.\n\n' +
-      'Die Datei liegt unter:\n' +
-      BENUTZER_CONFIG +
-      '\n\nSie übersteht Updates und das Deinstallieren.',
-    buttons: ['Schlüssel holen', 'Konfiguration öffnen', 'Später'],
+      'Damit er ueberall greift, muss der Trophaeenschrank einmal neu starten.\n' +
+      'Anmeldung, Verlauf und Einstellungen bleiben dabei erhalten.',
+    buttons: ['Jetzt neu starten', 'Spaeter'],
     defaultId: 0,
-    cancelId: 2,
+    cancelId: 1,
   });
 
   if (response === 0) {
-    shell.openExternal('https://steamcommunity.com/dev/apikey');
-    // Gleich hinterher die Datei oeffnen - sonst muesste man den Dialog
-    // erneut aufrufen, nur um an die zweite Haelfte zu kommen.
-    setTimeout(() => shell.openPath(BENUTZER_CONFIG), 1500);
-  } else if (response === 1) {
-    shell.openPath(BENUTZER_CONFIG);
+    app.relaunch();
+    app.exit(0);
   }
 }
 
@@ -1167,6 +1276,21 @@ function createTray() {
 app.whenReady().then(async () => {
   createOverlayWindow();
   createTray();
+  // Der Schluessel wird VOR dem Backend gebraucht: Es bekommt ihn beim
+  // Starten als Umgebungsvariable mit. Liefe die Einrichtung erst danach,
+  // arbeitete das Backend die ganze Sitzung ohne Schluessel weiter und die
+  // App muesste doch neu gestartet werden.
+  if (schluesselFehlt()) {
+    logger.warn('Kein Steam-API-Schlüssel gesetzt - Einrichtung wird angeboten');
+    updateTrayStatus('Einrichtung - Steam-Schlüssel fehlt');
+    const eingerichtet = await zeigeEinrichtung();
+    if (!eingerichtet) {
+      updateTrayStatus('Einrichtung offen - im Tray-Menü nachholbar');
+      logger.info('Einrichtung übersprungen - App wartet auf den Schlüssel');
+      return;
+    }
+  }
+
   tray.setToolTip('Trophäenschrank Overlay\nStarte Backend…');
 
   try {
@@ -1196,15 +1320,6 @@ app.whenReady().then(async () => {
     setTimeout(() => updater.jetztPruefen({ stillWennAktuell: true }), 20000);
     // Danach alle sechs Stunden erneut.
     setInterval(() => updater.jetztPruefen({ stillWennAktuell: true }), 6 * 60 * 60 * 1000);
-  }
-
-  // Ohne Schluessel hat eine Anmeldung keine Aussicht auf Erfolg - dann
-  // lieber einmal sauber durch die Einrichtung fuehren.
-  if (schluesselFehlt()) {
-    logger.warn('Kein Steam-API-Schlüssel gesetzt - Einrichtung wird angeboten');
-    updateTrayStatus('Einrichtung nötig - Steam-Schlüssel fehlt');
-    await zeigeEinrichtung();
-    return;
   }
 
   try {

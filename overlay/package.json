@@ -25,6 +25,7 @@
       "main.js",
       "lib/**/*",
       "overlay/**/*",
+      "setup/**/*",
       "assets/**/*"
     ],
     "extraResources": [

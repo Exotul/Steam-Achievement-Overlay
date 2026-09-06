@@ -1,0 +1,300 @@
+/*
+ * Gestaltung des Einrichtungsfensters.
+ *
+ * Bewusst dieselben Farben und Rundungen wie die Meldungen des Overlays und
+ * das Dashboard (siehe frontend/src/styles/tokens.css). Es ist der erste
+ * Eindruck der App - er soll aussehen, als gehoere er dazu, und nicht wie
+ * ein Systemdialog, den jemand vergessen hat.
+ *
+ * Schriften bewusst aus dem System statt aus dem Netz: Beim allerersten Start
+ * ist noch nicht gesagt, dass eine Verbindung steht, und ein Fenster, das
+ * seine Schrift nachlaedt, springt sichtbar um.
+ */
+
+:root {
+  --bg: #171b23;
+  --bg-raised: #1e232d;
+  --bg-inset: #12151c;
+  --ink: #e8eaf0;
+  --ink-dim: #9aa1b0;
+  --ink-faint: #5f6675;
+  --hairline: #2b313d;
+  --akzent: #8b93e0;
+  --gut: #6bd39a;
+  --schlecht: #e07a7a;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  /* Kein Textmarkieren am Fensterrand - wirkt sonst wie eine Webseite. */
+  user-select: none;
+}
+
+.karte {
+  padding: 30px 34px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.kopf__logo {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  color: var(--akzent);
+  background: rgba(139, 147, 224, 0.12);
+  border: 1px solid rgba(139, 147, 224, 0.25);
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.kopf__unter {
+  margin: 2px 0 0;
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+
+/* ---------- Textbloecke ---------- */
+
+.block p {
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+
+.schritte {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+
+.schritte li::marker {
+  color: var(--ink-faint);
+}
+
+.schritte em {
+  color: var(--ink);
+  font-style: normal;
+  font-weight: 600;
+}
+
+code {
+  font-family: 'Consolas', 'Space Mono', monospace;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+}
+
+/* ---------- Eingabefeld ---------- */
+
+.feldbeschriftung {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.feld {
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--hairline);
+  background: var(--bg-inset);
+  color: var(--ink);
+  font-family: 'Consolas', 'Space Mono', monospace;
+  font-size: 15px;
+  letter-spacing: 1.4px;
+  user-select: text;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.feld::placeholder {
+  color: #464c59;
+  letter-spacing: 1px;
+}
+
+.feld:focus {
+  outline: none;
+  border-color: var(--akzent);
+  box-shadow: 0 0 0 3px rgba(139, 147, 224, 0.18);
+}
+
+.feld--fehler {
+  border-color: var(--schlecht);
+}
+
+.feld--fehler:focus {
+  box-shadow: 0 0 0 3px rgba(224, 122, 122, 0.18);
+}
+
+/* ---------- Rueckmeldung ---------- */
+
+.meldung {
+  min-height: 34px;
+  margin: 9px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+}
+
+.meldung--fehler {
+  color: var(--schlecht);
+}
+
+.meldung--gut {
+  color: var(--gut);
+}
+
+/* ---------- Datenschutzhinweis ---------- */
+
+.hinweis {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  border: 1px solid var(--hairline);
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+}
+
+.hinweis strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.hinweis__symbol {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--gut);
+}
+
+.hinweis__pfad {
+  display: block;
+  margin-top: 7px;
+  font-family: 'Consolas', 'Space Mono', monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  user-select: text;
+  word-break: break-all;
+}
+
+/* ---------- Knoepfe ---------- */
+
+.fuss {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.knopf {
+  position: relative;
+  padding: 11px 22px;
+  border-radius: var(--radius-m);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.knopf--haupt {
+  background: var(--akzent);
+  color: #12151c;
+  min-width: 128px;
+}
+
+.knopf--haupt:hover:not(:disabled) {
+  background: #9aa1e8;
+}
+
+.knopf--leise {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--ink-dim);
+}
+
+.knopf--leise:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+.knopf:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Der Wartekringel liegt UEBER dem Text, damit der Knopf beim Pruefen nicht
+   seine Breite aendert und die Fussleiste springt. */
+.knopf__spinner {
+  display: none;
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(18, 21, 28, 0.3);
+  border-top-color: #12151c;
+  border-radius: 50%;
+  animation: dreht 0.7s linear infinite;
+}
+
+.knopf--laeuft .knopf__text {
+  visibility: hidden;
+}
+
+.knopf--laeuft .knopf__spinner {
+  display: block;
+}
+
+@keyframes dreht {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Wer Bewegung reduziert haben moechte, bekommt keinen rotierenden Kringel. */
+@media (prefers-reduced-motion: reduce) {
+  .knopf__spinner {
+    animation: none;
+  }
+}
