@@ -2,6 +2,26 @@
 
 ## Noch nicht veröffentlicht
 
+### Erststart auf einem fremden Rechner
+
+Eine frisch installierte App war für jeden unbenutzbar, der sie nicht selbst
+gebaut hat. Es fehlte der persönliche Steam-Schlüssel, es entstand keine
+Konfigurationsdatei, und die Fehlermeldung verwies auf `overlay\.env` - eine
+Datei, die es in einer installierten Fassung gar nicht gibt. Damit war die App
+nicht weitergebbar.
+
+- Beim ersten Start entsteht jetzt `~/.trophaenschrank/config.env` mit
+  erklärendem Text und einem erkennbaren Platzhalter für den Schlüssel.
+- Das Sitzungsgeheimnis wird dabei zufällig erzeugt. Der Steam-Schlüssel ist
+  damit der einzige Handgriff, der bleibt.
+- Fehlt er, führt ein Dialog beim Start durch die Einrichtung: ein Knopf
+  öffnet Steams Schlüsselseite, einer die Konfigurationsdatei.
+- Alle Fehlermeldungen nennen jetzt den tatsächlichen Pfad.
+
+Eine bereits vorhandene Konfiguration wird dabei nie überschrieben - dafür
+gibt es einen eigenen Test.
+
+
 ### XP fühlt sich jetzt nach etwas an
 
 Der Fortschrittsbalken bewegte sich bei einer gewachsenen Sammlung praktisch

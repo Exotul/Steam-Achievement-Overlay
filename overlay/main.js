@@ -1,4 +1,4 @@
-const { ladeKonfiguration } = require('./lib/config');
+const { ladeKonfiguration, schluesselFehlt, BENUTZER_CONFIG } = require('./lib/config');
 const konfig = ladeKonfiguration(__dirname);
 const path = require('path');
 const { app, BrowserWindow, Tray, Menu, screen, nativeImage, shell, dialog } = require('electron');
@@ -837,7 +837,7 @@ async function handleLogin() {
           type: 'warning',
           title: 'Anmeldung fehlgeschlagen',
           message: 'Vermutliche Ursache: der Steam-API-Schlüssel.',
-          detail: `${pruefung.grund}\n\nZu prüfen in overlay\\.env, Zeile STEAM_API_KEY=...`,
+          detail: `${pruefung.grund}\n\nZu prüfen in:\n${BENUTZER_CONFIG}\nZeile STEAM_API_KEY=...`,
           buttons: ['OK'],
         });
       }
@@ -1111,6 +1111,53 @@ async function handleDiagnose() {
   });
 }
 
+/**
+ * Begruesst jemanden, der die App zum ersten Mal startet.
+ *
+ * Ohne das stand ein frisch installierter Trophaeenschrank einfach da und tat
+ * nichts: Es fehlt der persoenliche Steam-Schluessel, und der kann auch nicht
+ * mitgeliefert werden - er ist geheim und haengt am Konto dessen, der ihn
+ * geholt hat. Frueher verwies die Fehlermeldung dafuer auf die Datei
+ * overlay/.env, die es in einer installierten Fassung gar nicht gibt. Wer die
+ * App nicht selbst gebaut hatte, war damit chancenlos.
+ *
+ * Der Schluessel ist der EINZIGE Handgriff - das Sitzungsgeheimnis erzeugt
+ * die App beim Anlegen der Konfiguration selbst.
+ */
+async function zeigeEinrichtung() {
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'Trophäenschrank einrichten',
+    message: 'Es fehlt noch dein persönlicher Steam-Schlüssel.',
+    detail:
+      'Die App liest deine Achievements über Steams offizielle Schnittstelle.\n' +
+      'Dafür braucht jede Person einen eigenen Schlüssel - er ist kostenlos,\n' +
+      'in einer Minute geholt und darf nicht weitergegeben werden.\n\n' +
+      'So geht es:\n' +
+      '  1. "Schlüssel holen" anklicken - der Browser öffnet Steam.\n' +
+      '     Als Domain reicht ein beliebiger Text, z. B. localhost.\n' +
+      '  2. Den angezeigten Schlüssel kopieren (32 Zeichen).\n' +
+      '  3. "Konfiguration öffnen" anklicken - eine Textdatei geht auf.\n' +
+      '  4. Dort DEIN_STEAM_API_KEY durch den kopierten Schlüssel ersetzen,\n' +
+      '     speichern, und den Trophäenschrank neu starten.\n\n' +
+      'Die Datei liegt unter:\n' +
+      BENUTZER_CONFIG +
+      '\n\nSie übersteht Updates und das Deinstallieren.',
+    buttons: ['Schlüssel holen', 'Konfiguration öffnen', 'Später'],
+    defaultId: 0,
+    cancelId: 2,
+  });
+
+  if (response === 0) {
+    shell.openExternal('https://steamcommunity.com/dev/apikey');
+    // Gleich hinterher die Datei oeffnen - sonst muesste man den Dialog
+    // erneut aufrufen, nur um an die zweite Haelfte zu kommen.
+    setTimeout(() => shell.openPath(BENUTZER_CONFIG), 1500);
+  } else if (response === 1) {
+    shell.openPath(BENUTZER_CONFIG);
+  }
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-icon.png'));
   tray = new Tray(icon);
@@ -1149,6 +1196,15 @@ app.whenReady().then(async () => {
     setTimeout(() => updater.jetztPruefen({ stillWennAktuell: true }), 20000);
     // Danach alle sechs Stunden erneut.
     setInterval(() => updater.jetztPruefen({ stillWennAktuell: true }), 6 * 60 * 60 * 1000);
+  }
+
+  // Ohne Schluessel hat eine Anmeldung keine Aussicht auf Erfolg - dann
+  // lieber einmal sauber durch die Einrichtung fuehren.
+  if (schluesselFehlt()) {
+    logger.warn('Kein Steam-API-Schlüssel gesetzt - Einrichtung wird angeboten');
+    updateTrayStatus('Einrichtung nötig - Steam-Schlüssel fehlt');
+    await zeigeEinrichtung();
+    return;
   }
 
   try {

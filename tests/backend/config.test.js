@@ -24,6 +24,94 @@ function ladeModul(datenOrdner) {
   return require('../../overlay/lib/config');
 }
 
+/**
+ * Der Erststart auf einem fremden Rechner. Vorher gab es hier gar nichts:
+ * Wer die App installierte statt sie selbst zu bauen, bekam keine
+ * Konfigurationsdatei - und eine Fehlermeldung, die auf eine Datei im
+ * Programmordner verwies, die dort nie lag. Die App war damit unbenutzbar
+ * für jeden, der sie nicht selbst entwickelt hatte.
+ */
+test('Erststart ohne alles legt eine Konfiguration mit Platzhalter an', () => {
+  const dir = frischerOrdner('erststart');
+  const daten = path.join(dir, 'daten');
+
+  const config = ladeModul(daten);
+  delete process.env.STEAM_API_KEY;
+  delete process.env.SESSION_SECRET;
+  const ergebnis = config.ladeKonfiguration(path.join(dir, 'programm'));
+
+  assert.strictEqual(ergebnis.neuAngelegt, true, 'eine Vorlage muss entstehen');
+  const datei = path.join(daten, 'config.env');
+  assert.ok(fs.existsSync(datei), 'die Datei muss im Benutzerordner liegen');
+
+  const inhalt = fs.readFileSync(datei, 'utf8');
+  assert.ok(inhalt.includes('DEIN_STEAM_API_KEY'), 'Platzhalter muss erkennbar sein');
+  assert.ok(
+    inhalt.includes('steamcommunity.com/dev/apikey'),
+    'die Datei muss sagen, wo der Schlüssel herkommt'
+  );
+
+  // Das Sitzungsgeheimnis erzeugt die App selbst - dafür soll sich niemand
+  // etwas ausdenken müssen. Es muss zufällig und lang genug sein.
+  const geheim = inhalt.match(/SESSION_SECRET=(.+)/)[1].trim();
+  assert.ok(geheim.length >= 32, `Sitzungsgeheimnis zu kurz: ${geheim.length}`);
+  assert.notStrictEqual(geheim, 'DEIN_STEAM_API_KEY');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Zwei Erststarts erzeugen verschiedene Sitzungsgeheimnisse', () => {
+  const lies = (name) => {
+    const dir = frischerOrdner(name);
+    const daten = path.join(dir, 'daten');
+    ladeModul(daten).ladeKonfiguration(path.join(dir, 'programm'));
+    const inhalt = fs.readFileSync(path.join(daten, 'config.env'), 'utf8');
+    fs.rmSync(dir, { recursive: true, force: true });
+    return inhalt.match(/SESSION_SECRET=(.+)/)[1].trim();
+  };
+  assert.notStrictEqual(lies('zufall-a'), lies('zufall-b'), 'darf nicht fest verdrahtet sein');
+});
+
+test('Eine vorhandene Konfiguration wird beim Erststart NIE überschrieben', () => {
+  const dir = frischerOrdner('nicht-ueberschreiben');
+  const daten = path.join(dir, 'daten');
+  fs.mkdirSync(daten, { recursive: true });
+  fs.writeFileSync(path.join(daten, 'config.env'), 'STEAM_API_KEY=MEINECHTER\n', 'utf8');
+
+  const config = ladeModul(daten);
+  const ergebnis = config.ladeKonfiguration(path.join(dir, 'programm'));
+
+  assert.strictEqual(ergebnis.neuAngelegt, false, 'nichts anlegen, wenn schon etwas da ist');
+  assert.strictEqual(
+    fs.readFileSync(path.join(daten, 'config.env'), 'utf8').trim(),
+    'STEAM_API_KEY=MEINECHTER',
+    'der bestehende Schlüssel muss unangetastet bleiben'
+  );
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('schluesselFehlt erkennt Platzhalter und Leerwerte', () => {
+  const dir = frischerOrdner('erkennung');
+  const config = ladeModul(path.join(dir, 'daten'));
+
+  delete process.env.STEAM_API_KEY;
+  assert.strictEqual(config.schluesselFehlt(), true, 'gar kein Schlüssel');
+
+  process.env.STEAM_API_KEY = 'DEIN_STEAM_API_KEY';
+  assert.strictEqual(config.schluesselFehlt(), true, 'noch der Platzhalter');
+
+  // Der Text "undefined" entsteht, wenn Windows eine leere Variable weiterreicht.
+  process.env.STEAM_API_KEY = 'undefined';
+  assert.strictEqual(config.schluesselFehlt(), true, 'als Text weitergereichtes undefined');
+
+  process.env.STEAM_API_KEY = '0123456789abcdef0123456789abcdef';
+  assert.strictEqual(config.schluesselFehlt(), false, 'echter Schlüssel');
+
+  delete process.env.STEAM_API_KEY;
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('Eine vorhandene .env aus dem Programmordner wird einmalig übernommen', () => {
   const dir = frischerOrdner('uebernahme');
   const programm = path.join(dir, 'programm');
