@@ -228,20 +228,35 @@ er gehört **nicht** in eine Datei im Projekt.
 
 ## Schritt 9: Erste Fassung veröffentlichen
 
-In der Eingabeaufforderung, im `overlay`-Ordner:
+In **PowerShell** (die Standard-Konsole in VS Code), im `overlay`-Ordner:
 
-```
-E:
-cd Steam_achievement_app\steam-achievements-app\overlay
-set GH_TOKEN=hier_dein_kopierter_schluessel
-npm run release
+```powershell
+cd E:\Steam_achievement_app\steam-achievements-app\overlay
+$env:GH_TOKEN = "hier_dein_kopierter_schluessel"
+npm.cmd run release
 ```
 
 Das baut den Installer und lädt ihn als Release hoch. Dauert einige Minuten.
 
-**Wichtig zu `set`:** Der Schlüssel gilt nur in diesem einen Fenster. Machst
-du es zu, musst du ihn beim nächsten Mal erneut setzen. Das ist gewollt – so
-liegt er nirgends dauerhaft herum.
+**Vorher prüfen, ob der Schlüssel wirklich angekommen ist:**
+
+```powershell
+$env:GH_TOKEN.Length
+```
+
+Kommt eine Zahl um die 40, passt es. Kommt `0`, ist die Variable leer - dann
+bricht das Veröffentlichen mit "GitHub Personal Access Token is not set" ab.
+
+**Die häufigste Falle:** In der Eingabeaufforderung (`cmd.exe`) setzt man
+Umgebungsvariablen mit `set GH_TOKEN=...`. In PowerShell bedeutet `set` etwas
+völlig anderes - es ist dort ein Kurzname für `Set-Variable` und legt eine
+gewöhnliche PowerShell-Variable an, die buchstäblich `GH_TOKEN=dein_token`
+heißt. Das passiert **ohne jede Fehlermeldung**, und die Umgebungsvariable
+bleibt leer. Deshalb hier immer `$env:GH_TOKEN = "..."` mit Anführungszeichen.
+
+**Der Schlüssel gilt nur in diesem einen Fenster.** Machst du es zu, musst du
+ihn beim nächsten Mal erneut setzen. Das ist gewollt - so liegt er nirgends
+dauerhaft herum. Schreib ihn deshalb auch nie in eine Datei im Projekt.
 
 Danach auf `https://github.com/Exotul/Steam-Achievement-Overlay/releases` nachsehen:
 Dort sollte **v1.0.0** stehen, mit der `.exe` als Anhang.
@@ -265,8 +280,8 @@ Sobald wir etwas ändern:
 git add .
 git commit -m "Kurze Beschreibung der Änderung"
 git push
-set GH_TOKEN=dein_schluessel
-npm run release
+$env:GH_TOKEN = "dein_schluessel"
+npm.cmd run release
 ```
 
 Installierte Fassungen finden das Update beim nächsten Start von selbst –
@@ -293,8 +308,18 @@ Beim Hochladen erwartet GitHub nicht dein Passwort, sondern den Token aus
 Schritt 8. Bei der Abfrage: Benutzername normal, als Passwort den Token.
 
 **`npm run release` bricht mit "GitHub Personal Access Token is not set" ab**
-Das `set GH_TOKEN=...` fehlt oder du bist in einem neuen Fenster. Nochmal
-setzen.
+Fast immer die `set`-Falle: In PowerShell ist `set` ein Kurzname für
+`Set-Variable` und setzt **keine** Umgebungsvariable - es legt still eine
+PowerShell-Variable namens `GH_TOKEN=dein_token` an, ohne einen Fehler zu
+melden. Richtig ist:
+
+```powershell
+$env:GH_TOKEN = "dein_token"
+$env:GH_TOKEN.Length      # muss eine Zahl um die 40 zeigen, nicht 0
+```
+
+Sonst: Die Variable gilt nur in dem Fenster, in dem du sie gesetzt hast -
+in einem neuen Fenster nochmal setzen.
 
 **"Die Datei npm.ps1 kann nicht geladen werden, da die Ausführung von Skripts
 auf diesem System deaktiviert ist"**
@@ -352,4 +377,4 @@ git push
 ```
 
 Und fürs Veröffentlichen zusätzlich Versionsnummer erhöhen und
-`npm run release`.
+`$env:GH_TOKEN = "..."` und `npm.cmd run release`.
