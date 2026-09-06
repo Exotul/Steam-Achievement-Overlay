@@ -394,10 +394,15 @@ function showXpToast(xp) {
   el.className = `xp-toast${xp.levelUp ? ' xp-toast--levelup' : ''}`;
 
   // Balken: von der Position vor dem Achievement zur neuen Position.
-  const vonProzent = xp.levelUp
-    ? 100
-    : Math.round((xp.vorherXpIntoLevel / xp.vorherXpForThisLevel) * 100);
-  const bisProzent = Math.round((xp.xpIntoLevel / xp.xpForThisLevel) * 100);
+  //
+  // NICHT auf ganze Prozent runden. Genau das stand hier vorher und hat den
+  // Balken bei kleinen Zuwaechsen komplett stillstehen lassen: 8,91 % und
+  // 9,29 % runden beide auf 9, die Animation lief also von 9 % nach 9 %.
+  // Aus Sicht des Spielers hat ein errungenes Achievement dann gar nichts
+  // bewirkt - der teuerste Moment der ganzen App, verschenkt an Math.round.
+  const anteil = (drin, noetig) => (noetig > 0 ? (drin / noetig) * 100 : 0);
+  const vonProzent = xp.levelUp ? 100 : anteil(xp.vorherXpIntoLevel, xp.vorherXpForThisLevel);
+  const bisProzent = anteil(xp.xpIntoLevel, xp.xpForThisLevel);
 
   el.innerHTML = `
     <div class="xp-toast__level">

@@ -2,11 +2,12 @@ const steamApi = require('./steamApi');
 const cache = require('./cache');
 const queue = require('./steamQueue');
 
-// XP-Formel wie im Dashboard: Kupfer 1x, Silber 2x, Gold 3x, Platin 4x,
-// jeweils mal (100 - Prozentsatz). Bewusst hier gespiegelt, damit die
-// Berechnung fuer Freunde serverseitig laufen kann - sonst muessten alle
-// Achievement-Listen aller Freunde zum Browser uebertragen werden.
-const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2, Gold: 3, Platin: 4 };
+// Frueher stand hier eine EIGENE Kopie der Stufenfaktoren. Sie ist beim
+// Anpassen der Kurve prompt uebersehen worden, wodurch Freundesprofile mit
+// anderen Faktoren gerechnet haetten als das eigene Profil. Jetzt aus der
+// einen maessgeblichen Quelle - dieses Modul hat ohnehin Netzwerkzugriff,
+// die Abhaengigkeit kostet also nichts.
+const { TIER_MULTIPLIER } = require('./xpMath');
 
 // Wie viele Spiele eines Profils gleichzeitig abgefragt werden. Bewusst
 // niedrig: Bei Freunden geht es um Vollstaendigkeit, nicht um Tempo, und die

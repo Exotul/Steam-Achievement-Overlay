@@ -7,15 +7,46 @@
  * Dashboard unbemerkt verschiedene Level.
  */
 
-const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2, Gold: 3, Platin: 4 };
+/**
+ * Wird an alle Zwischenspeicher-Schlüssel gehängt, die XP-Werte enthalten.
+ *
+ * Ohne das würden nach einer Änderung an der Formel bis zu zwölf Stunden lang
+ * die alten, mit der alten Formel berechneten Werte weiterbenutzt - der Level
+ * bliebe scheinbar unverändert, und man würde den Fehler in der Formel suchen
+ * statt im Zwischenspeicher. Bei jeder Änderung unten hochzählen.
+ */
+const FORMEL_VERSION = 2;
+
+// Stufenfaktoren. Kupfer bleibt der Grundwert, die selteneren Stufen sind
+// gegenüber der ersten Fassung (1/2/3/4) stärker gespreizt.
+const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2.5, Gold: 4, Platin: 6 };
 
 /** XP eines einzelnen freigeschalteten Achievements. */
 function achievementXp(category, globalPercent) {
   return (TIER_MULTIPLIER[category] || 1) * (100 - globalPercent);
 }
 
+/**
+ * Kosten einer Levelstufe.
+ *
+ * Die erste Fassung war `90 * level^1.55`. Der Exponent war das Problem:
+ * Die Levelkosten wuchsen weit schneller als eine Sammlung wächst. An einer
+ * echten Sammlung nachgemessen (2.177 Trophäen, Level 28): Eine Stufe kostete
+ * dort 15.752 XP, während eine durchschnittliche Silbertrophäe 154 XP brachte
+ * - **ein Prozent**. Der Fortschrittsbalken stand faktisch still, und je
+ * weiter jemand kam, desto schlimmer wurde es. Genau das ist das Gegenteil
+ * dessen, was eine Levelkurve leisten soll.
+ *
+ * Der flachere Exponent dreht das um: Die Kosten steigen noch, aber langsam
+ * genug, dass eine einzelne Trophäe sichtbar bleibt. Dieselbe Sammlung liegt
+ * damit bei Level 52, eine Stufe kostet rund 6.400 XP, und eine Silbertrophäe
+ * bewegt den Balken um 3 %, eine Platintrophäe um 9 %.
+ *
+ * Der höhere Grundwert hält dabei die ersten Level davon ab, im Sekundentakt
+ * durchzurauschen - Stufe 1 kostet weiterhin etwa zehn Kupfertrophäen.
+ */
 function xpRequiredForLevel(level) {
-  return Math.round(90 * Math.pow(level, 1.55));
+  return Math.round(400 * Math.pow(level, 0.7));
 }
 
 function getLevelProgress(totalXp) {
@@ -37,4 +68,10 @@ function getLevelProgress(totalXp) {
   }
 }
 
-module.exports = { TIER_MULTIPLIER, achievementXp, xpRequiredForLevel, getLevelProgress };
+module.exports = {
+  FORMEL_VERSION,
+  TIER_MULTIPLIER,
+  achievementXp,
+  xpRequiredForLevel,
+  getLevelProgress,
+};

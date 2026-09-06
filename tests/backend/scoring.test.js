@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const path = require('node:path');
+const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 
 // Bewusst die reinen Rechenmodule, nicht steamApi/xpSummary: Diese Tests
@@ -98,10 +99,17 @@ test('Ohne verwertbare Prozentsätze gibt es keinen Wert statt eines erfundenen'
 // --- XP und Level ------------------------------------------------------------
 
 test('XP eines Achievements folgt Stufenfaktor mal (100 - Prozent)', () => {
-  assert.strictEqual(xp.achievementXp('Kupfer', 88), 12);
-  assert.strictEqual(xp.achievementXp('Silber', 44), 112);
-  assert.strictEqual(xp.achievementXp('Gold', 12), 264);
-  assert.ok(Math.abs(xp.achievementXp('Platin', 2.4) - 390.4) < 0.001);
+  // Bewusst gegen TIER_MULTIPLIER gerechnet statt gegen feste Zahlen: Die
+  // Faktoren sind eine Stellschraube am Spielgefühl und dürfen sich ändern,
+  // ohne dass ein Test scheitert. Die FORM der Formel darf sich nicht ändern -
+  // genau die prüft dieser Test.
+  const M = xp.TIER_MULTIPLIER;
+  assert.strictEqual(xp.achievementXp('Kupfer', 88), M.Kupfer * 12);
+  assert.strictEqual(xp.achievementXp('Silber', 44), M.Silber * 56);
+  assert.strictEqual(xp.achievementXp('Gold', 12), M.Gold * 88);
+  assert.ok(Math.abs(xp.achievementXp('Platin', 2.4) - M.Platin * 97.6) < 0.001);
+  // Unbekannte Stufe faellt auf den Grundwert zurueck, statt NaN zu liefern.
+  assert.strictEqual(xp.achievementXp('Unbekannt', 40), 60);
 });
 
 test('Level steigt monoton und der Rest passt zur Stufe', () => {
@@ -120,6 +128,96 @@ test('Level steigt monoton und der Rest passt zur Stufe', () => {
  * Overlay und Dashboard verschiedene Level für denselben Stand, ohne dass es
  * jemandem auffällt.
  */
+/**
+ * Die Stufenfaktoren und die Kurve liegen ein DRITTES Mal in overlay/main.js -
+ * dort, damit der XP-Zuwachs eines Achievements ohne Steam-Abfrage berechnet
+ * werden kann. Diese Datei laesst sich hier nicht laden (sie zieht Electron
+ * nach), deshalb wird ihr Quelltext gelesen und mit den maessgeblichen Werten
+ * verglichen. Unschoen, aber die Alternative ist, dass die Kopie unbemerkt
+ * auseinanderlaeuft - dann zeigt das Overlay beim Achievement einen anderen
+ * Level als das Dashboard eine Sekunde spaeter.
+ */
+test('Overlay verwendet dieselben Stufenfaktoren wie das Backend', () => {
+  const quelle = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'overlay', 'main.js'),
+    'utf8'
+  );
+
+  const treffer = quelle.match(/const TIER_MULTIPLIER = \{([^}]*)\}/);
+  assert.ok(treffer, 'TIER_MULTIPLIER muss in overlay/main.js stehen');
+
+  const ausOverlay = {};
+  treffer[1].split(',').forEach((teil) => {
+    const [name, wert] = teil.split(':').map((t) => t.trim());
+    if (name) ausOverlay[name] = Number(wert);
+  });
+
+  assert.deepStrictEqual(
+    ausOverlay,
+    xp.TIER_MULTIPLIER,
+    'Stufenfaktoren in overlay/main.js weichen von xpMath.js ab'
+  );
+});
+
+test('Overlay verwendet dieselbe Level-Kurve wie das Backend', () => {
+  const quelle = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'overlay', 'main.js'),
+    'utf8'
+  );
+  const treffer = quelle.match(/Math\.round\((\d+(?:\.\d+)?) \* Math\.pow\(level, (\d+(?:\.\d+)?)\)\)/);
+  assert.ok(treffer, 'Level-Kurve muss in overlay/main.js stehen');
+
+  // Gegen die maessgebliche Fassung rechnen statt Zahlen zu vergleichen:
+  // So faellt auch auf, wenn jemand die Form der Formel aendert.
+  const [, basis, exponent] = treffer;
+  for (const level of [1, 5, 17, 40, 80]) {
+    assert.strictEqual(
+      Math.round(Number(basis) * Math.pow(level, Number(exponent))),
+      xp.xpRequiredForLevel(level),
+      `Kurve weicht bei Level ${level} ab`
+    );
+  }
+});
+
+/**
+ * Der eigentliche Zweck der Kurve, als Test formuliert.
+ *
+ * Die erste Fassung (90 * level^1.55) hat diesen Zweck verfehlt: Bei einer
+ * gewachsenen Sammlung kostete eine Stufe 15.752 XP, waehrend eine mittlere
+ * Silbertrophaee 154 XP brachte - ein Prozent, zusammen mit einer Rundung auf
+ * ganze Prozent in der Anzeige also gar nichts. Dieser Test haelt fest, dass
+ * eine Trophaee spuerbar bleibt, auch wenn jemand schon lange sammelt.
+ */
+test('Eine Trophäe bewegt den Balken auch bei großer Sammlung spürbar', () => {
+  // Nachgemessen an einer echten Sammlung: 2.177 Trophäen, gut 196.000 XP.
+  const stand = xp.getLevelProgress(196000);
+
+  const silber = xp.achievementXp('Silber', 23); // mittlere Silbertrophäe
+  const platin = xp.achievementXp('Platin', 2);
+
+  const anteilSilber = (silber / stand.xpForThisLevel) * 100;
+  const anteilPlatin = (platin / stand.xpForThisLevel) * 100;
+
+  assert.ok(
+    anteilSilber >= 2,
+    `Silber bewegt den Balken nur um ${anteilSilber.toFixed(2)} % (mindestens 2 % erwartet)`
+  );
+  assert.ok(
+    anteilPlatin >= 6,
+    `Platin bewegt den Balken nur um ${anteilPlatin.toFixed(2)} % (mindestens 6 % erwartet)`
+  );
+  // Gegenprobe: Die Level sollen dabei nicht ins Absurde laufen.
+  assert.ok(stand.level < 100, `Level ${stand.level} ist zu hoch für diese Sammlung`);
+});
+
+test('Seltenere Stufen bringen mehr XP als häufigere', () => {
+  // Gleicher Prozentsatz, nur die Stufe unterscheidet sich.
+  const werte = ['Kupfer', 'Silber', 'Gold', 'Platin'].map((s) => xp.achievementXp(s, 10));
+  for (let i = 1; i < werte.length; i++) {
+    assert.ok(werte[i] > werte[i - 1], `${werte[i]} muss größer als ${werte[i - 1]} sein`);
+  }
+});
+
 test('Backend und Dashboard verwenden dieselbe Level-Kurve', async () => {
   // pathToFileURL statt des blossen Pfades: Unter Windows haelt import()
   // einen absoluten Pfad wie "e:\..." fuer ein Protokoll und bricht ab -

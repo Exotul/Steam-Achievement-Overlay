@@ -1,8 +1,13 @@
-// Das benötigte XP pro Level wächst überproportional, damit hohe Level
-// etwas bedeuten. Die konkreten Zahlen sind ein sinnvoller Startwert -
-// falls Markus die Progression anders spüren möchte, hier justieren.
+// ACHTUNG: Diese Kurve liegt gespiegelt in backend/services/xpMath.js.
+// Laufen beide auseinander, zeigen Overlay und Dashboard verschiedene Level
+// für denselben Stand - ein Test in tests/backend/scoring.test.js vergleicht
+// sie deshalb. Bei Änderungen BEIDE Dateien anfassen.
+//
+// Der Exponent war ursprünglich 1.55 und liess die Levelkosten weit schneller
+// wachsen als eine Sammlung wächst: Bei Level 28 kostete eine Stufe 15.752 XP,
+// eine durchschnittliche Silbertrophäe brachte 154 - der Balken stand still.
 function xpRequiredForLevel(level) {
-  return Math.round(90 * Math.pow(level, 1.55));
+  return Math.round(400 * Math.pow(level, 0.7));
 }
 
 export function getLevelProgress(totalXp) {

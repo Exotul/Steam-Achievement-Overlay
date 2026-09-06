@@ -104,7 +104,8 @@ let letzterStand = null; // { unlockedCount, totalCount } des verfolgten Spiels
 // Ein einzelnes Achievement bringt einen berechenbaren Zuwachs - dafuer
 // muss die Bibliothek nicht erneut durchgegangen werden.
 let xpStand = null; // { level, xpIntoLevel, xpForThisLevel, totalXp }
-const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2, Gold: 3, Platin: 4 };
+// Gespiegelt aus backend/services/xpMath.js - bei Änderungen dort mitziehen.
+const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2.5, Gold: 4, Platin: 6 };
 
 function xpFuer(achievement) {
   return (TIER_MULTIPLIER[achievement.category] || 1) * (100 - achievement.globalPercent);
@@ -112,7 +113,7 @@ function xpFuer(achievement) {
 
 // Dieselbe Kurve wie im Backend und im Dashboard.
 function xpFuerLevel(level) {
-  return Math.round(90 * Math.pow(level, 1.55));
+  return Math.round(400 * Math.pow(level, 0.7));
 }
 
 function levelAus(totalXp) {

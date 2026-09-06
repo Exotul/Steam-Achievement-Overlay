@@ -1,6 +1,35 @@
 # Änderungen heute
 
-## Noch nicht veröffentlicht - Korrekturen vor der ersten Fassung
+## Noch nicht veröffentlicht
+
+### XP fühlt sich jetzt nach etwas an
+
+Der Fortschrittsbalken bewegte sich bei einer gewachsenen Sammlung praktisch
+nicht mehr. Zwei unabhängige Ursachen, beide behoben:
+
+- **Die Levelkurve stieg zu steil** (`90 × Level^1.55`). Nachgemessen an einer
+  echten Sammlung mit 2.177 Trophäen: Eine Levelstufe kostete dort 15.752 XP,
+  eine mittlere Silbertrophäe brachte 154 - ein Prozent. Und je weiter jemand
+  kam, desto schlimmer wurde es. Jetzt `400 × Level^0.7`: Die Kosten steigen
+  weiter, aber langsam genug, dass eine Trophäe sichtbar bleibt.
+- **Der Balken wurde auf ganze Prozent gerundet.** 8,91 % und 9,29 % ergeben
+  beide 9 - die Animation lief von 9 % nach 9 %. Bei kleinen Zuwächsen stand
+  der Balken deshalb nicht nur fast, sondern vollständig still.
+
+Dazu sind die Stufenfaktoren stärker gespreizt (Kupfer 1, Silber 2,5, Gold 4,
+Platin 6 statt 1/2/3/4) - Kupfer bleibt der Grundwert, seltene Trophäen lohnen
+sich deutlicher.
+
+Wirkung an derselben Sammlung: Level 28 → 52, und der Balken bewegt sich je
+Trophäe rund dreimal so weit (Silber 0,98 % → 3,02 %, Platin 2,48 % → 9,20 %).
+Bestehende Level steigen dadurch einmalig an - es geht nichts verloren.
+
+Die Stufenfaktoren lagen an drei Stellen im Code; eine davon
+(`profileBuilder.js`, für Freundesprofile) wurde beim Ändern prompt übersehen.
+Sie bezieht die Werte jetzt aus der einen maßgeblichen Quelle, und neue Tests
+vergleichen die verbliebenen Kopien miteinander.
+
+### Korrekturen vor der ersten Fassung
 
 - **Update-Quelle zeigte ins Leere.** In `overlay/package.json` stand unter
   `build.publish` noch der Platzhalter `DEIN_GITHUB_NAME` mit einem Repo, das

@@ -17,7 +17,7 @@ const logger = require('./logger');
  * damit die App einen Ladebalken zeigen kann.
  */
 
-const { TIER_MULTIPLIER, achievementXp, getLevelProgress } = require('./xpMath');
+const { FORMEL_VERSION, TIER_MULTIPLIER, achievementXp, getLevelProgress } = require('./xpMath');
 
 // Höher als früher: Die Warteschlange begrenzt ohnehin global und gibt der
 // Achievement-Erkennung Vorrang, deshalb ist mehr Parallelität hier
@@ -44,7 +44,9 @@ async function berechne(steamId, job) {
  * Damit fällt ein Drittel der Abfragen weg.
  */
 async function spielXp(steamId, appId) {
-  const schluessel = `xp-spiel:${steamId}:${appId}`;
+  // Formelfassung im Schluessel: Nach einer Aenderung an der XP-Formel sind
+  // die gemerkten Werte falsch, laufen aber noch zwoelf Stunden weiter.
+  const schluessel = `xp-spiel:v${FORMEL_VERSION}:${steamId}:${appId}`;
   const gemerkt = cache.get(schluessel);
   if (gemerkt !== undefined) return gemerkt;
 
@@ -104,7 +106,7 @@ async function berechneIntern(steamId, job) {
   );
 
   const summary = { ...getLevelProgress(totalXp), berechnetAm: Date.now() };
-  cache.set(`xpsummary:${steamId}`, summary, SUMMARY_TTL_MS);
+  cache.set(`xpsummary:v${FORMEL_VERSION}:${steamId}`, summary, SUMMARY_TTL_MS);
   logger.info(
     `XP-Berechnung fertig: Level ${summary.level}, ${relevant.length} Spiele geprüft, ` +
       `${job.uebersprungen} nie gespielte übersprungen`
@@ -118,7 +120,7 @@ async function berechneIntern(steamId, job) {
  */
 function getSummary(steamId, neuBerechnen = false) {
   if (!neuBerechnen) {
-    const fertig = cache.get(`xpsummary:${steamId}`);
+    const fertig = cache.get(`xpsummary:v${FORMEL_VERSION}:${steamId}`);
     if (fertig) return { status: 'ready', ...fertig };
   }
 
