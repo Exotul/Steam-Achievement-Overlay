@@ -296,6 +296,42 @@ Schritt 8. Bei der Abfrage: Benutzername normal, als Passwort den Token.
 Das `set GH_TOKEN=...` fehlt oder du bist in einem neuen Fenster. Nochmal
 setzen.
 
+**"Die Datei npm.ps1 kann nicht geladen werden, da die Ausführung von Skripts
+auf diesem System deaktiviert ist"**
+Windows liefert PowerShell mit der Richtlinie `Restricted` aus, die *jedes*
+Skript verbietet - und `npm` ist unter Windows selbst ein Skript. Trifft
+also jeden `npm`-Befehl, nicht nur das Veröffentlichen. Einmalig beheben:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Kein Administrator nötig, gilt nur für dein Konto, rückgängig mit
+`-ExecutionPolicy Undefined`. Wer nichts am System ändern will, schreibt
+stattdessen überall `npm.cmd` statt `npm` - das umgeht den Skript-Wrapper.
+
+**`npm run release` bricht ab mit "Cannot create symbolic link: Dem Client
+fehlt ein erforderliches Recht"**
+Nicht dein Code. electron-builder lädt zum Signieren das Paket `winCodeSign`
+herunter, in dem neben `signtool.exe` für Windows auch macOS-Dateien liegen -
+darunter zwei *Symlinks* (`libcrypto.dylib`, `libssl.dylib`). Symlinks
+anzulegen ist unter Windows ein eigenes Recht, das ein normales Konto nur
+mit eingeschaltetem **Entwicklermodus** besitzt. 7-Zip scheitert daran, und
+electron-builder wertet das als Totalausfall - obwohl zu diesem Zeitpunkt
+alles Windows-Relevante längst entpackt ist.
+
+Sauberste Lösung: **Einstellungen → Datenschutz und Sicherheit → Für
+Entwickler → Entwicklermodus** einschalten, dann neu bauen.
+
+Ohne Systemänderung geht es auch: Der Ordner ist bereits entpackt, er heißt
+nur falsch. Unter
+`%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\` liegen nach dem
+Fehlschlag Ordner mit Zahlennamen (`975882983` o. ä.). Einen davon in
+`winCodeSign-2.6.0` umbenennen, die übrigen samt `.7z`-Dateien löschen -
+danach überspringt electron-builder Download und Entpacken und der Build
+läuft durch. Die zwei fehlenden `.dylib`-Symlinks sind macOS-Bibliotheken
+und für einen Windows-Installer bedeutungslos.
+
 **Ich habe versehentlich meinen Steam-Schlüssel hochgeladen**
 Ruhig bleiben, aber zügig handeln:
 1. Auf https://steamcommunity.com/dev/apikey den Schlüssel zurückziehen
