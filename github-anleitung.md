@@ -1,7 +1,22 @@
 # GitHub einrichten – Schritt für Schritt
 
 Ziel: Deine App liegt auf GitHub, und die automatischen Updates funktionieren.
-Du brauchst dafür kein Vorwissen. Rechne mit 30–45 Minuten.
+Du brauchst dafür kein Vorwissen.
+
+## Stand jetzt – was schon erledigt ist
+
+**Die Schritte 1 bis 7 sind durch.** Dein Repo liegt unter
+
+    https://github.com/Exotul/Steam-Achievement-Overlay
+
+und die App ist bereits darauf eingestellt (`overlay/package.json` →
+`build.publish`). Die Schritte 1–7 stehen unten nur noch als Nachschlagewerk,
+falls du das Ganze irgendwann neu aufsetzen musst.
+
+**Offen ist noch Schritt 8 und 9**: der Zugangsschlüssel zum Veröffentlichen
+und die erste Fassung als Release. Erst danach gibt es überhaupt etwas
+herunterzuladen und erst danach funktionieren die automatischen Updates.
+Spring also direkt zu Schritt 8.
 
 ---
 
@@ -71,9 +86,9 @@ Nimm dieselbe E-Mail wie bei GitHub.
 ## Schritt 4: Repository auf GitHub anlegen
 
 1. Auf https://github.com/new gehen
-2. **Repository name**: `trophaenschrank`
-   (genau so – ohne Umlaut, ohne Leerzeichen; wir tragen den Namen später in
-   die App ein)
+2. **Repository name**: `Steam-Achievement-Overlay`
+   (ohne Umlaut, ohne Leerzeichen; der Name wird später in die App
+   eingetragen)
 3. **Public** auswählen (nicht Private – sonst funktionieren die Updates
    nicht)
 4. Die drei Häkchen unten (**Add a README**, **Add .gitignore**, **Choose a
@@ -153,10 +168,10 @@ git branch -M main
 Benennt den Hauptzweig um – GitHub erwartet `main`.
 
 ```
-git remote add origin https://github.com/DEIN_NAME/trophaenschrank.git
+git remote add origin https://github.com/Exotul/Steam-Achievement-Overlay.git
 ```
-**`DEIN_NAME` durch deinen GitHub-Benutzernamen ersetzen.** Verbindet deinen
-Ordner mit dem Repo.
+Verbindet deinen Ordner mit dem Repo. (Steht dort ein anderer Benutzername,
+ist es ein anderes Konto – dann den Namen entsprechend austauschen.)
 
 ```
 git push -u origin main
@@ -168,26 +183,26 @@ Danach deine Repo-Seite im Browser neu laden: Die Dateien sind da.
 
 ---
 
-## Schritt 7: App auf dein Repo einstellen
+## Schritt 7: App auf dein Repo einstellen — ERLEDIGT
 
-Damit die App weiß, wo sie nach Updates suchen soll:
-
-1. `overlay/package.json` in einem Texteditor öffnen
-2. Diesen Abschnitt suchen:
+Damit die App weiß, wo sie nach Updates suchen soll, steht in
+`overlay/package.json` inzwischen:
 
 ```json
 "publish": [
   {
     "provider": "github",
-    "owner": "DEIN_GITHUB_NAME",
-    "repo": "trophaenschrank"
+    "owner": "Exotul",
+    "repo": "Steam-Achievement-Overlay"
   }
 ]
 ```
 
-3. `DEIN_GITHUB_NAME` durch deinen Benutzernamen ersetzen. **Die
-   Anführungszeichen müssen bleiben.**
-4. Speichern
+Hier stand vorher der Platzhalter `DEIN_GITHUB_NAME` mit einem Repo-Namen,
+den es nicht gibt. Solange das so war, hätte die App **nie** ein Update
+gefunden – sie hätte an einer Adresse gesucht, die es nicht gibt, und den
+Fehlschlag stillschweigend ins Protokoll geschrieben. Du musst hier nichts
+mehr tun; nur falls du das Repo je umbenennst, muss diese Stelle mit.
 
 ---
 
@@ -228,7 +243,7 @@ Das baut den Installer und lädt ihn als Release hoch. Dauert einige Minuten.
 du es zu, musst du ihn beim nächsten Mal erneut setzen. Das ist gewollt – so
 liegt er nirgends dauerhaft herum.
 
-Danach auf `https://github.com/DEIN_NAME/trophaenschrank/releases` nachsehen:
+Danach auf `https://github.com/Exotul/Steam-Achievement-Overlay/releases` nachsehen:
 Dort sollte **v1.0.0** stehen, mit der `.exe` als Anhang.
 
 Steht das Release auf **Draft** (Entwurf), musst du es einmal von Hand

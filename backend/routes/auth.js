@@ -9,7 +9,10 @@ router.get('/steam', passport.authenticate('steam'));
 // Callback-URL, auf die Steam nach dem Login zurückleitet
 router.get(
   '/steam/return',
-  passport.authenticate('steam', { failureRedirect: '/login-failed' }),
+  // Der Router haengt unter /auth - ohne das Praefix landete ein
+  // fehlgeschlagener Login auf der Dashboard-Startseite (die Auffang-Route
+  // liefert dort index.html mit Status 200) statt auf der Fehlermeldung.
+  passport.authenticate('steam', { failureRedirect: '/auth/login-failed' }),
   (req, res) => {
     // Erfolgreich eingeloggt -> zurück zum Frontend
     res.redirect(process.env.FRONTEND_URL || '/');

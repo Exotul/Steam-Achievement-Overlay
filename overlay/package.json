@@ -55,8 +55,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "DEIN_GITHUB_NAME",
-        "repo": "trophaenschrank"
+        "owner": "Exotul",
+        "repo": "Steam-Achievement-Overlay"
       }
     ],
     "artifactName": "Trophaeenschrank-Setup-${version}.${ext}"

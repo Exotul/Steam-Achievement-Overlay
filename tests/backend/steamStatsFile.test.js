@@ -50,6 +50,43 @@ test('Freischaltzeitpunkte werden gelesen', () => {
   assert.ok(stat.get(0) > 1600000000, 'Zeitstempel muss plausibel sein');
 });
 
+// --- Bitfeld: die Vorzeichen-Falle -------------------------------------------
+
+/**
+ * Steam legt die Achievements einer Statistik als Bits in EINEM Zahlenwert ab.
+ * Ab 32 Achievements je Statistik ist Bit 31 im Spiel - und genau dort kommt
+ * der Wert als negative Zahl aus dem Parser, weil er als Int32 gelesen wird.
+ * Eine frühere Rechnung mit `Math.abs()` hat das verschluckt: Aus -1 (alle
+ * Bits gesetzt) wurde 1, womit Bit 31 als gelöscht galt.
+ *
+ * Folge wäre kein Fehlalarm gewesen, sondern das Gegenteil - ein still
+ * fehlendes Achievement. Die Selbstprüfung hätte die Datei dann abgelehnt und
+ * die App wäre auf den langsamen Weg über die Web-API zurückgefallen, ohne
+ * dass jemand den Grund gesehen hätte.
+ */
+test('Bit 31 zählt auch dann, wenn der Wert negativ ankommt', () => {
+  assert.strictEqual(M.bitGesetzt(-1, 31), true, 'alle Bits gesetzt (-1)');
+  assert.strictEqual(M.bitGesetzt(-1, 0), true);
+  assert.strictEqual(M.bitGesetzt(-1, 17), true);
+  // Nur das oberste Bit gesetzt.
+  assert.strictEqual(M.bitGesetzt(-2147483648, 31), true);
+  assert.strictEqual(M.bitGesetzt(-2147483648, 30), false);
+});
+
+test('Bitfeld der echten Fixture bleibt korrekt', () => {
+  // 31 = binär 11111 -> die ersten fünf Achievements.
+  for (const bit of [0, 1, 2, 3, 4]) {
+    assert.strictEqual(M.bitGesetzt(31, bit), true, `Bit ${bit} muss gesetzt sein`);
+  }
+  assert.strictEqual(M.bitGesetzt(31, 5), false, 'Bit 5 darf nicht gesetzt sein');
+});
+
+test('Unbrauchbare Werte gelten nie als freigeschaltet', () => {
+  assert.strictEqual(M.bitGesetzt(undefined, 0), false);
+  assert.strictEqual(M.bitGesetzt(NaN, 0), false);
+  assert.strictEqual(M.bitGesetzt(0, 0), false);
+});
+
 // --- Selbstprüfung: der Schutz gegen Fehlalarme ------------------------------
 
 function mitSteamOrdner(fn) {

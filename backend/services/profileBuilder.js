@@ -38,11 +38,14 @@ async function buildProfileIntern(steamId) {
     .slice(0, MAX_GAMES);
 
   const results = [];
-  const queue = [...sorted];
+  // Bewusst NICHT "queue": So hiess auch das oben eingebundene
+  // steamQueue-Modul, das dadurch in dieser Funktion verdeckt war. Wer hier
+  // spaeter eine Prioritaet setzen will, greift sonst ins Leere.
+  const offen = [...sorted];
 
   async function worker() {
-    while (queue.length > 0) {
-      const g = queue.shift();
+    while (offen.length > 0) {
+      const g = offen.shift();
       try {
         const progress = await steamApi.buildEnrichedAchievements(steamId, g.appid);
         results.push({ game: g, progress });

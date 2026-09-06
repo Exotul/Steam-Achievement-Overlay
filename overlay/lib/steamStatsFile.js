@@ -190,6 +190,26 @@ function extractStringsUnlocked(buf, knownApiNames) {
  * Dieses Verfahren liest deshalb beide Dateien zusammen.
  */
 
+/**
+ * Ist Bit Nummer `bitIndex` im Zahlenwert `value` gesetzt?
+ *
+ * Eigene Funktion, damit sich genau das pruefen laesst - der Zahlenwert kommt
+ * aus einer Datei, deren Format Valve nicht zusichert, und die Vorzeichen
+ * sind hier die Stolperfalle: Ein Int32 mit gesetztem obersten Bit erreicht
+ * uns als NEGATIVE Zahl. Die frueher hier benutzte Rechnung mit Math.abs()
+ * war dafuer falsch - aus -1 (alle 32 Bits gesetzt) wurde 1, womit Bit 31
+ * faelschlich als geloescht galt und ein Achievement stumm verschwand.
+ */
+function bitGesetzt(value, bitIndex) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+  // Negative Werte als vorzeichenlose 32-Bit-Zahl deuten.
+  const roh = value < 0 ? value >>> 0 : value;
+  if (bitIndex < 32) return ((roh >>> bitIndex) & 1) === 1;
+  // Darueber hinaus (UInt64-Statistiken) bleibt nur die Division; bis Bit 52
+  // rechnet JavaScript hier noch exakt.
+  return Math.floor(roh / Math.pow(2, bitIndex)) % 2 === 1;
+}
+
 /** Baut aus der Schema-Datei die Zuordnung statId -> (bitNummer -> apiName). */
 function parseSchemaBits(schemaBuf) {
   const parsed = parseBinaryKeyValues(schemaBuf);
@@ -310,13 +330,8 @@ function readUnlockedViaSchema(statsFile, schemaFile) {
     const value = values.get(statId);
     if (typeof value !== 'number') continue;
     for (const [bitIndex, apiName] of bits.entries()) {
-      // Bit gesetzt = Achievement freigeschaltet
-      // Vorzeichenfreie Auswertung, damit auch das oberste Bit korrekt zaehlt.
-      const gesetzt =
-        bitIndex < 31
-          ? (value & (1 << bitIndex)) !== 0
-          : Math.floor(Math.abs(value) / Math.pow(2, bitIndex)) % 2 === 1;
-      if (gesetzt) unlocked.add(apiName);
+      // Bit gesetzt = Achievement freigeschaltet.
+      if (bitGesetzt(value, bitIndex)) unlocked.add(apiName);
     }
   }
 
@@ -469,6 +484,7 @@ function findVerifiedSource(steamPath, appId, webUnlocked, knownApiNames = null)
 }
 
 module.exports = {
+  bitGesetzt,
   parseSchemaBits,
   parseStatValues,
   parseAchievementTimes,

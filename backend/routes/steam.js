@@ -9,7 +9,6 @@ const completionTime = require('../services/completionTime');
 const xpSummary = require('../services/xpSummary');
 const queue = require('../services/steamQueue');
 const history = require('../services/history');
-const health = require('../services/steamHealth');
 
 const router = express.Router();
 router.use(ensureAuth);

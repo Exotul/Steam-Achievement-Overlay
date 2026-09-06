@@ -9,6 +9,22 @@ steam-achievements-app/
 └── overlay/    Electron-Overlay - DAS IST DIE APP, DIE DU STARTEST
 ```
 
+## Herunterladen
+
+Die jeweils aktuelle Fassung liegt immer hier:
+
+**https://github.com/Exotul/Steam-Achievement-Overlay/releases/latest**
+
+Dort unter *Assets* die Datei `Trophaeenschrank-Setup-<version>.exe` laden und
+ausführen. Danach meldet sich die App von selbst, wenn es etwas Neueres gibt -
+herunterladen musst du sie also genau einmal von Hand.
+
+Ist die Seite leer oder gibt es dort noch kein Release, wurde bisher keine
+Fassung veröffentlicht. Wie das geht, steht in `github-anleitung.md`
+(Schritt 8 und 9).
+
+---
+
 **Wichtigste Änderung gegenüber vorher: Du startest nur noch `overlay`.**
 Die Overlay-App prüft beim Start selbst, ob das Backend schon läuft, und
 startet es andernfalls automatisch mit (inklusive der Werte aus ihrer
@@ -93,10 +109,10 @@ Im Tray-Menü stehen die laufende Version und "Nach Updates suchen…".
   nirgends.
 - In der Entwicklungsfassung (`npm start`) ist die Prüfung abgeschaltet.
 
-**Vor der ersten Veröffentlichung** muss in `overlay/package.json` unter
-`build.publish` das eigene GitHub-Repository eingetragen werden (dort steht
-noch `DEIN_GITHUB_NAME`). Danach veröffentlicht `npm run release` eine neue
-Fassung, sobald die Versionsnummer in `package.json` erhöht wurde.
+Die Update-Quelle ist in `overlay/package.json` unter `build.publish`
+eingetragen und zeigt auf https://github.com/Exotul/Steam-Achievement-Overlay.
+`npm run release` veröffentlicht eine neue Fassung, sobald die Versionsnummer
+in `package.json` erhöht wurde.
 
 ### Was ein Update NICHT anfasst
 

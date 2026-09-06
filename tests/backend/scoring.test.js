@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 // Bewusst die reinen Rechenmodule, nicht steamApi/xpSummary: Diese Tests
 // sollen ohne installierte Abhängigkeiten und ohne Steam-Zugang laufen.
@@ -120,8 +121,11 @@ test('Level steigt monoton und der Rest passt zur Stufe', () => {
  * jemandem auffällt.
  */
 test('Backend und Dashboard verwenden dieselbe Level-Kurve', async () => {
+  // pathToFileURL statt des blossen Pfades: Unter Windows haelt import()
+  // einen absoluten Pfad wie "e:\..." fuer ein Protokoll und bricht ab -
+  // damit lief genau dieser Test dort nie durch.
   const frontendXp = await import(
-    path.join(__dirname, '..', '..', 'frontend', 'src', 'lib', 'xp.js')
+    pathToFileURL(path.join(__dirname, '..', '..', 'frontend', 'src', 'lib', 'xp.js')).href
   );
 
   for (const wert of [0, 89, 90, 500, 3000, 12345, 48000, 137000]) {
