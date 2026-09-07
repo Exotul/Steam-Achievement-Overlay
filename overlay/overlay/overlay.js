@@ -538,7 +538,20 @@ window.overlayAPI.onEinstellungen(wendeEinstellungenAn);
 
 let ladeMeldung = null;
 
-function zeigeLadefortschritt({ fertig, phase, done, total, ausSpeicher, level }) {
+function zeigeLadefortschritt({ fertig, abbruch, phase, done, total, ausSpeicher, level }) {
+  // Die Berechnung wurde aufgegeben. Die Meldung darf nicht stehenbleiben -
+  // ein Ladebalken, der ewig haengt, ist schlimmer als gar keiner.
+  if (abbruch) {
+    if (!ladeMeldung) return;
+    const weg = ladeMeldung;
+    ladeMeldung = null;
+    weg.querySelector('.xp-toast__bar-fill').classList.remove('xp-toast__bar-fill--unbestimmt');
+    weg.querySelector('.xp-toast__gain').textContent = 'Trophäen konnten nicht gezählt werden';
+    weg.querySelector('.xp-toast__counts').textContent = 'siehe Tray-Menü';
+    setTimeout(() => weg.remove(), 6000);
+    return;
+  }
+
   if (fertig) {
     if (!ladeMeldung) return;
     const balken = ladeMeldung.querySelector('.xp-toast__bar-fill');

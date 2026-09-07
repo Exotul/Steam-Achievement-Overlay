@@ -834,6 +834,19 @@ async function ladeXpStand() {
       return; // ohne XP-Stand laeuft alles weiter, nur ohne XP-Meldungen
     }
 
+    // Die Berechnung ist gescheitert und wird von sich aus nicht besser -
+    // dann hier ebenfalls aufhoeren zu fragen. Frueher lief diese Schleife
+    // weiter und stiess bei jedem Durchlauf einen neuen, ebenso
+    // aussichtslosen Versuch an.
+    if (antwort.status === 'fehler') {
+      logger.warn('XP-Stand nicht verfügbar: ' + antwort.grund);
+      if (gemeldet) sendToOverlay('xp-loading', { abbruch: true });
+      if (antwort.schluesselProblem) {
+        updateTrayStatus('Steam-Schlüssel abgelehnt - unter Einstellungen neu eintragen');
+      }
+      return;
+    }
+
     if (antwort.status === 'ready') {
       xpStand = antwort;
 
@@ -1452,10 +1465,12 @@ function zeigeEinstellungen() {
     },
 
     'einst:schluessel': async () => {
-      await zeigeEinrichtung();
-      // Der Schluessel wirkt im Backend erst nach einem Neustart - darauf
-      // wird hier hingewiesen, statt es stillschweigend hinzunehmen.
-      if (!schluesselFehlt()) buildTrayMenu();
+      // Bewusst derselbe Weg wie ueber das Tray-Menue: Der neue Schluessel
+      // wirkt im Backend erst nach einem Neustart, weil es ihn beim Starten
+      // als Umgebungsvariable mitbekommt. Ohne den Hinweis traegt jemand
+      // einen gueltigen Schluessel ein und wundert sich, dass weiterhin
+      // nichts geht.
+      await handleSchluesselEintragen();
       return !schluesselFehlt();
     },
 

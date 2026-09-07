@@ -19,6 +19,7 @@ const logger = require('./logger');
 
 const { FORMEL_VERSION, TIER_MULTIPLIER, achievementXp, getLevelProgress } = require('./xpMath');
 const { planeBerechnung } = require('./xpPlan');
+const steamFehler = require('./steamFehler');
 
 // Höher als früher: Die Warteschlange begrenzt ohnehin global und gibt der
 // Achievement-Erkennung Vorrang, deshalb ist mehr Parallelität hier
@@ -41,6 +42,20 @@ const schluesselLetzter = (steamId) => `xpsummary-letzter:v${FORMEL_VERSION}:${s
 
 // Laufende Berechnungen je Konto.
 const jobs = new Map();
+
+/**
+ * Letzter Fehlschlag je Konto.
+ *
+ * Ohne das hat die App eine aussichtslose Berechnung endlos wiederholt: Bei
+ * einem zurueckgezogenen API-Schluessel antwortet Steam mit 401, und daran
+ * aendert sich durch Wiederholen nichts. Im Protokoll standen fuenfzehn
+ * gleichlautende Fehler, und jeder davon war eine weitere Anfrage an Steam.
+ */
+const fehlschlaege = new Map();
+
+// Nach einem voruebergehenden Problem (kein Netz, Serverfehler) darf es
+// wieder losgehen - aber nicht im Sekundentakt.
+const FEHLER_RUHE_MS = 60 * 1000;
 
 async function berechne(steamId, job) {
   // Die Erstberechnung geht durch die ganze Bibliothek - ausdruecklich
@@ -152,13 +167,41 @@ function getSummary(steamId, neuBerechnen = false) {
     if (fertig) return { status: 'ready', ...fertig };
   }
 
+  // Ist die Berechnung zuletzt an etwas gescheitert, das sich von selbst
+  // nicht aendert, wird nicht erneut angefangen. Ein ausdrueckliches
+  // Neuberechnen (Aktualisieren-Knopf, neuer Schluessel) hebt das auf.
+  const letzterFehler = fehlschlaege.get(steamId);
+  if (letzterFehler && !neuBerechnen) {
+    const ruht = Date.now() - letzterFehler.zeit < FEHLER_RUHE_MS;
+    if (letzterFehler.endgueltig || ruht) {
+      return {
+        status: 'fehler',
+        grund: letzterFehler.grund,
+        endgueltig: letzterFehler.endgueltig,
+        schluesselProblem: letzterFehler.schluesselProblem,
+      };
+    }
+    fehlschlaege.delete(steamId);
+  }
+  if (neuBerechnen) fehlschlaege.delete(steamId);
+
   // Rechnen lassen, falls noch niemand rechnet.
   let laufend = jobs.get(steamId);
   if (!laufend) {
     laufend = { done: 0, total: 0, phase: 'start' };
     jobs.set(steamId, laufend);
     berechne(steamId, laufend)
-      .catch((err) => logger.error('XP-Berechnung fehlgeschlagen: ' + err.message))
+      .then(() => fehlschlaege.delete(steamId))
+      .catch((err) => {
+        const info = steamFehler.beschreibe(err);
+        fehlschlaege.set(steamId, { ...info, zeit: Date.now() });
+        // Einmal mit Begruendung, statt immer wieder mit dem nackten Code.
+        logger.error(
+          'XP-Berechnung fehlgeschlagen: ' +
+            info.grund +
+            (info.endgueltig ? ' Es wird nicht erneut versucht.' : '')
+        );
+      })
       .finally(() => jobs.delete(steamId));
   }
 

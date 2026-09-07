@@ -2,6 +2,29 @@
 
 ## Noch nicht veröffentlicht
 
+### Aussichtslose Versuche werden nicht mehr endlos wiederholt
+
+Bei einem zurückgezogenen Steam-Schlüssel stand im Protokoll immer wieder
+`XP-Berechnung fehlgeschlagen: Request failed with status code 401` — und
+jede dieser Zeilen war eine weitere sinnlose Anfrage an Steam. Daraus ging
+weder die Ursache hervor noch, was zu tun wäre, noch dass Warten zwecklos ist.
+
+- Ein 401 oder 403 heißt: mit diesem Schlüssel geht es nicht, und daran
+  ändert sich durch Wiederholen nichts. Die App hört jetzt auf zu fragen und
+  schreibt **einmal** hin, was los ist und wo man es behebt.
+- Vorübergehende Probleme (kein Netz, Serverfehler bei Steam) werden weiterhin
+  wiederholt — aber frühestens nach einer Minute statt im Sekundentakt.
+- Der Ladebalken bleibt in diesem Fall nicht ewig hängen, sondern sagt, dass
+  es nicht geklappt hat. Ein hängender Balken ist schlimmer als gar keiner.
+- Im Tray steht dann "Steam-Schlüssel abgelehnt — unter Einstellungen neu
+  eintragen".
+
+Außerdem: Wird der Schlüssel über die Einstellungen geändert, wird jetzt wie
+im Tray-Menü zum Neustart aufgefordert. Ohne den Hinweis trägt man einen
+gültigen Schlüssel ein und wundert sich, dass weiterhin nichts geht — das
+Backend bekommt ihn erst beim Starten mit.
+
+
 ### Einstellungen — und ein aufgeräumtes Tray-Menü
 
 Das Menü hinter dem Tray-Symbol war auf siebzehn Einträge angewachsen und
