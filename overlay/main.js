@@ -1675,6 +1675,15 @@ ipcMain.handle('merkliste:notiz-hinzu', (_e, text) => {
   return merklisteAntwort(ergebnis.grund);
 });
 
+ipcMain.handle('merkliste:notiz-aendern', (_e, id, aenderung) => {
+  const ergebnis = todoModul.notizAendern(merklisten, trackedAppId, id, aenderung);
+  if (ergebnis.geaendert) {
+    merklisten = todoModul.speichern(ergebnis.listen);
+    logger.info(`Merkliste: eigener Eintrag geändert (App ${trackedAppId})`);
+  }
+  return merklisteAntwort(ergebnis.grund);
+});
+
 ipcMain.handle('merkliste:notiz-weg', (_e, id) => {
   const ergebnis = todoModul.notizEntfernen(merklisten, trackedAppId, id);
   if (ergebnis.geaendert) {

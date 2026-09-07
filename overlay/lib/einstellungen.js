@@ -34,6 +34,7 @@ const GRENZEN = {
   spielStartDauerSek: { min: 5, max: 90 },
   lautstaerke: { min: 0, max: 1 },
   merklisteGroesse: { min: 0.6, max: 1.6 },
+  abzeichenGroesse: { min: 0.6, max: 1.6 },
 };
 
 /**
@@ -57,6 +58,12 @@ function standard() {
     // --- Merkliste ---
     merklisteAktiv: true,
     merklisteGroesse: 1,
+
+    // --- Status-Abzeichen unten rechts ---
+    // Es zeigt Spielname, Trophaeenstand und das Tastenkuerzel. Eigene
+    // Groesse, weil es eine andere Aufgabe hat als die Merkliste: Es soll im
+    // Blick sein, ohne zu stoeren, waehrend die Merkliste lesbar sein muss.
+    abzeichenGroesse: 1,
 
     // --- Achievement-Übersicht ---
     // Tastenkombination, die die Übersicht ein- und ausblendet. Leerer Text
@@ -113,6 +120,7 @@ function bereinige(roh) {
 
     merklisteAktiv: e.merklisteAktiv === undefined ? s.merklisteAktiv : !!e.merklisteAktiv,
     merklisteGroesse: zahlIn(e.merklisteGroesse, GRENZEN.merklisteGroesse, s.merklisteGroesse),
+    abzeichenGroesse: zahlIn(e.abzeichenGroesse, GRENZEN.abzeichenGroesse, s.abzeichenGroesse),
 
     // Ein leerer Text heisst ausdruecklich "kein Kuerzel" - deshalb hier
     // nicht auf die Vorgabe zurueckfallen, sonst liesse es sich nie

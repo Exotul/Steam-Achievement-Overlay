@@ -615,12 +615,17 @@ body.pos-unten-links #stack {
   pointer-events: none;
   transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 1;
-  transform: translateY(0);
+  /* Groesse aus den Einstellungen - im selben transform wie die Bewegung,
+     sonst hebt eine Angabe die andere auf. Der Ursprung liegt in der Ecke,
+     an der das Abzeichen klebt, damit es beim Vergroessern nicht aus dem
+     Bild wandert. */
+  transform: translateY(0) scale(var(--abzeichen-groesse, 1));
+  transform-origin: bottom right;
 }
 
 .status-badge--hidden {
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateY(14px) scale(var(--abzeichen-groesse, 1));
 }
 
 .status-badge__logo {
@@ -973,8 +978,11 @@ body.pos-unten-links #stack {
   position: fixed;
   top: 24px;
   left: 24px;
-  width: 260px;
-  padding: 12px 14px;
+  /* Deutlich breiter als anfangs (260 px): Achievement-Namen sind oft lang,
+     und ein abgeschnittener Name hilft niemandem beim Erinnern. Die Groesse
+     laesst sich in den Einstellungen weiter anpassen. */
+  width: 330px;
+  padding: 14px 16px;
   border-radius: 12px;
   background: rgba(18, 21, 28, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -993,8 +1001,8 @@ body.pos-unten-links #stack {
 }
 
 .merkliste__titel {
-  margin: 0 0 8px;
-  font-size: 0.66rem;
+  margin: 0 0 10px;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -1013,9 +1021,9 @@ body.pos-unten-links #stack {
 .merkliste__eintrag {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 0.8rem;
-  line-height: 1.3;
+  gap: 10px;
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .merkliste__punkt {
@@ -1081,11 +1089,88 @@ body.pos-unten-links #stack {
 
 /* Eigene Eintraege: derselbe Aufbau, nur ein offener statt gefuellter Punkt -
    sie stehen fuer etwas, das die App nicht selbst pruefen kann. */
-.merkliste__eintrag--notiz .merkliste__punkt {
+.merkliste__eintrag--notiz .merkliste__punkt,
+.merkliste__eintrag--tracker .merkliste__punkt {
   background: transparent !important;
   border: 1.5px solid #6bd39a;
   width: 7px;
   height: 7px;
+}
+
+/* ---------- Abschnitt: Ueberschrift ---------- */
+/* Bewusst als Flaeche und nicht als weitere Zeile mit Punkt: Eine
+   Ueberschrift ist kein Aufgabenpunkt, und wenn sie wie einer aussieht,
+   gliedert sie nichts. */
+
+.merkliste__eintrag--abschnitt {
+  margin: 6px 0 1px;
+}
+
+.merkliste__eintrag--abschnitt:first-child {
+  margin-top: 0;
+}
+
+.merkliste__abschnitt {
+  display: block;
+  width: 100%;
+  padding: 4px 9px;
+  border-radius: 5px;
+  background: rgba(107, 211, 154, 0.16);
+  border-left: 3px solid #6bd39a;
+  color: #a8e8c6;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Tracker: Text mit Zaehlerstand ---------- */
+
+.merkliste__eintrag--tracker {
+  flex-wrap: wrap;
+}
+
+.merkliste__zaehler-text {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.merkliste__zahl {
+  flex-shrink: 0;
+  font-family: 'Space Mono', 'Consolas', monospace;
+  font-size: 0.8rem;
+  color: #9aa1b0;
+}
+
+.merkliste__zahl--fertig {
+  color: #6bd39a;
+  font-weight: 700;
+}
+
+/* Der Balken liegt unter der Zeile und nimmt die volle Breite ein - so ist
+   der Fortschritt auch im Vorbeischauen ablesbar, ohne die Zahl zu lesen. */
+.merkliste__balken {
+  width: 100%;
+  height: 3px;
+  margin-top: 5px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+.merkliste__balken > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #6bd39a;
+  transition: width 0.4s ease-out;
 }
 
 /* ==========================================================================
@@ -1347,6 +1432,45 @@ body.pos-unten-links #stack {
   font-size: 0.84rem;
 }
 
+.panel-notiz--abschnitt .panel-notiz__text {
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: rgba(107, 211, 154, 0.16);
+  border-left: 3px solid #6bd39a;
+  color: #a8e8c6;
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  flex: 0 1 auto;
+}
+
+.panel-notiz__zahl {
+  flex-shrink: 0;
+  font-family: 'Space Mono', 'Consolas', monospace;
+  font-size: 0.8rem;
+  color: #9aa1b0;
+}
+
+.panel-notiz__plus,
+.panel-notiz__bearbeiten {
+  width: 26px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: transparent;
+  color: #9aa1b0;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.panel-notiz__plus:hover,
+.panel-notiz__bearbeiten:hover {
+  border-color: #6bd39a;
+  color: #6bd39a;
+}
+
 .panel-notiz__punkt {
   width: 7px;
   height: 7px;
@@ -1410,8 +1534,76 @@ body.pos-unten-links #stack {
 
 .panel__notiz {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-bottom: 9px;
+}
+
+.panel__notiz-zeile {
+  display: flex;
+  gap: 8px;
+}
+
+/* Die Artenwahl steht ueber dem Feld, nicht daneben: Sie aendert, was in das
+   Feld gehoert - das soll man vorher sehen, nicht daneben suchen. */
+.panel__arten {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  align-self: flex-start;
+}
+
+.panel__art-knopf {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #767d8c;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel__art-knopf:hover {
+  color: #e8eaf0;
+}
+
+.panel__art-knopf[aria-pressed='true'] {
+  background: rgba(107, 211, 154, 0.18);
+  color: #6bd39a;
+}
+
+.panel__notiz-zahlen {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.panel__notiz-stand,
+.panel__notiz-ziel {
+  width: 62px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.3);
+  color: #e8eaf0;
+  font-family: 'Space Mono', 'Consolas', monospace;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.panel__notiz-stand:focus,
+.panel__notiz-ziel:focus {
+  outline: none;
+  border-color: #6bd39a;
+}
+
+.panel__notiz-trenner {
+  color: #767d8c;
 }
 
 .panel__notiz-ab {

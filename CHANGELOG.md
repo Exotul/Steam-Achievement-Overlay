@@ -2,6 +2,44 @@
 
 ## Noch nicht veröffentlicht
 
+### Drei Arten eigener Einträge
+
+Beim Anlegen eines eigenen Eintrags lässt sich jetzt die Form wählen:
+
+- **Notiz** — eine Zeile Text, wie bisher.
+- **Tracker** — Text mit Zählerstand, etwa `Audionotizen 12 / 52`, mit
+  Fortschrittsbalken. Für alles, was das Spiel selbst nicht mitzählt. Ein
+  **+1**-Knopf in der Übersicht zählt hoch, ohne ein Formular zu öffnen — das
+  ist der mit Abstand häufigste Griff.
+- **Abschnitt** — eine grün hinterlegte Überschrift, um längere Listen zu
+  gliedern.
+
+Die Reihenfolge bleibt so, wie die Einträge angelegt wurden — sonst würden
+die Überschriften nichts gliedern.
+
+### Eigene Einträge lassen sich bearbeiten
+
+Über das Stiftsymbol. Die Kennung bleibt dabei erhalten, der Eintrag rutscht
+also nicht an eine andere Stelle. Auch die Art lässt sich nachträglich
+wechseln.
+
+Kaputte Eingaben werden geradegezogen statt abgelehnt: Ein Tracker ohne Ziel
+wird zur Notiz (ein Ziel von 0 wäre eine Division durch null), ein Stand über
+dem Ziel wird gekappt (sonst zeigt der Balken mehr als voll), krumme Zahlen
+werden gerundet.
+
+### Merkliste größer, Abzeichen einstellbar
+
+Die Merkliste ist von Haus aus deutlich breiter (330 statt 260 Pixel) und die
+Schrift größer — Achievement-Namen sind oft lang, und ein abgeschnittener Name
+hilft beim Erinnern nicht.
+
+Das **Status-Abzeichen** unten rechts (Spielname, Trophäenstand, Tastenkürzel)
+hat jetzt eine eigene Größeneinstellung. Getrennt von der Merkliste, weil es
+eine andere Aufgabe hat: Es soll im Blick sein, ohne zu stören, während die
+Merkliste lesbar sein muss.
+
+
 ### Behoben: Übersicht stand dauerhaft im Bild und blockierte die Bedienung
 
 Drei Fehler, die sich gegenseitig verstärkt haben.

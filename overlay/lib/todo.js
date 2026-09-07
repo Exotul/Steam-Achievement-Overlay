@@ -9,12 +9,16 @@ const os = require('os');
  *
  *  - **Achievements** - über den Haken in der Übersicht gesetzt. Sie
  *    verschwinden von selbst, sobald sie errungen sind.
- *  - **Eigene Einträge** - frei geschriebene Notizen. Sie verschwinden NIE
- *    von selbst, denn niemand außer dem Schreibenden weiß, wann sie erledigt
- *    sind. Genau dafür gibt es sie: Manche Achievements verlangen etwas, das
- *    das Spiel selbst nicht mitzählt ("alle Audionotizen sammeln"), und wer
- *    sich dafür einen Merkzettel macht, will ihn beim nächsten Start
- *    wiederfinden und nicht neu schreiben.
+ *  - **Eigene Einträge** in drei Formen. Sie verschwinden NIE von selbst,
+ *    denn niemand außer dem Schreibenden weiß, wann sie erledigt sind. Genau
+ *    dafür gibt es sie: Manche Achievements verlangen etwas, das das Spiel
+ *    selbst nicht mitzählt ("alle Audionotizen sammeln"), und wer sich dafür
+ *    einen Merkzettel macht, will ihn beim nächsten Start wiederfinden.
+ *
+ *      `notiz`     - eine Zeile Text.
+ *      `tracker`   - Text mit Zählerstand, etwa "Audionotizen 12 / 52".
+ *                    Für alles, was das Spiel nicht selbst mitzählt.
+ *      `abschnitt` - eine Überschrift, um längere Listen zu gliedern.
  *
  * Je Spiel eine eigene Liste - eine gemeinsame wäre nutzlos, weil beides
  * immer nur in seinem Spiel gilt.
@@ -37,6 +41,12 @@ const DATEI = path.join(ORDNER, 'merkliste.json');
 const MAX_JE_SPIEL = 12;
 const MAX_TEXT_LAENGE = 90;
 
+const ARTEN = ['notiz', 'tracker', 'abschnitt'];
+
+// Obergrenze für Zählerstände. Nicht willkürlich: Darüber passt die Zahl
+// nicht mehr neben den Text, ohne die Einblendung zu sprengen.
+const MAX_ZAHL = 99999;
+
 const leer = () => ({ achievements: [], notizen: [] });
 
 /** Eindeutige, kurze Kennung für eine Notiz. */
@@ -50,6 +60,38 @@ function bereinigeText(roh) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, MAX_TEXT_LAENGE);
+}
+
+/** Ganze, nicht negative Zahl in vernünftigen Grenzen - sonst der Ersatzwert. */
+function bereinigeZahl(roh, ersatz = 0) {
+  const n = Number(roh);
+  if (!Number.isFinite(n)) return ersatz;
+  return Math.min(MAX_ZAHL, Math.max(0, Math.round(n)));
+}
+
+/**
+ * Bringt einen einzelnen eigenen Eintrag in Form.
+ * Gibt null zurück, wenn nichts Brauchbares übrig bleibt.
+ */
+function bereinigeNotiz(roh, id) {
+  if (!roh || typeof roh !== 'object') return null;
+
+  // Einträge aus einer älteren Fassung haben keine Art - das waren Notizen.
+  const art = ARTEN.includes(roh.art) ? roh.art : 'notiz';
+  const text = bereinigeText(roh.text);
+  if (!text) return null;
+
+  if (art !== 'tracker') return { id, art, text };
+
+  // Ein Ziel von 0 wäre eine Division durch null in der Anzeige und sagt
+  // ohnehin nichts aus - dann ist es eine gewöhnliche Notiz.
+  const ziel = bereinigeZahl(roh.ziel, 0);
+  if (ziel <= 0) return { id, art: 'notiz', text };
+
+  // Der Stand darf nie über dem Ziel liegen; sonst zeigt der Balken mehr als
+  // voll und die Zahl widerspricht sich selbst.
+  const stand = Math.min(ziel, bereinigeZahl(roh.stand, 0));
+  return { id, art, text, stand, ziel };
 }
 
 /**
@@ -83,14 +125,16 @@ function bereinige(roh) {
     if (Array.isArray(eintrag.notizen)) {
       for (const notiz of eintrag.notizen) {
         if (!notiz || typeof notiz !== 'object') continue;
-        const text = bereinigeText(notiz.text);
-        if (!text) continue;
-        // Eine Notiz ohne Kennung bekommt eine - sonst liesse sie sich nicht
-        // gezielt wieder entfernen.
-        let id = typeof notiz.id === 'string' && notiz.id.trim() ? notiz.id.trim() : neueId();
+        // Eine Notiz ohne Kennung bekommt eine - sonst liesse sie sich weder
+        // bearbeiten noch gezielt entfernen.
+        let id =
+          typeof notiz.id === 'string' && notiz.id.trim() ? notiz.id.trim() : neueId();
         while (gesehen.has(id)) id = neueId();
+
+        const sauber = bereinigeNotiz(notiz, id);
+        if (!sauber) continue;
         gesehen.add(id);
-        notizen.push({ id, text });
+        notizen.push(sauber);
       }
     }
 
@@ -152,18 +196,30 @@ function setze(listen, appId, apiName, angehakt) {
 }
 
 /**
- * Fügt eine eigene Notiz hinzu.
+ * Fügt einen eigenen Eintrag hinzu.
+ *
+ * @param {object|string} roh - `{ art, text, stand, ziel }`. Ein blosser Text
+ *   wird als Notiz verstanden, damit ältere Aufrufe weiter funktionieren.
  * @returns {{listen: object, notiz: object|null, grund: string|null}}
  */
-function notizHinzufuegen(listen, appId, text, id = neueId()) {
+function notizHinzufuegen(listen, appId, roh, id = neueId()) {
   const alle = bereinige(listen);
   const eintrag = fuerSpiel(alle, appId);
-  const sauber = bereinigeText(text);
 
-  if (!sauber) return { listen: alle, notiz: null, grund: 'Der Eintrag ist leer.' };
+  const vorlage = typeof roh === 'string' ? { art: 'notiz', text: roh } : roh;
+  const notiz = bereinigeNotiz(vorlage, id);
+
+  if (!notiz) return { listen: alle, notiz: null, grund: 'Der Eintrag ist leer.' };
 
   // Denselben Text nicht zweimal - das ist fast immer ein Doppelklick.
-  if (eintrag.notizen.some((n) => n.text.toLowerCase() === sauber.toLowerCase())) {
+  // Überschriften sind davon ausgenommen: Dieselbe Gliederung kann in einer
+  // langen Liste durchaus mehrfach vorkommen.
+  if (
+    notiz.art !== 'abschnitt' &&
+    eintrag.notizen.some(
+      (n) => n.art !== 'abschnitt' && n.text.toLowerCase() === notiz.text.toLowerCase()
+    )
+  ) {
     return { listen: alle, notiz: null, grund: 'Steht schon auf der Liste.' };
   }
 
@@ -175,9 +231,43 @@ function notizHinzufuegen(listen, appId, text, id = neueId()) {
     };
   }
 
-  const notiz = { id, text: sauber };
   eintrag.notizen.push(notiz);
   return { listen: schreibeZurueck(alle, appId, eintrag), notiz, grund: null };
+}
+
+/**
+ * Ändert einen bestehenden eigenen Eintrag.
+ *
+ * Warum überhaupt: Ein Zählerstand ändert sich staendig ("12 von 52
+ * gefunden"), und ein Tippfehler in einer Überschrift wäre sonst nur durch
+ * Löschen und Neuanlegen zu beheben. Die Kennung bleibt dabei erhalten,
+ * damit die Reihenfolge in der Liste stehen bleibt.
+ *
+ * @returns {{listen: object, notiz: object|null, geaendert: boolean, grund: string|null}}
+ */
+function notizAendern(listen, appId, id, aenderung) {
+  const alle = bereinige(listen);
+  const eintrag = fuerSpiel(alle, appId);
+  const stelle = eintrag.notizen.findIndex((n) => n.id === id);
+
+  if (stelle === -1) {
+    return { listen: alle, notiz: null, geaendert: false, grund: 'Eintrag nicht gefunden.' };
+  }
+
+  // Nur die übergebenen Felder ändern - wer den Zählerstand hochsetzt, will
+  // nicht seinen Text verlieren.
+  const neu = bereinigeNotiz({ ...eintrag.notizen[stelle], ...(aenderung || {}) }, id);
+  if (!neu) {
+    return { listen: alle, notiz: null, geaendert: false, grund: 'Der Eintrag wäre leer.' };
+  }
+
+  eintrag.notizen[stelle] = neu;
+  return {
+    listen: schreibeZurueck(alle, appId, eintrag),
+    notiz: neu,
+    geaendert: true,
+    grund: null,
+  };
 }
 
 /** Entfernt eine eigene Notiz - nur von Hand, nie von selbst. */
@@ -235,7 +325,10 @@ module.exports = {
   ORDNER,
   MAX_JE_SPIEL,
   MAX_TEXT_LAENGE,
+  MAX_ZAHL,
+  ARTEN,
   neueId,
+  notizAendern,
   bereinige,
   fuerSpiel,
   anzahl,

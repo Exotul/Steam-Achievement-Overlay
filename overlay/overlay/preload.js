@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('overlayAPI', {
 
   /** Eigener Eintrag - eine frei geschriebene Notiz. */
   notizHinzufuegen: (text) => ipcRenderer.invoke('merkliste:notiz-hinzu', text),
+  notizAendern: (id, aenderung) => ipcRenderer.invoke('merkliste:notiz-aendern', id, aenderung),
   notizEntfernen: (id) => ipcRenderer.invoke('merkliste:notiz-weg', id),
 
   /**

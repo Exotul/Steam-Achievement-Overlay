@@ -75,13 +75,26 @@
         <div class="zeile">
           <div class="zeile__text">
             <label for="statusAbzeichen">Status-Abzeichen</label>
-            <p class="hilfe">Kleines Zeichen unten rechts, das zeigt, dass die App mitläuft.</p>
+            <p class="hilfe">
+              Kleines Fenster unten rechts mit Spielname, Trophäenstand und Tastenkürzel.
+            </p>
           </div>
           <select id="statusAbzeichen" class="feld feld--auswahl">
             <option value="steam-overlay">Nur bei geöffnetem Steam-Overlay</option>
             <option value="spiel">Solange ein Spiel läuft</option>
             <option value="aus">Nie anzeigen</option>
           </select>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="abzeichenGroesse">Größe des Abzeichens</label>
+            <p class="hilfe">Unabhängig von Meldungen und Merkliste.</p>
+          </div>
+          <div class="regler">
+            <input id="abzeichenGroesse" class="schieber" type="range" min="0.6" max="1.6" step="0.05" />
+            <output id="abzeichenGroesse-wert" class="regler__wert"></output>
+          </div>
         </div>
       </section>
 

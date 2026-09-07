@@ -152,6 +152,126 @@ test('Eine unbekannte Kennung zu entfernen ist kein Fehler', () => {
   assert.strictEqual(r.listen['1'].notizen.length, 1);
 });
 
+// --- Die drei Arten ----------------------------------------------------------
+
+test('Alle drei Arten werden angelegt und behalten ihre Form', () => {
+  let l = T.notizHinzufuegen({}, 7670, { art: 'abschnitt', text: 'Kapitel 1' }).listen;
+  l = T.notizHinzufuegen(l, 7670, { art: 'tracker', text: 'Audionotizen', stand: 12, ziel: 52 }).listen;
+  l = T.notizHinzufuegen(l, 7670, { art: 'notiz', text: 'Forschungskamera' }).listen;
+
+  const n = T.fuerSpiel(l, 7670).notizen;
+  assert.deepStrictEqual(n.map((x) => x.art), ['abschnitt', 'tracker', 'notiz']);
+  assert.strictEqual(n[1].stand, 12);
+  assert.strictEqual(n[1].ziel, 52);
+});
+
+test('Die Reihenfolge bleibt, wie sie angelegt wurde', () => {
+  // Sonst gliedern die Überschriften nichts.
+  let l = T.notizHinzufuegen({}, 1, { art: 'abschnitt', text: 'A' }).listen;
+  l = T.notizHinzufuegen(l, 1, { art: 'notiz', text: 'unter A' }).listen;
+  l = T.notizHinzufuegen(l, 1, { art: 'abschnitt', text: 'B' }).listen;
+  assert.deepStrictEqual(T.fuerSpiel(l, 1).notizen.map((n) => n.text), ['A', 'unter A', 'B']);
+});
+
+test('Ein blosser Text bleibt eine Notiz', () => {
+  // Ältere Aufrufe und ältere Dateien dürfen nicht kaputtgehen.
+  assert.strictEqual(T.notizHinzufuegen({}, 1, 'nur Text').notiz.art, 'notiz');
+  assert.strictEqual(
+    T.bereinige({ 1: { notizen: [{ id: 'a', text: 'ohne Art' }] } })['1'].notizen[0].art,
+    'notiz'
+  );
+});
+
+test('Eine unbekannte Art wird zur Notiz statt verworfen', () => {
+  const n = T.notizHinzufuegen({}, 1, { art: 'quatsch', text: 'bleibt' }).notiz;
+  assert.strictEqual(n.art, 'notiz');
+  assert.strictEqual(n.text, 'bleibt');
+});
+
+// --- Tracker: die Zahlen -----------------------------------------------------
+
+test('Ein Tracker ohne Ziel ist eine Notiz', () => {
+  // Ein Ziel von 0 wäre eine Division durch null in der Anzeige und sagt
+  // ohnehin nichts aus.
+  for (const ziel of [0, -5, undefined, 'abc']) {
+    const n = T.notizHinzufuegen({}, 1, { art: 'tracker', text: 'X', ziel }).notiz;
+    assert.strictEqual(n.art, 'notiz', `bei Ziel ${ziel}`);
+    assert.strictEqual(n.stand, undefined);
+  }
+});
+
+test('Der Stand kann nie über dem Ziel liegen', () => {
+  // Sonst zeigt der Balken mehr als voll und die Zahl widerspricht sich.
+  const n = T.notizHinzufuegen({}, 1, { art: 'tracker', text: 'X', stand: 99, ziel: 10 }).notiz;
+  assert.strictEqual(n.stand, 10);
+});
+
+test('Negative und krumme Zahlen werden geradegezogen', () => {
+  const n = T.notizHinzufuegen({}, 1, { art: 'tracker', text: 'X', stand: -4, ziel: 12.6 }).notiz;
+  assert.strictEqual(n.stand, 0);
+  assert.strictEqual(n.ziel, 13);
+});
+
+test('Absurd große Zahlen werden begrenzt', () => {
+  // Darüber passt die Zahl nicht mehr neben den Text.
+  const n = T.notizHinzufuegen({}, 1, { art: 'tracker', text: 'X', stand: 1e9, ziel: 1e9 }).notiz;
+  assert.strictEqual(n.ziel, T.MAX_ZAHL);
+});
+
+// --- Bearbeiten --------------------------------------------------------------
+
+test('Ein Zählerstand lässt sich ändern, ohne den Text zu verlieren', () => {
+  // Der häufigste Griff überhaupt: "12 von 52" wird zu "13 von 52".
+  const erst = T.notizHinzufuegen({}, 1, { art: 'tracker', text: 'Audionotizen', stand: 12, ziel: 52 });
+  const geaendert = T.notizAendern(erst.listen, 1, erst.notiz.id, { stand: 13 });
+
+  assert.strictEqual(geaendert.geaendert, true);
+  assert.strictEqual(geaendert.notiz.stand, 13);
+  assert.strictEqual(geaendert.notiz.text, 'Audionotizen', 'der Text muss bleiben');
+  assert.strictEqual(geaendert.notiz.ziel, 52, 'das Ziel muss bleiben');
+});
+
+test('Die Kennung bleibt beim Bearbeiten erhalten', () => {
+  // Sonst rutscht der Eintrag in der Liste an eine andere Stelle.
+  const erst = T.notizHinzufuegen({}, 1, { art: 'notiz', text: 'alt' });
+  const geaendert = T.notizAendern(erst.listen, 1, erst.notiz.id, { text: 'neu' });
+  assert.strictEqual(geaendert.notiz.id, erst.notiz.id);
+  assert.strictEqual(geaendert.notiz.text, 'neu');
+});
+
+test('Die Art lässt sich nachträglich wechseln', () => {
+  const erst = T.notizHinzufuegen({}, 1, { art: 'notiz', text: 'Audionotizen' });
+  const geaendert = T.notizAendern(erst.listen, 1, erst.notiz.id, {
+    art: 'tracker',
+    stand: 3,
+    ziel: 52,
+  });
+  assert.strictEqual(geaendert.notiz.art, 'tracker');
+  assert.strictEqual(geaendert.notiz.ziel, 52);
+});
+
+test('Ein Eintrag lässt sich nicht leer machen', () => {
+  const erst = T.notizHinzufuegen({}, 1, { art: 'notiz', text: 'da' });
+  const leer = T.notizAendern(erst.listen, 1, erst.notiz.id, { text: '   ' });
+  assert.strictEqual(leer.geaendert, false);
+  assert.ok(leer.grund);
+  assert.strictEqual(T.fuerSpiel(leer.listen, 1).notizen[0].text, 'da', 'der alte Text bleibt');
+});
+
+test('Eine unbekannte Kennung zu ändern meldet einen Grund', () => {
+  const r = T.notizAendern({}, 1, 'gibt-es-nicht', { text: 'x' });
+  assert.strictEqual(r.geaendert, false);
+  assert.ok(r.grund);
+});
+
+test('Zwei Überschriften mit demselben Text sind erlaubt', () => {
+  // Bei Notizen wäre das ein Doppelklick, bei einer Gliederung nicht.
+  const erst = T.notizHinzufuegen({}, 1, { art: 'abschnitt', text: 'Kapitel' });
+  const zweit = T.notizHinzufuegen(erst.listen, 1, { art: 'abschnitt', text: 'Kapitel' });
+  assert.ok(zweit.notiz, 'darf nicht als Doppelklick abgelehnt werden');
+  assert.strictEqual(T.fuerSpiel(zweit.listen, 1).notizen.length, 2);
+});
+
 // --- DIE zentrale Zusicherung ------------------------------------------------
 
 test('Eigene Einträge überleben das Aufräumen erreichter Achievements', () => {

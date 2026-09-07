@@ -12,7 +12,7 @@ const els = {};
 ['bildschirm', 'groesse', 'anzeigeDauerSek', 'spielStartDauerSek', 'lautstaerke',
  'statusAbzeichen', 'position', 'ton-name', 'ton-waehlen', 'ton-entfernen',
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
- 'merklisteAktiv', 'merklisteGroesse', 'panelTaste', 'panelBeiSteamOverlay',
+ 'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
 ].forEach((id) => {
   els[id] = document.getElementById(id);
 });
@@ -23,6 +23,7 @@ const REGLER = {
   spielStartDauerSek: (v) => `${Math.round(v)} s`,
   lautstaerke: (v) => (Number(v) === 0 ? 'stumm' : `${Math.round(v * 100)} %`),
   merklisteGroesse: (v) => `${Math.round(v * 100)} %`,
+  abzeichenGroesse: (v) => `${Math.round(v * 100)} %`,
 };
 
 // Einstellungen, die nur an oder aus kennen.

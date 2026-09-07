@@ -35,6 +35,8 @@ function wendeEinstellungenAn(neue) {
   document.body.classList.add(`pos-${pos}`);
 
   document.documentElement.style.setProperty('--groesse', einst.groesse);
+  document.documentElement.style.setProperty('--merkliste-groesse', einst.merklisteGroesse ?? 1);
+  document.documentElement.style.setProperty('--abzeichen-groesse', einst.abzeichenGroesse ?? 1);
   // Aus welcher Richtung die Meldungen einfliegen: bei einer linken Ecke von
   // links, sonst von rechts. Alles andere sieht aus, als kaeme die Meldung
   // quer ueber den Bildschirm geflogen.
@@ -564,14 +566,15 @@ function merkEintraege() {
     }));
 
   const ausNotizen = (spiel.merkliste.notizen || []).map((n) => ({
-    art: 'notiz',
+    ...n,
     schluessel: n.id,
-    text: n.text,
     farbe: '#6bd39a',
   }));
 
   // Eigene Eintraege ans Ende: Sie verschwinden nie von selbst und wuerden
-  // sonst die wechselnden Achievements dauerhaft nach unten druecken.
+  // sonst die wechselnden Achievements dauerhaft nach unten druecken. Ihre
+  // Reihenfolge untereinander bleibt so, wie sie angelegt wurden - nur so
+  // gliedern die Ueberschriften ueberhaupt etwas.
   return [...ausAchievements, ...ausNotizen];
 }
 
@@ -644,10 +647,29 @@ function zeichneMerkliste() {
     const li = document.createElement('li');
     li.className = `merkliste__eintrag merkliste__eintrag--${e.art}`;
     li.dataset.schluessel = e.schluessel;
-    li.innerHTML = `
-      <span class="merkliste__punkt" style="background:${e.farbe}"></span>
-      <span class="merkliste__name" title="${escapeHtml(e.text)}">${escapeHtml(e.text)}</span>
-    `;
+
+    if (e.art === 'abschnitt') {
+      // Eine Ueberschrift ist kein Aufgabenpunkt - sie bekommt deshalb
+      // keinen Punkt davor, sondern eine eigene Flaeche.
+      li.innerHTML = `<span class="merkliste__abschnitt">${escapeHtml(e.text)}</span>`;
+    } else if (e.art === 'tracker') {
+      const anteil = e.ziel > 0 ? Math.min(100, (e.stand / e.ziel) * 100) : 0;
+      const fertig = e.ziel > 0 && e.stand >= e.ziel;
+      li.innerHTML = `
+        <span class="merkliste__punkt" style="background:${e.farbe}"></span>
+        <span class="merkliste__zaehler-text">
+          <span class="merkliste__name" title="${escapeHtml(e.text)}">${escapeHtml(e.text)}</span>
+          <span class="merkliste__zahl${fertig ? ' merkliste__zahl--fertig' : ''}">${e.stand} / ${e.ziel}</span>
+        </span>
+        <span class="merkliste__balken"><span style="width:${anteil}%"></span></span>
+      `;
+    } else {
+      li.innerHTML = `
+        <span class="merkliste__punkt" style="background:${e.farbe}"></span>
+        <span class="merkliste__name" title="${escapeHtml(e.text)}">${escapeHtml(e.text)}</span>
+      `;
+    }
+
     liste.appendChild(li);
   });
 
@@ -729,12 +751,34 @@ function zeichneNotizen() {
 
   notizen.forEach((n) => {
     const zeile = document.createElement('div');
-    zeile.className = 'panel-notiz';
+    zeile.className = `panel-notiz panel-notiz--${n.art}`;
+
+    const mitte =
+      n.art === 'tracker'
+        ? `<span class="panel-notiz__text">${escapeHtml(n.text)}</span>
+           <span class="panel-notiz__zahl">${n.stand} / ${n.ziel}</span>`
+        : `<span class="panel-notiz__text">${escapeHtml(n.text)}</span>`;
+
     zeile.innerHTML = `
-      <span class="panel-notiz__punkt"></span>
-      <span class="panel-notiz__text">${escapeHtml(n.text)}</span>
+      ${n.art === 'abschnitt' ? '' : '<span class="panel-notiz__punkt"></span>'}
+      ${mitte}
+      ${
+        n.art === 'tracker'
+          ? '<button class="panel-notiz__plus" type="button" title="Einen hochzählen">+1</button>'
+          : ''
+      }
+      <button class="panel-notiz__bearbeiten" type="button" title="Bearbeiten">\u270e</button>
       <button class="panel-notiz__weg" type="button" title="Eintrag entfernen">\u2715</button>
     `;
+
+    // Einen hochzaehlen ist der mit Abstand haeufigste Griff bei einem
+    // Zaehler - dafuer soll niemand ein Formular oeffnen muessen.
+    zeile.querySelector('.panel-notiz__plus')?.addEventListener('click', async () => {
+      uebernimmAntwort(await window.overlayAPI.notizAendern(n.id, { stand: n.stand + 1 }));
+    });
+    zeile.querySelector('.panel-notiz__bearbeiten').addEventListener('click', () => {
+      zeigeNotizfeld(true, n);
+    });
     zeile.querySelector('.panel-notiz__weg').addEventListener('click', async () => {
       uebernimmAntwort(await window.overlayAPI.notizEntfernen(n.id));
     });
@@ -841,30 +885,81 @@ function gibMausFrei() {
 /* ---------- Eigener Eintrag: erscheint erst auf Klick ---------- */
 
 const notizForm = panelEl.querySelector('.panel__notiz');
+const notizFeld = notizForm.querySelector('.panel__notiz-feld');
+const notizStand = notizForm.querySelector('.panel__notiz-stand');
+const notizZiel = notizForm.querySelector('.panel__notiz-ziel');
+const notizZahlen = notizForm.querySelector('.panel__notiz-zahlen');
 
-function zeigeNotizfeld(sichtbar) {
+// Welcher Eintrag gerade bearbeitet wird - null heisst "neu anlegen".
+let notizInBearbeitung = null;
+let notizArt = 'notiz';
+
+function setzeNotizArt(art) {
+  notizArt = art;
+  notizForm.querySelectorAll('.panel__art-knopf').forEach((k) => {
+    k.setAttribute('aria-pressed', String(k.dataset.art === art));
+  });
+  notizZahlen.hidden = art !== 'tracker';
+  notizFeld.placeholder =
+    art === 'tracker'
+      ? 'Wofür der Zähler steht, z. B. „Audionotizen“'
+      : art === 'abschnitt'
+        ? 'Überschrift, z. B. „Kapitel 2“'
+        : 'z. B. „Alle Audionotizen sammeln“';
+}
+
+/**
+ * @param {boolean} sichtbar
+ * @param {object|null} vorhandener - zum Bearbeiten; ohne ihn wird angelegt.
+ */
+function zeigeNotizfeld(sichtbar, vorhandener = null) {
   notizForm.hidden = !sichtbar;
   panelEl.querySelector('.panel__notiz-auf').hidden = sichtbar;
-  if (sichtbar) {
-    const feld = notizForm.querySelector('.panel__notiz-feld');
-    feld.value = '';
-    feld.focus();
-  }
+  notizInBearbeitung = sichtbar ? vorhandener : null;
+
+  notizForm.querySelector('.panel__notiz-knopf').textContent = vorhandener
+    ? 'Speichern'
+    : 'Hinzufügen';
+
+  if (!sichtbar) return;
+
+  setzeNotizArt(vorhandener ? vorhandener.art : 'notiz');
+  notizFeld.value = vorhandener ? vorhandener.text : '';
+  notizStand.value = vorhandener && vorhandener.art === 'tracker' ? vorhandener.stand : 0;
+  notizZiel.value = vorhandener && vorhandener.art === 'tracker' ? vorhandener.ziel : '';
+  notizFeld.focus();
+  notizFeld.select();
 }
+
+notizForm.querySelectorAll('.panel__art-knopf').forEach((k) => {
+  k.addEventListener('click', () => {
+    setzeNotizArt(k.dataset.art);
+    notizFeld.focus();
+  });
+});
 
 panelEl.querySelector('.panel__notiz-auf').addEventListener('click', () => zeigeNotizfeld(true));
 panelEl.querySelector('.panel__notiz-ab').addEventListener('click', () => zeigeNotizfeld(false));
 
 notizForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const feld = panelEl.querySelector('.panel__notiz-feld');
-  const text = feld.value.trim();
+  const text = notizFeld.value.trim();
   if (!text) return;
-  const antwort = await window.overlayAPI.notizHinzufuegen(text);
+
+  const daten = { art: notizArt, text };
+  if (notizArt === 'tracker') {
+    daten.stand = Number(notizStand.value) || 0;
+    daten.ziel = Number(notizZiel.value) || 0;
+  }
+
+  const antwort = notizInBearbeitung
+    ? await window.overlayAPI.notizAendern(notizInBearbeitung.id, daten)
+    : await window.overlayAPI.notizHinzufuegen(daten);
+
   uebernimmAntwort(antwort);
   if (antwort && antwort.grund) {
-    // Abgelehnt: Text stehen lassen, sonst muesste man alles neu tippen.
-    feld.focus();
+    // Abgelehnt: Eingaben stehen lassen, sonst muesste man alles neu tippen.
+    notizFeld.focus();
     return;
   }
   zeigeNotizfeld(false);
