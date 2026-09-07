@@ -2,6 +2,42 @@
 
 ## Noch nicht veröffentlicht
 
+### Einstellungen — und ein aufgeräumtes Tray-Menü
+
+Das Menü hinter dem Tray-Symbol war auf siebzehn Einträge angewachsen und
+mischte Tägliches mit Werkzeugen, die man einmal im Leben braucht. Gleichzeitig
+ließen sich Größe, Position oder Lautstärke überhaupt nicht einstellen — sie
+standen fest im Code oder in einer `.env`, an die niemand herankommt.
+
+**Neu: ein Einstellungsfenster** in der Farbsprache der App. Darin:
+
+- **Bildschirm** — auf welchem Monitor die Meldungen erscheinen
+- **Position** — alle vier Ecken, als anklickbare Miniatur statt als Liste.
+  Die Meldungen fliegen entsprechend von links oder rechts ein, und bei einer
+  unteren Ecke stapeln sie sich nach oben statt nach unten.
+- **Größe** — 60 bis 160 Prozent
+- **Anzeigedauer** — getrennt für Trophäen- und Spielstart-Meldung
+- **Lautstärke** — ganz nach links bedeutet stumm
+- **Eigener Ton** — MP3, WAV, OGG oder M4A statt des eingebauten Klangs.
+  Fehlt die Datei später, klingt wieder der eingebaute Ton, statt dass eine
+  Freischaltung stumm bleibt.
+- **Status-Abzeichen** — Betriebsart wie bisher, nur erreichbar
+- **Steam-Schlüssel** — öffnet das Einrichtungsfenster
+
+Alles wirkt sofort, ohne Neustart und ohne Speichern-Knopf. Bei Einstellungen,
+deren Wirkung man sehen will, ist "erst einstellen, dann speichern, dann
+ausprobieren" ein unnötiger Umweg — die Testmeldung sitzt gleich daneben.
+
+**Das Tray-Menü** enthält jetzt nur noch, was man im Vorbeigehen anklickt.
+Alles zur Fehlersuche liegt unter "Diagnose": Protokoll, Schlüsselprüfung,
+lokale Erkennung, Aufzeichnung.
+
+Kaputte oder von Hand verfälschte Werte werden abgefangen, statt die Anzeige
+zu zerlegen: Eine Größe von 0 machte das Overlay unsichtbar, eine Anzeigedauer
+von 0 ließ Meldungen nie erscheinen — beides wäre von außen kaum als Ursache
+zu erkennen gewesen.
+
+
 ### Kein Warten mehr beim Start
 
 Beim Start stand minutenlang "Trophäen werden gezählt" mit einem grauen

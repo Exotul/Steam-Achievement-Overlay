@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Trophäenschrank – Einstellungen</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <main class="seite">
+      <header class="kopf">
+        <h1>Einstellungen</h1>
+        <p class="kopf__unter">Änderungen wirken sofort — zum Ausprobieren gibt es unten eine Testmeldung.</p>
+      </header>
+
+      <!-- ---------------- Anzeige ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Anzeige</h2>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="bildschirm">Bildschirm</label>
+            <p class="hilfe">Auf welchem Monitor die Meldungen erscheinen.</p>
+          </div>
+          <select id="bildschirm" class="feld feld--auswahl"></select>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Position</label>
+            <p class="hilfe">Ecke, in der die Meldungen einfliegen.</p>
+          </div>
+          <div class="ecken" id="position" role="radiogroup" aria-label="Position">
+            <button class="ecke" data-wert="oben-links" role="radio" aria-checked="false" title="Oben links"></button>
+            <button class="ecke" data-wert="oben-rechts" role="radio" aria-checked="false" title="Oben rechts"></button>
+            <button class="ecke" data-wert="unten-links" role="radio" aria-checked="false" title="Unten links"></button>
+            <button class="ecke" data-wert="unten-rechts" role="radio" aria-checked="false" title="Unten rechts"></button>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="groesse">Größe</label>
+            <p class="hilfe">Maßstab der Meldungen.</p>
+          </div>
+          <div class="regler">
+            <input id="groesse" class="schieber" type="range" min="0.6" max="1.6" step="0.05" />
+            <output id="groesse-wert" class="regler__wert"></output>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="anzeigeDauerSek">Anzeigedauer</label>
+            <p class="hilfe">Wie lange eine Trophäenmeldung stehen bleibt.</p>
+          </div>
+          <div class="regler">
+            <input id="anzeigeDauerSek" class="schieber" type="range" min="3" max="30" step="0.5" />
+            <output id="anzeigeDauerSek-wert" class="regler__wert"></output>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="spielStartDauerSek">Spielstart-Meldung</label>
+            <p class="hilfe">
+              Bewusst länger: Beim Spielstart kommen oft noch Ladebildschirme und Menüs.
+            </p>
+          </div>
+          <div class="regler">
+            <input id="spielStartDauerSek" class="schieber" type="range" min="5" max="90" step="1" />
+            <output id="spielStartDauerSek-wert" class="regler__wert"></output>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="statusAbzeichen">Status-Abzeichen</label>
+            <p class="hilfe">Kleines Zeichen unten rechts, das zeigt, dass die App mitläuft.</p>
+          </div>
+          <select id="statusAbzeichen" class="feld feld--auswahl">
+            <option value="steam-overlay">Nur bei geöffnetem Steam-Overlay</option>
+            <option value="spiel">Solange ein Spiel läuft</option>
+            <option value="aus">Nie anzeigen</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- ---------------- Ton ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Ton</h2>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="lautstaerke">Lautstärke</label>
+            <p class="hilfe">Ganz nach links bedeutet stumm.</p>
+          </div>
+          <div class="regler">
+            <input id="lautstaerke" class="schieber" type="range" min="0" max="1" step="0.02" />
+            <output id="lautstaerke-wert" class="regler__wert"></output>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Eigener Ton</label>
+            <p class="hilfe">
+              Ersetzt den eingebauten Klang. MP3, WAV, OGG oder M4A.
+              <span id="ton-name" class="dateiname"></span>
+            </p>
+          </div>
+          <div class="knopfgruppe">
+            <button id="ton-waehlen" class="knopf knopf--leise" type="button">Datei wählen…</button>
+            <button id="ton-entfernen" class="knopf knopf--leise" type="button" hidden>Entfernen</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------- Steam ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Steam</h2>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Steam-Schlüssel</label>
+            <p class="hilfe">
+              Dein persönlicher Zugang zu Steams Schnittstelle.
+              <span id="key-status" class="dateiname"></span>
+            </p>
+          </div>
+          <button id="key-aendern" class="knopf knopf--leise" type="button">Ändern…</button>
+        </div>
+
+        <p class="fussnote">
+          Der Schlüssel bleibt auf diesem Rechner. Er wird ausschließlich an Steam selbst gesendet,
+          an keinen anderen Server, und nicht ins Protokoll geschrieben.
+        </p>
+      </section>
+
+      <footer class="fuss">
+        <button id="test" class="knopf knopf--leise" type="button">Testmeldung zeigen</button>
+        <div class="fuss__rechts">
+          <span id="gespeichert" class="gespeichert" role="status" aria-live="polite"></span>
+          <button id="zuruecksetzen" class="knopf knopf--leise" type="button">Zurücksetzen</button>
+          <button id="schliessen" class="knopf knopf--haupt" type="button">Fertig</button>
+        </div>
+      </footer>
+    </main>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

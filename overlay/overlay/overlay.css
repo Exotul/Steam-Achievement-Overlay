@@ -1,17 +1,53 @@
+/*
+ * Position und Groesse kommen aus den Einstellungen. Die Ecke wird ueber eine
+ * Klasse am <body> gesetzt, der Massstab ueber --groesse.
+ *
+ * Warum transform-origin je Ecke: Beim Skalieren soll die gewaehlte Ecke
+ * stehenbleiben. Mit einem festen Ursprung wandern die Meldungen sonst beim
+ * Vergroessern aus dem Bild.
+ */
 #stack {
   position: fixed;
-  top: 40px;
-  right: 40px;
   display: flex;
   flex-direction: column;
-  /* Rechtsbuendig, damit die Meldungen an der rechten Bildschirmkante
-     ausgerichtet bleiben - wie bei einer Konsole. */
-  align-items: flex-end;
   gap: 16px;
   pointer-events: none;
-  /* Der Einflug kommt von ausserhalb des Bildschirms; ohne das wuerde am
-     rechten Rand eine Bildlaufleiste entstehen. */
+  /* Der Einflug kommt von ausserhalb des Bildschirms; ohne das entstuende
+     am Rand eine Bildlaufleiste. */
   overflow: visible;
+  transform: scale(var(--groesse, 1));
+}
+
+body.pos-oben-rechts #stack {
+  top: 40px;
+  right: 40px;
+  align-items: flex-end;
+  transform-origin: top right;
+}
+
+body.pos-oben-links #stack {
+  top: 40px;
+  left: 40px;
+  align-items: flex-start;
+  transform-origin: top left;
+}
+
+/* Unten wird die Reihenfolge umgedreht: Die neueste Meldung soll am Rand
+   erscheinen und die aelteren nach oben schieben, nicht umgekehrt. */
+body.pos-unten-rechts #stack {
+  bottom: 40px;
+  right: 40px;
+  align-items: flex-end;
+  flex-direction: column-reverse;
+  transform-origin: bottom right;
+}
+
+body.pos-unten-links #stack {
+  bottom: 40px;
+  left: 40px;
+  align-items: flex-start;
+  flex-direction: column-reverse;
+  transform-origin: bottom left;
 }
 
 /* ---------- Standard-Achievement-Toast ---------- */
@@ -44,11 +80,11 @@
    abrupt gestoppt. */
 @keyframes toast-in {
   0% {
-    transform: translateX(calc(100% + 60px));
+    transform: translateX(calc(var(--flug-richtung, 1) * (100% + 60px)));
     opacity: 0;
   }
   55% {
-    transform: translateX(-14px);
+    transform: translateX(calc(var(--flug-richtung, 1) * -14px));
     opacity: 1;
   }
   100% {
@@ -65,11 +101,11 @@
     opacity: 1;
   }
   18% {
-    transform: translateX(-12px);
+    transform: translateX(calc(var(--flug-richtung, 1) * -12px));
     opacity: 1;
   }
   100% {
-    transform: translateX(calc(100% + 60px));
+    transform: translateX(calc(var(--flug-richtung, 1) * (100% + 60px)));
     opacity: 0;
   }
 }

@@ -22,4 +22,7 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   onWelcome: (callback) => {
     ipcRenderer.on('show-welcome', () => callback());
   },
+  onEinstellungen: (callback) => {
+    ipcRenderer.on('einstellungen', (_event, werte) => callback(werte));
+  },
 });

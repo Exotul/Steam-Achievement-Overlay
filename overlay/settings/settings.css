@@ -1,0 +1,331 @@
+/*
+ * Einstellungsfenster - dieselbe Farbsprache wie Overlay, Einrichtung und
+ * Dashboard (frontend/src/styles/tokens.css).
+ *
+ * Schriften bewusst aus dem System: Ein Fenster, das seine Schrift erst
+ * nachlaedt, springt beim Oeffnen sichtbar um.
+ */
+
+:root {
+  --bg: #171b23;
+  --bg-raised: #1e232d;
+  --bg-inset: #12151c;
+  --ink: #e8eaf0;
+  --ink-dim: #9aa1b0;
+  --ink-faint: #5f6675;
+  --hairline: #2b313d;
+  --akzent: #8b93e0;
+  --gut: #6bd39a;
+  --radius-s: 6px;
+  --radius-m: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+  user-select: none;
+}
+
+.seite {
+  padding: 26px 30px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf h1 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.kopf__unter {
+  margin: 3px 0 0;
+  color: var(--ink-dim);
+  font-size: 12.5px;
+}
+
+/* ---------- Gruppen ---------- */
+
+.gruppe {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  padding: 4px 18px;
+}
+
+.gruppe__titel {
+  margin: 14px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 13px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.zeile__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.zeile label {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.hilfe {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.dateiname {
+  display: block;
+  margin-top: 3px;
+  font-family: 'Consolas', monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  word-break: break-all;
+  user-select: text;
+}
+
+.fussnote {
+  margin: 0 0 16px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.45;
+}
+
+/* ---------- Auswahlfelder ---------- */
+
+.feld {
+  padding: 8px 11px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--hairline);
+  background: var(--bg-inset);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.feld--auswahl {
+  min-width: 230px;
+  cursor: pointer;
+}
+
+.feld:focus {
+  outline: none;
+  border-color: var(--akzent);
+  box-shadow: 0 0 0 3px rgba(139, 147, 224, 0.16);
+}
+
+/* ---------- Positionswahl: vier Ecken statt einer Liste ---------- */
+/* Eine Ecke aussucht man sich schneller, wenn man sie sieht, als wenn man
+   "oben rechts" liest. Das kleine Rechteck bildet den Bildschirm ab. */
+
+.ecken {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  border: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+.ecke {
+  position: relative;
+  width: 52px;
+  height: 34px;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+  background: #0e1117;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+/* Der kleine Klotz zeigt, wo die Meldung landen wuerde. */
+.ecke::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+  transition: background 0.15s;
+}
+
+.ecke[data-wert='oben-links']::after {
+  top: 5px;
+  left: 5px;
+}
+.ecke[data-wert='oben-rechts']::after {
+  top: 5px;
+  right: 5px;
+}
+.ecke[data-wert='unten-links']::after {
+  bottom: 5px;
+  left: 5px;
+}
+.ecke[data-wert='unten-rechts']::after {
+  bottom: 5px;
+  right: 5px;
+}
+
+.ecke:hover {
+  border-color: var(--ink-faint);
+}
+
+.ecke[aria-checked='true'] {
+  border-color: var(--akzent);
+  background: rgba(139, 147, 224, 0.1);
+}
+
+.ecke[aria-checked='true']::after {
+  background: var(--akzent);
+}
+
+.ecke:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+}
+
+/* ---------- Schieberegler ---------- */
+
+.regler {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.schieber {
+  width: 190px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-inset);
+  border: 1px solid var(--hairline);
+  appearance: none;
+  cursor: pointer;
+}
+
+.schieber::-webkit-slider-thumb {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--akzent);
+  border: none;
+  cursor: pointer;
+}
+
+.schieber:focus {
+  outline: none;
+}
+
+.schieber:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(139, 147, 224, 0.3);
+}
+
+.regler__wert {
+  min-width: 52px;
+  text-align: right;
+  font-family: 'Consolas', monospace;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+}
+
+/* ---------- Knoepfe ---------- */
+
+.knopfgruppe {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.knopf {
+  padding: 9px 17px;
+  border-radius: var(--radius-s);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.knopf--haupt {
+  background: var(--akzent);
+  color: #12151c;
+}
+
+.knopf--haupt:hover {
+  background: #9aa1e8;
+}
+
+.knopf--leise {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--ink-dim);
+}
+
+.knopf--leise:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+/* ---------- Fussleiste ---------- */
+
+.fuss {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.fuss__rechts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Eine kurze Bestaetigung, dass wirklich gespeichert wurde. Ohne sie bleibt
+   offen, ob ein Schieben am Regler angekommen ist. */
+.gespeichert {
+  font-size: 12px;
+  color: var(--gut);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.gespeichert--sichtbar {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gespeichert {
+    transition: none;
+  }
+}

@@ -9,6 +9,41 @@ const stack = document.getElementById('stack');
 const diamondLayer = document.getElementById('diamond-layer');
 let audioCtx = null;
 
+/**
+ * Vom Hauptprozess gesetzte Einstellungen.
+ *
+ * Die Vorgaben hier sind bewusst dieselben wie in lib/einstellungen.js. Sie
+ * greifen nur in dem kurzen Moment zwischen dem Laden der Seite und der
+ * ersten Nachricht - ohne sie waere das Overlay in dieser Spanne unsichtbar
+ * oder stumm, je nachdem was gerade fehlt.
+ */
+let einst = {
+  position: 'oben-rechts',
+  groesse: 1,
+  anzeigeDauerSek: 8.5,
+  lautstaerke: 0.22,
+  eigenerTonUrl: null,
+};
+
+const POSITIONEN = ['oben-rechts', 'oben-links', 'unten-rechts', 'unten-links'];
+
+function wendeEinstellungenAn(neue) {
+  einst = { ...einst, ...neue };
+
+  POSITIONEN.forEach((p) => document.body.classList.remove(`pos-${p}`));
+  const pos = POSITIONEN.includes(einst.position) ? einst.position : 'oben-rechts';
+  document.body.classList.add(`pos-${pos}`);
+
+  document.documentElement.style.setProperty('--groesse', einst.groesse);
+  // Aus welcher Richtung die Meldungen einfliegen: bei einer linken Ecke von
+  // links, sonst von rechts. Alles andere sieht aus, als kaeme die Meldung
+  // quer ueber den Bildschirm geflogen.
+  document.documentElement.style.setProperty(
+    '--flug-richtung',
+    pos.endsWith('links') ? -1 : 1
+  );
+}
+
 function getAudioCtx() {
   audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
@@ -20,8 +55,12 @@ function tone(ctx, { freq, start, dur, gainPeak = 0.22, type = 'sine' }) {
   const gain = ctx.createGain();
   osc.type = type;
   osc.frequency.value = freq;
+  // Die eingestellte Lautstaerke wirkt als Faktor auf die vorgesehene
+  // Spitze, damit das Verhaeltnis der Toene untereinander erhalten bleibt -
+  // die hoeheren Stufen sollen weiterhin voller klingen.
+  const spitze = gainPeak * (einst.lautstaerke / 0.22);
   gain.gain.setValueAtTime(0, now + start);
-  gain.gain.linearRampToValueAtTime(gainPeak, now + start + 0.02);
+  gain.gain.linearRampToValueAtTime(Math.max(0.0001, spitze), now + start + 0.02);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
   osc.connect(gain).connect(ctx.destination);
   osc.start(now + start);
@@ -30,7 +69,34 @@ function tone(ctx, { freq, start, dur, gainPeak = 0.22, type = 'sine' }) {
 
 // Tonhöhe steigt leicht mit der Stufe - Platin klingt "heller"/edler als Kupfer,
 // bleibt aber im selben freundlichen Zweiklang-Muster.
+/**
+ * Spielt eine vom Benutzer hinterlegte Tondatei.
+ *
+ * Gibt false zurueck, wenn es keine gibt oder sie sich nicht abspielen laesst
+ * - dann klingt der eingebaute Ton. Eine kaputte oder geloeschte Datei darf
+ * nicht dazu fuehren, dass eine Freischaltung stumm bleibt.
+ */
+function spieleEigenenTon() {
+  if (!einst.eigenerTonUrl || einst.lautstaerke <= 0) return false;
+  try {
+    const klang = new Audio(einst.eigenerTonUrl);
+    klang.volume = Math.min(1, Math.max(0, einst.lautstaerke));
+    const versuch = klang.play();
+    if (versuch && typeof versuch.catch === 'function') {
+      versuch.catch(() => {
+        /* Datei weg oder Format nicht abspielbar - dann eben lautlos */
+      });
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 function playTierChime(category) {
+  if (einst.lautstaerke <= 0) return;
+  if (spieleEigenenTon()) return;
+
   const rank = TIERS[category]?.rank ?? 3;
   const base = 740 + rank * 60;
   const ctx = getAudioCtx();
@@ -132,12 +198,16 @@ function showAchievementToast(achievement) {
     });
   }
 
-  setTimeout(() => el.remove(), 8600);
+  // Anzeigedauer aus den Einstellungen. Das CSS blendet 0,5 s vor dem Ende
+  // aus, deshalb bekommt die Animation den etwas kuerzeren Wert.
+  const dauerMs = Math.max(1000, einst.anzeigeDauerSek * 1000);
+  el.style.setProperty('--display-time', `${Math.max(0.5, einst.anzeigeDauerSek - 0.5)}s`);
+  setTimeout(() => el.remove(), dauerMs + 100);
 
   // Die XP-Meldung folgt, sobald das Achievement-Popup verschwunden ist -
   // so ueberlagern sich die beiden nicht und die Abfolge bleibt lesbar.
   if (achievement.xp) {
-    setTimeout(() => showXpToast(achievement.xp), 8900);
+    setTimeout(() => showXpToast(achievement.xp), dauerMs + 400);
   }
 }
 
@@ -460,6 +530,7 @@ function showXpToast(xp) {
 window.overlayAPI.onAchievement(enqueueAchievement);
 window.overlayAPI.onGameDiamond(showDiamondCelebration);
 window.overlayAPI.onWelcome(showWelcomeToast);
+window.overlayAPI.onEinstellungen(wendeEinstellungenAn);
 // --- Ladebalken beim Start ---------------------------------------------------
 // Der XP-Gesamtstand wird EINMAL beim Start ermittelt (danach nur noch
 // fortgeschrieben). Das dauert bei grossen Bibliotheken einen Moment -

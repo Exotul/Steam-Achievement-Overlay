@@ -50,6 +50,7 @@ if (konfig.uebernommen) {
   logger.info(`Bisherige .env nach ${konfig.benutzerConfig} übernommen - sie übersteht künftig Updates`);
 }
 const steamKey = require('./lib/steamKey');
+const einstellungenModul = require('./lib/einstellungen');
 const SteamOverlayDetector = require('./lib/steamOverlayDetector');
 const {
   findVerifiedSource,
@@ -69,11 +70,15 @@ const LOCAL_WATCH = (process.env.LOCAL_WATCH || 'auto').toLowerCase();
 //   steam-overlay = nur waehrend Steams Overlay offen ist (Shift+Tab)
 //   spiel         = solange ein Spiel verfolgt wird
 //   aus           = nie
-const BADGE_MODE = (process.env.STATUS_BADGE || 'steam-overlay').toLowerCase();
+// Kommt jetzt aus den Einstellungen (siehe unten), nicht mehr aus der .env.
 // Wie lange die Spielstart-Meldung stehen bleibt. Deutlich laenger als eine
 // Achievement-Meldung, weil beim Spielstart oft noch Ladebildschirme,
 // Logos und Menues kommen - eine kurze Einblendung geht dabei schlicht unter.
-const GAME_TOAST_SECONDS = Number(process.env.GAME_TOAST_SECONDS) || 30;
+// Frueher standen Anzeigedauer und Status-Abzeichen nur in der .env und
+// waren damit praktisch unerreichbar. Sie kommen jetzt aus den
+// Einstellungen; die alten Umgebungsvariablen gelten weiterhin als
+// Vorgabewerte, damit eine bestehende Einrichtung sich nicht aendert.
+let einstellungen = einstellungenModul.laden();
 
 let backendChild = null;
 let overlayWindow;
@@ -149,18 +154,37 @@ let badgeSichtbar = false;
 let steamErreichbar = true;
 let verifiedMethod = null;
 
+/**
+ * Der Bildschirm, auf dem das Overlay liegen soll.
+ *
+ * Faellt bewusst auf den Hauptbildschirm zurueck, wenn der eingestellte
+ * Monitor nicht mehr da ist - abgezogen, umgesteckt, anderer Rechner. Sonst
+ * laege das Overlay im Nirgendwo und waere schlicht unsichtbar, ohne dass
+ * erkennbar waere warum.
+ */
+function gewaehlterBildschirm() {
+  if (einstellungen.bildschirm === null) return screen.getPrimaryDisplay();
+  const treffer = screen.getAllDisplays().find((d) => d.id === einstellungen.bildschirm);
+  if (treffer) return treffer;
+  logger.warn(
+    `Eingestellter Bildschirm ${einstellungen.bildschirm} nicht gefunden - Hauptbildschirm`
+  );
+  return screen.getPrimaryDisplay();
+}
+
 function createOverlayWindow() {
-  // Volle Bildschirmbreite und -groesse verwenden (nicht workAreaSize),
-  // damit das Overlay auch im Vollbild ueber der Taskleisten-Zone liegt.
-  const { width, height } = screen.getPrimaryDisplay().bounds;
+  // Volle Bildschirmgroesse verwenden (nicht workAreaSize), damit das Overlay
+  // auch im Vollbild ueber der Taskleisten-Zone liegt.
+  const anzeige = gewaehlterBildschirm();
+  const { x, y, width, height } = anzeige.bounds;
 
   overlayWindow = new BrowserWindow({
     width,
-    // Hoeher als frueher: Die Meldungen sind groesser geworden und bis zu
-    // vier koennen gleichzeitig stehen.
-    height: Math.min(780, height),
-    x: 0,
-    y: 0,
+    // Das Fenster deckt den ganzen Bildschirm ab; wo die Meldungen darin
+    // sitzen, entscheidet die Position aus den Einstellungen (per CSS).
+    height,
+    x,
+    y,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -201,6 +225,7 @@ function createOverlayWindow() {
   // starten sofort sehen kann, ob das Overlay sichtbar und richtig
   // positioniert ist.
   overlayWindow.webContents.once('did-finish-load', () => {
+    sendToOverlay('einstellungen', einstellungenFuerOverlay());
     // Beim automatischen Start nach dem Hochfahren keine Begruessung
     // einblenden - da laufen ohnehin schon genug Programme hoch, und die
     // Meldung ist als Bestaetigung beim manuellen Start gedacht.
@@ -364,7 +389,7 @@ async function startAchievementTracking(appId, gameName) {
       totalCount: result.totalCount,
       isDiamond: result.isDiamond,
       difficulty: result.difficulty ?? null,
-      displaySeconds: GAME_TOAST_SECONDS,
+      displaySeconds: einstellungen.spielStartDauerSek,
     });
 
     // Die Komplettierungszeit liest nur bereits berechnete Freundesprofile
@@ -384,7 +409,7 @@ async function startAchievementTracking(appId, gameName) {
       unlockedCount: null,
       totalCount: null,
       isDiamond: false,
-      displaySeconds: GAME_TOAST_SECONDS,
+      displaySeconds: einstellungen.spielStartDauerSek,
     });
   }
 
@@ -546,9 +571,9 @@ function checkLocalStatsFile() {
 
 async function starteStatusAbzeichen() {
   stoppeStatusAbzeichen();
-  if (BADGE_MODE === 'aus') return;
+  if (einstellungen.statusAbzeichen === 'aus') return;
 
-  if (BADGE_MODE === 'spiel') {
+  if (einstellungen.statusAbzeichen === 'spiel') {
     sendStatusBadge(true);
     return;
   }
@@ -741,6 +766,11 @@ function updateTrayStatus(statusLine) {
 
 function buildTrayMenu(statusLine) {
   const loggedIn = !!currentUser;
+  // Das Menue war auf siebzehn Eintraege angewachsen und mischte alles
+  // durcheinander: Taegliches neben Werkzeugen, die man einmal im Leben
+  // braucht. Hier stehen jetzt nur noch die Dinge, die man wirklich im
+  // Vorbeigehen anklickt - der Rest liegt in den Einstellungen oder unter
+  // "Diagnose".
   const menu = Menu.buildFromTemplate([
     {
       label: loggedIn ? `Angemeldet als ${currentUser.displayName}` : 'Nicht angemeldet',
@@ -754,7 +784,9 @@ function buildTrayMenu(statusLine) {
     !loggedIn && { label: 'Mit Steam anmelden', click: handleLogin },
     loggedIn && { label: 'Abmelden', click: handleLogout },
     { label: 'Dashboard öffnen', click: () => shell.openExternal(BASE_URL) },
+    { label: 'Einstellungen…', click: zeigeEinstellungen },
     { type: 'separator' },
+    { label: 'Test-Achievement anzeigen', click: handleTestAchievement },
     autostart.isAvailable()
       ? {
           label: 'Automatisch mit Windows starten',
@@ -763,18 +795,25 @@ function buildTrayMenu(statusLine) {
           click: handleAutostartToggle,
         }
       : null,
-    { label: 'Test-Achievement anzeigen', click: handleTestAchievement },
+    {
+      // Alles, was der Fehlersuche dient. Zusammengefasst, weil es genau
+      // dann gebraucht wird, wenn etwas klemmt - und sonst nie.
+      label: 'Diagnose',
+      submenu: [
+        { label: 'Lokale Erkennung prüfen…', click: handleDiagnose },
+        { label: 'Steam-API-Schlüssel prüfen…', click: handleKeycheck },
+        { type: 'separator' },
+        { label: 'Protokoll öffnen', click: () => shell.openPath(logger.logFile) },
+        { label: 'Protokollordner öffnen', click: () => shell.openPath(logger.logDir) },
+        { type: 'separator' },
+        recorder
+          ? { label: 'Aufzeichnung beenden und speichern', click: stopRecording }
+          : { label: 'Dateiänderungen aufzeichnen…', click: startRecording },
+      ],
+    },
+    { type: 'separator' },
     { label: `Version ${app.getVersion()}`, enabled: false },
     { label: 'Nach Updates suchen…', click: () => updater.jetztPruefen() },
-    { label: 'Protokoll öffnen', click: () => shell.openPath(logger.logFile) },
-    { label: 'Protokollordner öffnen', click: () => shell.openPath(logger.logDir) },
-    { label: 'Steam-API-Schlüssel prüfen…', click: handleKeycheck },
-    { label: 'Steam-Schlüssel eintragen…', click: handleSchluesselEintragen },
-    { label: 'Lokale Erkennung prüfen…', click: handleDiagnose },
-    recorder
-      ? { label: 'Aufzeichnung beenden und speichern', click: stopRecording }
-      : { label: 'Dateiänderungen aufzeichnen…', click: startRecording },
-    { type: 'separator' },
     { label: 'Beenden', click: () => app.quit() },
   ].filter(Boolean));
   tray.setContextMenu(menu);
@@ -830,6 +869,32 @@ async function ladeXpStand() {
     });
     await new Promise((r) => setTimeout(r, 1000));
   }
+}
+
+/**
+ * Einstellungen so aufbereiten, wie das Overlay sie braucht.
+ *
+ * Der eigene Ton liegt als Dateipfad vor; die Anzeigeschicht laeuft aber im
+ * Browser und kann damit nichts anfangen - sie braucht eine file://-Adresse.
+ * Die Umwandlung gehoert hierher und nicht ins Overlay: Dort gibt es
+ * bewusst keinen Node-Zugriff.
+ */
+function einstellungenFuerOverlay() {
+  let eigenerTonUrl = null;
+  if (einstellungen.eigenerTon) {
+    try {
+      // Nur verschicken, wenn die Datei ueberhaupt noch da ist - sonst
+      // versucht das Overlay bei jeder Trophaee vergeblich abzuspielen.
+      if (fs_.existsSync(einstellungen.eigenerTon)) {
+        eigenerTonUrl = require('url').pathToFileURL(einstellungen.eigenerTon).href;
+      } else {
+        logger.warn(`Eigener Ton nicht gefunden: ${einstellungen.eigenerTon}`);
+      }
+    } catch (err) {
+      logger.warn('Eigener Ton nicht verwendbar: ' + err.message);
+    }
+  }
+  return { ...einstellungen, eigenerTonUrl };
 }
 
 function sendToOverlay(kanal, nutzlast) {
@@ -1075,8 +1140,8 @@ async function handleDiagnose() {
 
   lines.push('');
   lines.push('Status-Abzeichen (unten rechts):');
-  lines.push(`  Betriebsart: ${BADGE_MODE}`);
-  if (BADGE_MODE === 'steam-overlay') {
+  lines.push(`  Betriebsart: ${einstellungen.statusAbzeichen}`);
+  if (einstellungen.statusAbzeichen === 'steam-overlay') {
     if (!overlayDetector) {
       lines.push('  Steam-Overlay-Erkennung nicht aktiv (Abzeichen dauerhaft sichtbar)');
     } else if (overlayDetector.funktioniert()) {
@@ -1282,6 +1347,130 @@ async function handleSchluesselEintragen() {
     app.relaunch();
     app.exit(0);
   }
+}
+
+/**
+ * Uebernimmt geaenderte Einstellungen, ohne die App neu zu starten.
+ *
+ * Das Overlay-Fenster wird dabei nur dann verschoben, wenn sich der
+ * Bildschirm tatsaechlich geaendert hat - ein Fenster umzusetzen laesst es
+ * kurz flackern, und das bei jedem Zug am Lautstaerkeregler waere unschoen.
+ */
+function wendeEinstellungenAn(vorher) {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    if (!vorher || vorher.bildschirm !== einstellungen.bildschirm) {
+      const { x, y, width, height } = gewaehlterBildschirm().bounds;
+      overlayWindow.setBounds({ x, y, width, height });
+      // Nach dem Umsetzen die Ebene neu behaupten, sonst rutscht das Overlay
+      // auf manchen Systemen hinter andere Fenster.
+      overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+    }
+    sendToOverlay('einstellungen', einstellungenFuerOverlay());
+  }
+
+  // Das Status-Abzeichen haengt an einer Betriebsart, die sich geaendert
+  // haben kann - neu aufsetzen, aber nur wenn gerade ein Spiel verfolgt wird.
+  if (vorher && vorher.statusAbzeichen !== einstellungen.statusAbzeichen && trackedAppId !== null) {
+    starteStatusAbzeichen();
+  }
+}
+
+let settingsWindow = null;
+
+/**
+ * Einstellungsfenster.
+ *
+ * Warum ueberhaupt: Das Tray-Menue war auf siebzehn Eintraege angewachsen,
+ * darunter Dinge, die man einmal im Leben braucht (Dateiaenderungen
+ * aufzeichnen) neben solchen, die man staendig sucht. Und Groesse, Position
+ * oder Lautstaerke liessen sich ueberhaupt nicht einstellen - sie standen
+ * fest im Code oder in einer .env, an die niemand herankommt.
+ */
+function zeigeEinstellungen() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 720,
+    height: 860,
+    minWidth: 640,
+    minHeight: 520,
+    title: 'Trophaeenschrank - Einstellungen',
+    backgroundColor: '#171b23',
+    show: false,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, 'assets', 'app-icon.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'settings', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  settingsWindow.loadFile(path.join(__dirname, 'settings', 'settings.html'));
+  settingsWindow.once('ready-to-show', () => settingsWindow.show());
+
+  const uebernehmen = (roh) => {
+    const vorher = einstellungen;
+    einstellungen = einstellungenModul.speichern(roh);
+    wendeEinstellungenAn(vorher);
+    buildTrayMenu();
+    return einstellungen;
+  };
+
+  const behandler = {
+    'einst:laden': () => ({
+      einstellungen,
+      bildschirme: screen.getAllDisplays().map((d, i) => ({
+        id: d.id,
+        name: d.label || `Bildschirm ${i + 1}`,
+        breite: d.bounds.width,
+        hoehe: d.bounds.height,
+        istHaupt: d.id === screen.getPrimaryDisplay().id,
+      })),
+      schluesselVorhanden: !schluesselFehlt(),
+    }),
+
+    'einst:speichern': (_e, roh) => uebernehmen(roh),
+
+    'einst:zuruecksetzen': () => uebernehmen(einstellungenModul.standard()),
+
+    'einst:ton-waehlen': async () => {
+      const { canceled, filePaths } = await dialog.showOpenDialog(settingsWindow, {
+        title: 'Eigenen Ton waehlen',
+        properties: ['openFile'],
+        filters: [{ name: 'Tondateien', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac'] }],
+      });
+      return canceled || filePaths.length === 0 ? null : filePaths[0];
+    },
+
+    'einst:test': () => {
+      handleTestAchievement();
+      return true;
+    },
+
+    'einst:schluessel': async () => {
+      await zeigeEinrichtung();
+      // Der Schluessel wirkt im Backend erst nach einem Neustart - darauf
+      // wird hier hingewiesen, statt es stillschweigend hinzunehmen.
+      if (!schluesselFehlt()) buildTrayMenu();
+      return !schluesselFehlt();
+    },
+
+    'einst:schliessen': () => {
+      if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
+      return true;
+    },
+  };
+
+  Object.entries(behandler).forEach(([kanal, fn]) => ipcMain.handle(kanal, fn));
+
+  settingsWindow.on('closed', () => {
+    Object.keys(behandler).forEach((kanal) => ipcMain.removeHandler(kanal));
+    settingsWindow = null;
+  });
 }
 
 function createTray() {
