@@ -148,6 +148,34 @@ let localWatchReady = false;
 
 // Merklisten je Spiel, aus dem Benutzerordner.
 let merklisten = todoModul.laden();
+
+/**
+ * appId -> Spielname, fuer die Auswahl im Merklisten-Fenster.
+ *
+ * Ohne das staende dort "App 7670" statt "BioShock". Die Namen kommen beim
+ * Spielstart mit und werden neben der Merkliste abgelegt - eine eigene
+ * Steam-Abfrage nur fuer eine Beschriftung waere die Sache nicht wert.
+ */
+const NAMEN_DATEI = path_.join(os_.homedir(), '.trophaenschrank', 'spielnamen.json');
+let gemerkteSpielnamen = {};
+try {
+  gemerkteSpielnamen = JSON.parse(fs_.readFileSync(NAMEN_DATEI, 'utf8'));
+} catch (err) {
+  gemerkteSpielnamen = {};
+}
+
+function merkeSpielname(appId, name) {
+  if (!name || gemerkteSpielnamen[String(appId)] === name) return;
+  gemerkteSpielnamen[String(appId)] = name;
+  try {
+    fs_.mkdirSync(path_.dirname(NAMEN_DATEI), { recursive: true });
+    const tmp = `${NAMEN_DATEI}.tmp`;
+    fs_.writeFileSync(tmp, JSON.stringify(gemerkteSpielnamen), 'utf8');
+    fs_.renameSync(tmp, NAMEN_DATEI);
+  } catch (e) {
+    /* nicht kritisch - dann steht dort eben die Nummer */
+  }
+}
 // Steht die Uebersicht gerade offen? Davon haengt ab, ob das Overlay-Fenster
 // Mausklicks annimmt.
 let panelOffen = false;
@@ -465,6 +493,7 @@ async function startAchievementTracking(appId, gameName) {
     logger.info(`Merkliste: ${bereinigt.entfernt.length} erledigte Einträge entfernt`);
   }
 
+  merkeSpielname(appId, gameName);
   sendeSpielDaten();
 
   if (achievementTimer) clearInterval(achievementTimer);
@@ -844,6 +873,7 @@ function buildTrayMenu(statusLine) {
       enabled: trackedAppId !== null,
       click: () => zeigePanel(true),
     },
+    { label: 'Merkliste bearbeiten…', click: zeigeMerkliste },
     { label: 'Test-Achievement anzeigen', click: handleTestAchievement },
     autostart.isAvailable()
       ? {
@@ -1024,7 +1054,20 @@ function setzePanelZustand(offen) {
 
   // Grundzustand ist IMMER durchlaessig.
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  overlayWindow.setFocusable(panelOffen);
+
+  // Und das Fenster ist NIE fokussierbar - auch nicht bei offener Uebersicht.
+  //
+  // Das war der eigentliche Konstruktionsfehler: Sobald dieses Fenster den
+  // Fokus bekommen kann, holt Windows ihn sich beim ersten Klick, und damit
+  // ist man aus dem Spiel heraus. Alles fuehlt sich danach an, als haenge es.
+  // Wegprogrammieren laesst sich das nicht - ein Fenster, in das man tippt,
+  // gehoert schlicht nicht ueber ein laufendes Spiel.
+  //
+  // Folge: In der Uebersicht laesst sich klicken (Haken, Filter, +1), aber
+  // nicht tippen. Ein nicht fokussierbares Fenster bekommt unter Windows
+  // weiterhin Mausklicks, nur eben keine Tastatur. Alles, wofuer man tippen
+  // muss, liegt deshalb im eigenen Merklisten-Fenster (Tray-Menue).
+  overlayWindow.setFocusable(false);
 }
 
 /**
@@ -1519,6 +1562,64 @@ function wendeEinstellungenAn(vorher) {
   }
 }
 
+let merkWindow = null;
+
+/**
+ * Merklisten-Fenster - ein GEWOEHNLICHES Fenster, kein Overlay.
+ *
+ * Warum getrennt vom Panel im Spiel: Die Liste zu pflegen heisst tippen, und
+ * ein Fenster, das Tastatureingaben annimmt, muss den Fokus bekommen. Damit
+ * ist man aus dem laufenden Spiel heraus - das laesst sich nicht
+ * wegprogrammieren, es ist die Natur eines Overlays. Deshalb sind die beiden
+ * Taetigkeiten getrennt:
+ *
+ *   im Spiel  - nachsehen und klicken (Haken, Zaehler), nie Fokus
+ *   hier      - schreiben, umbenennen, aufraeumen, in Ruhe
+ */
+function zeigeMerkliste() {
+  if (merkWindow && !merkWindow.isDestroyed()) {
+    merkWindow.focus();
+    return;
+  }
+
+  merkWindow = new BrowserWindow({
+    width: 760,
+    height: 820,
+    minWidth: 620,
+    minHeight: 520,
+    title: 'Trophaeenschrank - Merkliste',
+    backgroundColor: '#171b23',
+    show: false,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, 'assets', 'app-icon.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'merkliste', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  merkWindow.loadFile(path.join(__dirname, 'merkliste', 'merkliste.html'));
+  merkWindow.once('ready-to-show', () => merkWindow.show());
+  merkWindow.on('closed', () => {
+    merkWindow = null;
+  });
+}
+
+/**
+ * Antwort an das Merklisten-Fenster. Immer der vollstaendige Stand des
+ * angefragten Spiels - so muss die Seite nie raten, was gespeichert wurde.
+ */
+function merkFensterAntwort(appId, grund = null) {
+  return { merkliste: todoModul.fuerSpiel(merklisten, appId), grund };
+}
+
+/** Nach einer Aenderung auch das laufende Overlay auffrischen. */
+function merkGeaendert(appId) {
+  if (String(appId) === String(trackedAppId)) sendeSpielDaten();
+  if (merkWindow && !merkWindow.isDestroyed()) merkWindow.webContents.send('merk-neu');
+}
+
 let settingsWindow = null;
 
 /**
@@ -1654,23 +1755,87 @@ function merklisteAntwort(grund = null) {
   return { merkliste: todoModul.fuerSpiel(merklisten, trackedAppId), grund };
 }
 
+ipcMain.handle('merk:laden', (_e, gewuenscht) => {
+  // Welche Spiele hier ueberhaupt zur Auswahl stehen: das laufende, und
+  // alle, fuer die schon einmal etwas eingetragen wurde. Andere waeren
+  // sinnlos - ohne Achievement-Liste liesse sich dort nichts anhaken.
+  const namen = new Map();
+  if (trackedAppId !== null) {
+    namen.set(String(trackedAppId), trackedGameName || `App ${trackedAppId}`);
+  }
+  Object.keys(merklisten).forEach((id) => {
+    if (!namen.has(id)) namen.set(id, gemerkteSpielnamen[id] || `App ${id}`);
+  });
+
+  const spiele = [...namen.entries()].map(([id, name]) => ({
+    appId: Number(id),
+    name,
+    laeuft: String(trackedAppId) === id,
+  }));
+
+  // Vorauswahl: das gewuenschte, sonst das laufende, sonst das erste.
+  let appId = gewuenscht ?? trackedAppId ?? (spiele.length > 0 ? spiele[0].appId : null);
+  if (appId !== null && !spiele.some((s) => s.appId === Number(appId))) appId = spiele[0]?.appId ?? null;
+
+  return {
+    appId,
+    spiele,
+    max: todoModul.MAX_JE_SPIEL,
+    // Achievements gibt es nur fuer das laufende Spiel - fuer andere liegen
+    // sie nicht im Speicher dieses Prozesses.
+    achievements:
+      String(appId) === String(trackedAppId) ? [...achievementIndex.values()] : [],
+    merkliste: todoModul.fuerSpiel(merklisten, appId),
+  };
+});
+
+ipcMain.handle('merk:haken', (_e, appId, apiName, angehakt) => {
+  const r = todoModul.setze(merklisten, appId, apiName, angehakt);
+  if (r.geaendert) {
+    merklisten = todoModul.speichern(r.listen);
+    merkGeaendert(appId);
+  }
+  return merkFensterAntwort(appId, r.grund);
+});
+
+ipcMain.handle('merk:notiz-hinzu', (_e, appId, daten) => {
+  const r = todoModul.notizHinzufuegen(merklisten, appId, daten);
+  if (r.notiz) {
+    merklisten = todoModul.speichern(r.listen);
+    merkGeaendert(appId);
+    logger.info(`Merkliste: eigener Eintrag (${r.notiz.art}) angelegt fuer App ${appId}`);
+  }
+  return merkFensterAntwort(appId, r.grund);
+});
+
+ipcMain.handle('merk:notiz-aendern', (_e, appId, id, aenderung) => {
+  const r = todoModul.notizAendern(merklisten, appId, id, aenderung);
+  if (r.geaendert) {
+    merklisten = todoModul.speichern(r.listen);
+    merkGeaendert(appId);
+  }
+  return merkFensterAntwort(appId, r.grund);
+});
+
+ipcMain.handle('merk:notiz-weg', (_e, appId, id) => {
+  const r = todoModul.notizEntfernen(merklisten, appId, id);
+  if (r.geaendert) {
+    merklisten = todoModul.speichern(r.listen);
+    merkGeaendert(appId);
+  }
+  return merkFensterAntwort(appId);
+});
+
+ipcMain.handle('merk:schliessen', () => {
+  if (merkWindow && !merkWindow.isDestroyed()) merkWindow.close();
+  return true;
+});
+
 ipcMain.handle('merkliste:setzen', (_e, apiName, angehakt) => {
   const ergebnis = todoModul.setze(merklisten, trackedAppId, apiName, angehakt);
   if (ergebnis.geaendert) {
     merklisten = todoModul.speichern(ergebnis.listen);
     logger.info(`Merkliste: ${apiName} ${angehakt ? 'gesetzt' : 'entfernt'}`);
-  }
-  return merklisteAntwort(ergebnis.grund);
-});
-
-ipcMain.handle('merkliste:notiz-hinzu', (_e, text) => {
-  if (trackedAppId === null) {
-    return merklisteAntwort('Ohne laufendes Spiel gibt es keine Liste, in die das gehört.');
-  }
-  const ergebnis = todoModul.notizHinzufuegen(merklisten, trackedAppId, text);
-  if (ergebnis.notiz) {
-    merklisten = todoModul.speichern(ergebnis.listen);
-    logger.info(`Merkliste: eigener Eintrag hinzugefügt (App ${trackedAppId})`);
   }
   return merklisteAntwort(ergebnis.grund);
 });
@@ -1682,15 +1847,6 @@ ipcMain.handle('merkliste:notiz-aendern', (_e, id, aenderung) => {
     logger.info(`Merkliste: eigener Eintrag geändert (App ${trackedAppId})`);
   }
   return merklisteAntwort(ergebnis.grund);
-});
-
-ipcMain.handle('merkliste:notiz-weg', (_e, id) => {
-  const ergebnis = todoModul.notizEntfernen(merklisten, trackedAppId, id);
-  if (ergebnis.geaendert) {
-    merklisten = todoModul.speichern(ergebnis.listen);
-    logger.info(`Merkliste: eigener Eintrag entfernt (App ${trackedAppId})`);
-  }
-  return merklisteAntwort(null);
 });
 
 ipcMain.handle('panel:zustand', (_e, offen) => {

@@ -42,10 +42,12 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   merklisteSetzen: (apiName, angehakt) =>
     ipcRenderer.invoke('merkliste:setzen', apiName, angehakt),
 
-  /** Eigener Eintrag - eine frei geschriebene Notiz. */
-  notizHinzufuegen: (text) => ipcRenderer.invoke('merkliste:notiz-hinzu', text),
+  /**
+   * Zaehlerstand eines eigenen Eintrags aendern - das Einzige, was sich im
+   * Spiel an einer Notiz tun laesst. Alles Weitere braucht eine Tastatur und
+   * liegt deshalb im Merklisten-Fenster.
+   */
   notizAendern: (id, aenderung) => ipcRenderer.invoke('merkliste:notiz-aendern', id, aenderung),
-  notizEntfernen: (id) => ipcRenderer.invoke('merkliste:notiz-weg', id),
 
   /**
    * Meldet, ob die Uebersicht gerade offen ist. Der Hauptprozess schaltet

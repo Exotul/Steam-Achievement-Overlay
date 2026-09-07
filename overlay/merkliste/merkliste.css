@@ -1,0 +1,482 @@
+/*
+ * Merklisten-Fenster - dieselbe Farbsprache wie Overlay, Einrichtung und
+ * Einstellungen.
+ *
+ * WARUM ES DIESES FENSTER GIBT: Die Merkliste zu pflegen heisst tippen. Ein
+ * Fenster, das Tastatureingaben annimmt, muss den Fokus bekommen - und damit
+ * ist man aus dem laufenden Spiel heraus. Das laesst sich nicht
+ * wegprogrammieren; es ist die Natur eines Overlays.
+ *
+ * Deshalb sind die beiden Taetigkeiten getrennt: Im Spiel wird nur
+ * NACHGESEHEN (und geklickt), gepflegt wird hier - vor dem Spielen, zwischen
+ * zwei Sitzungen, oder mit Alt+Tab.
+ */
+
+[hidden] {
+  display: none !important;
+}
+
+:root {
+  --bg: #171b23;
+  --bg-raised: #1e232d;
+  --bg-inset: #12151c;
+  --ink: #e8eaf0;
+  --ink-dim: #9aa1b0;
+  --ink-faint: #5f6675;
+  --hairline: #2b313d;
+  --akzent: #8b93e0;
+  --gut: #6bd39a;
+  --schlecht: #e07a7a;
+  --radius-s: 6px;
+  --radius-m: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.seite {
+  padding: 24px 28px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 100vh;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.kopf h1 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.kopf__unter {
+  margin: 3px 0 0;
+  color: var(--ink-dim);
+  font-size: 12.5px;
+}
+
+/* ---------- Gruppen ---------- */
+
+.gruppe {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  padding: 16px 18px;
+}
+
+.gruppe__kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.gruppe__titel {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.gruppe__kopf .gruppe__titel {
+  margin-bottom: 0;
+}
+
+.hilfe {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+/* ---------- Felder ---------- */
+
+.feld {
+  padding: 8px 11px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--hairline);
+  background: var(--bg-inset);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.feld:focus {
+  outline: none;
+  border-color: var(--akzent);
+  box-shadow: 0 0 0 3px rgba(139, 147, 224, 0.16);
+}
+
+.feld--auswahl {
+  min-width: 260px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.feld--suche {
+  width: 200px;
+}
+
+.feld--zahl {
+  width: 68px;
+  text-align: center;
+  font-family: 'Consolas', monospace;
+}
+
+/* ---------- Eigene Einträge ---------- */
+
+.notizen {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notiz {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border-radius: var(--radius-s);
+}
+
+.notiz:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.notiz--wird-bearbeitet {
+  background: rgba(139, 147, 224, 0.12);
+  outline: 1px solid var(--akzent);
+}
+
+.notiz__punkt {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--gut);
+}
+
+.notiz__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ein Abschnitt ist eine Ueberschrift, kein Aufgabenpunkt - deshalb eine
+   eigene Flaeche statt einer weiteren Zeile mit Punkt davor. */
+.notiz--abschnitt .notiz__text {
+  flex: 0 1 auto;
+  padding: 3px 10px;
+  border-radius: 5px;
+  background: rgba(107, 211, 154, 0.16);
+  border-left: 3px solid var(--gut);
+  color: #a8e8c6;
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.notiz__zahl {
+  flex-shrink: 0;
+  font-family: 'Consolas', monospace;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+}
+
+.notiz__balken {
+  width: 90px;
+  height: 4px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+.notiz__balken > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--gut);
+}
+
+.notiz__knoepfe {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mini {
+  width: 26px;
+  height: 24px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.mini:hover:not(:disabled) {
+  border-color: var(--akzent);
+  color: var(--ink);
+}
+
+.mini--weg:hover {
+  border-color: var(--schlecht);
+  color: var(--schlecht);
+}
+
+.mini:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.leer {
+  padding: 10px 2px 14px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+}
+
+/* ---------- Formular ---------- */
+
+.form {
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+}
+
+.arten {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  margin-bottom: 8px;
+}
+
+.art {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.art:hover {
+  color: var(--ink);
+}
+
+.art[aria-pressed='true'] {
+  background: rgba(107, 211, 154, 0.18);
+  color: var(--gut);
+}
+
+.form__zeile {
+  display: flex;
+  gap: 8px;
+}
+
+.form__zeile #text {
+  flex: 1;
+}
+
+.zahlen {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.trenner {
+  color: var(--ink-faint);
+}
+
+.meldung {
+  min-height: 17px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.meldung--fehler {
+  color: var(--schlecht);
+}
+
+.meldung--gut {
+  color: var(--gut);
+}
+
+/* ---------- Achievements ---------- */
+
+.achievements {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.achievements::-webkit-scrollbar {
+  width: 9px;
+}
+
+.achievements::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+}
+
+.ach {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 9px;
+  border-radius: var(--radius-s);
+}
+
+.ach:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.ach__haken {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.ach__haken:hover {
+  border-color: var(--akzent);
+}
+
+.ach__haken[aria-pressed='true'] {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: #12151c;
+}
+
+.ach__icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.ach--offen .ach__icon {
+  filter: grayscale(0.6) brightness(0.8);
+}
+
+.ach__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ach__name {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ach--erreicht .ach__name {
+  color: var(--ink-dim);
+}
+
+.ach__desc {
+  margin: 1px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ach__stufe {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+
+/* ---------- Fuss ---------- */
+
+.fuss {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.zaehler {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.knopf {
+  padding: 9px 18px;
+  border-radius: var(--radius-s);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.knopf--haupt {
+  background: var(--akzent);
+  color: #12151c;
+}
+
+.knopf--haupt:hover {
+  background: #9aa1e8;
+}
+
+.knopf--leise {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--ink-dim);
+}
+
+.knopf--leise:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}

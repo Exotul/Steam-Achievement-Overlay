@@ -696,16 +696,11 @@ function zeichnePanel() {
     k.setAttribute('aria-pressed', String(k.dataset.filter === panelFilter));
   });
 
-  const suche = panelEl.querySelector('.panel__suche').value.trim().toLowerCase();
   const gefiltert = alle
     .filter((a) => {
       if (panelFilter === 'offen' && a.unlocked) return false;
       if (panelFilter === 'erreicht' && !a.unlocked) return false;
-      if (!suche) return true;
-      return (
-        a.name.toLowerCase().includes(suche) ||
-        (a.description || '').toLowerCase().includes(suche)
-      );
+      return true;
     })
     // Seltenes zuerst: Das ist das, was am ehesten eine Planung wert ist.
     .sort((a, b) => a.globalPercent - b.globalPercent);
@@ -716,11 +711,8 @@ function zeichnePanel() {
   if (gefiltert.length === 0) {
     const leer = document.createElement('li');
     leer.className = 'panel__leer';
-    leer.textContent = suche
-      ? 'Nichts gefunden.'
-      : panelFilter === 'offen'
-        ? 'Alles erreicht. Nichts mehr offen.'
-        : 'Noch nichts erreicht.';
+    leer.textContent =
+      panelFilter === 'offen' ? 'Alles erreicht. Nichts mehr offen.' : 'Noch nichts erreicht.';
     liste.appendChild(leer);
   } else {
     gefiltert.forEach((a) => liste.appendChild(panelEintrag(a)));
@@ -729,9 +721,9 @@ function zeichnePanel() {
   zeichneNotizen();
 
   const gemerkt = merkEintraege().length;
-  panelEl.querySelector('.panel__hinweis').textContent = gemerkt
-    ? `${gemerkt} auf der Merkliste \u00b7 sie bleiben oben links eingeblendet`
-    : 'Haken setzen oder unten einen eigenen Eintrag schreiben';
+  panelEl.querySelector('.panel__hinweis').textContent =
+    (gemerkt ? `${gemerkt} auf der Merkliste \u00b7 ` : '') +
+    'Eigene Einträge im Tray-Menü unter „Merkliste bearbeiten…“';
 }
 
 /**
@@ -759,28 +751,30 @@ function zeichneNotizen() {
            <span class="panel-notiz__zahl">${n.stand} / ${n.ziel}</span>`
         : `<span class="panel-notiz__text">${escapeHtml(n.text)}</span>`;
 
+    // Hier gibt es bewusst nur Knoepfe, kein Textfeld: Dieses Fenster darf
+    // den Fokus nicht nehmen, sonst ist man aus dem Spiel heraus. Ein
+    // Zaehler laesst sich damit hoch- und runterzaehlen - alles Weitere
+    // (Text aendern, anlegen, loeschen) im Merklisten-Fenster.
     zeile.innerHTML = `
       ${n.art === 'abschnitt' ? '' : '<span class="panel-notiz__punkt"></span>'}
       ${mitte}
       ${
         n.art === 'tracker'
-          ? '<button class="panel-notiz__plus" type="button" title="Einen hochzählen">+1</button>'
+          ? `<button class="panel-notiz__minus" type="button" title="Einen zurück"
+                     ${n.stand <= 0 ? 'disabled' : ''}>\u2212</button>
+             <button class="panel-notiz__plus" type="button" title="Einen hochzählen"
+                     ${n.stand >= n.ziel ? 'disabled' : ''}>+</button>`
           : ''
       }
-      <button class="panel-notiz__bearbeiten" type="button" title="Bearbeiten">\u270e</button>
-      <button class="panel-notiz__weg" type="button" title="Eintrag entfernen">\u2715</button>
     `;
 
-    // Einen hochzaehlen ist der mit Abstand haeufigste Griff bei einem
-    // Zaehler - dafuer soll niemand ein Formular oeffnen muessen.
+    // Hoch- und runterzaehlen ist der einzige Griff, der im Spiel wirklich
+    // gebraucht wird - "ich habe gerade eine gefunden".
     zeile.querySelector('.panel-notiz__plus')?.addEventListener('click', async () => {
       uebernimmAntwort(await window.overlayAPI.notizAendern(n.id, { stand: n.stand + 1 }));
     });
-    zeile.querySelector('.panel-notiz__bearbeiten').addEventListener('click', () => {
-      zeigeNotizfeld(true, n);
-    });
-    zeile.querySelector('.panel-notiz__weg').addEventListener('click', async () => {
-      uebernimmAntwort(await window.overlayAPI.notizEntfernen(n.id));
+    zeile.querySelector('.panel-notiz__minus')?.addEventListener('click', async () => {
+      uebernimmAntwort(await window.overlayAPI.notizAendern(n.id, { stand: n.stand - 1 }));
     });
     kasten.appendChild(zeile);
   });
@@ -842,8 +836,6 @@ function zeigePanel(sichtbar) {
     // legt dessen Bedienung lahm. Wer tippen will, klickt hinein.
   } else {
     panelEl.hidden = true;
-    panelEl.querySelector('.panel__suche').value = '';
-    zeigeNotizfeld(false);
     gibMausFrei();
   }
   // Der Hauptprozess schaltet den Mausfang - ohne das waere entweder das
@@ -882,104 +874,17 @@ function gibMausFrei() {
   window.overlayAPI.mausUeberBedienbar(false);
 }
 
-/* ---------- Eigener Eintrag: erscheint erst auf Klick ---------- */
-
-const notizForm = panelEl.querySelector('.panel__notiz');
-const notizFeld = notizForm.querySelector('.panel__notiz-feld');
-const notizStand = notizForm.querySelector('.panel__notiz-stand');
-const notizZiel = notizForm.querySelector('.panel__notiz-ziel');
-const notizZahlen = notizForm.querySelector('.panel__notiz-zahlen');
-
-// Welcher Eintrag gerade bearbeitet wird - null heisst "neu anlegen".
-let notizInBearbeitung = null;
-let notizArt = 'notiz';
-
-function setzeNotizArt(art) {
-  notizArt = art;
-  notizForm.querySelectorAll('.panel__art-knopf').forEach((k) => {
-    k.setAttribute('aria-pressed', String(k.dataset.art === art));
-  });
-  notizZahlen.hidden = art !== 'tracker';
-  notizFeld.placeholder =
-    art === 'tracker'
-      ? 'Wofür der Zähler steht, z. B. „Audionotizen“'
-      : art === 'abschnitt'
-        ? 'Überschrift, z. B. „Kapitel 2“'
-        : 'z. B. „Alle Audionotizen sammeln“';
-}
-
-/**
- * @param {boolean} sichtbar
- * @param {object|null} vorhandener - zum Bearbeiten; ohne ihn wird angelegt.
- */
-function zeigeNotizfeld(sichtbar, vorhandener = null) {
-  notizForm.hidden = !sichtbar;
-  panelEl.querySelector('.panel__notiz-auf').hidden = sichtbar;
-  notizInBearbeitung = sichtbar ? vorhandener : null;
-
-  notizForm.querySelector('.panel__notiz-knopf').textContent = vorhandener
-    ? 'Speichern'
-    : 'Hinzufügen';
-
-  if (!sichtbar) return;
-
-  setzeNotizArt(vorhandener ? vorhandener.art : 'notiz');
-  notizFeld.value = vorhandener ? vorhandener.text : '';
-  notizStand.value = vorhandener && vorhandener.art === 'tracker' ? vorhandener.stand : 0;
-  notizZiel.value = vorhandener && vorhandener.art === 'tracker' ? vorhandener.ziel : '';
-  notizFeld.focus();
-  notizFeld.select();
-}
-
-notizForm.querySelectorAll('.panel__art-knopf').forEach((k) => {
-  k.addEventListener('click', () => {
-    setzeNotizArt(k.dataset.art);
-    notizFeld.focus();
-  });
-});
-
-panelEl.querySelector('.panel__notiz-auf').addEventListener('click', () => zeigeNotizfeld(true));
-panelEl.querySelector('.panel__notiz-ab').addEventListener('click', () => zeigeNotizfeld(false));
-
-notizForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const text = notizFeld.value.trim();
-  if (!text) return;
-
-  const daten = { art: notizArt, text };
-  if (notizArt === 'tracker') {
-    daten.stand = Number(notizStand.value) || 0;
-    daten.ziel = Number(notizZiel.value) || 0;
-  }
-
-  const antwort = notizInBearbeitung
-    ? await window.overlayAPI.notizAendern(notizInBearbeitung.id, daten)
-    : await window.overlayAPI.notizHinzufuegen(daten);
-
-  uebernimmAntwort(antwort);
-  if (antwort && antwort.grund) {
-    // Abgelehnt: Eingaben stehen lassen, sonst muesste man alles neu tippen.
-    notizFeld.focus();
-    return;
-  }
-  zeigeNotizfeld(false);
-});
-
 panelEl.querySelector('.panel__zu').addEventListener('click', () => zeigePanel(false));
-panelEl.querySelector('.panel__suche').addEventListener('input', zeichnePanel);
 panelEl.querySelectorAll('.panel__filter-knopf').forEach((k) => {
   k.addEventListener('click', () => {
     panelFilter = k.dataset.filter;
     zeichnePanel();
   });
 });
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || panelEl.hidden) return;
-  // Erst das Eingabefeld, dann die Uebersicht - sonst verliert man beim
-  // Abbrechen einer Eingabe gleich die ganze Ansicht.
-  if (!notizForm.hidden) zeigeNotizfeld(false);
-  else zeigePanel(false);
-});
+// Escape kann dieses Fenster nicht erreichen - es nimmt bewusst keinen
+// Fokus. Geschlossen wird ueber das Kreuz oder dasselbe Tastenkuerzel, mit
+// dem es aufgegangen ist; das ist ein globales Kuerzel und braucht keinen
+// Fokus.
 
 // Ein "Klick daneben schliesst" gibt es bewusst NICHT mehr: Klicks neben der
 // Uebersicht erreichen dieses Fenster gar nicht, sie gehen an Steams Overlay

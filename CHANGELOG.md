@@ -2,6 +2,31 @@
 
 ## Noch nicht veröffentlicht
 
+### Merkliste: Nachsehen und Pflegen sind jetzt getrennt
+
+Die Übersicht im Spiel nahm den Fokus, sobald man hineinklickte — und damit
+war man aus dem Spiel heraus. Das ließ sich nicht wegprogrammieren: Ein
+Fenster, das Tastatureingaben annimmt, **muss** den Fokus bekommen. Der Fehler
+lag darin, zwei verschiedene Tätigkeiten in dasselbe Fenster zu packen.
+
+**Im Spiel** (`Strg+Umschalt+A`) wird nur noch nachgesehen und geklickt. Das
+Overlay ist jetzt **nie** fokussierbar — es kann dem Spiel den Fokus gar nicht
+mehr wegnehmen. Möglich sind dort: Achievements an- und abhaken, Filter
+umstellen, einen Zähler mit **+** und **−** verändern. Alles per Klick, nichts
+per Tastatur. Such- und Eingabefeld sind entfallen, weil sie dort ohnehin
+nicht bedienbar wären.
+
+**Neues Fenster „Merkliste bearbeiten…"** im Tray-Menü — ein gewöhnliches
+Fenster, kein Overlay. Darin lässt sich in Ruhe tippen: eigene Einträge in
+allen drei Formen anlegen, umbenennen, entfernen, Achievements anhaken, und
+über eine Auswahl oben auch für Spiele, die gerade nicht laufen. So lässt sich
+eine Liste **vor** dem Spielen zusammenstellen, statt mitten drin.
+
+Die Spielnamen dafür werden beim Spielstart nebenbei gemerkt
+(`~/.trophaenschrank/spielnamen.json`) — sonst stünde in der Auswahl
+„App 7670" statt „BioShock".
+
+
 ### Drei Arten eigener Einträge
 
 Beim Anlegen eines eigenen Eintrags lässt sich jetzt die Form wählen:

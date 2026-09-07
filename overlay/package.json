@@ -27,6 +27,7 @@
       "overlay/**/*",
       "setup/**/*",
       "settings/**/*",
+      "merkliste/**/*",
       "assets/**/*"
     ],
     "extraResources": [

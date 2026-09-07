@@ -32,7 +32,6 @@
         <button class="panel__zu" type="button" title="Schließen">✕</button>
       </header>
       <div class="panel__werkzeuge">
-        <input class="panel__suche" type="search" placeholder="Suchen…" spellcheck="false" />
         <div class="panel__filter" role="group">
           <button class="panel__filter-knopf" data-filter="offen">Offen</button>
           <button class="panel__filter-knopf" data-filter="erreicht">Erreicht</button>
@@ -41,29 +40,6 @@
       </div>
       <ul class="panel__liste"></ul>
       <footer class="panel__fuss">
-        <button class="panel__notiz-auf" type="button">+ Neuer Eintrag</button>
-        <form class="panel__notiz" autocomplete="off" hidden>
-          <div class="panel__arten" role="group" aria-label="Art des Eintrags">
-            <button class="panel__art-knopf" type="button" data-art="notiz">Notiz</button>
-            <button class="panel__art-knopf" type="button" data-art="tracker">Tracker</button>
-            <button class="panel__art-knopf" type="button" data-art="abschnitt">Abschnitt</button>
-          </div>
-          <div class="panel__notiz-zeile">
-            <input
-              class="panel__notiz-feld"
-              type="text"
-              maxlength="90"
-              placeholder="z. B. „Alle Audionotizen sammeln“"
-            />
-            <span class="panel__notiz-zahlen" hidden>
-              <input class="panel__notiz-stand" type="number" min="0" max="99999" value="0" />
-              <span class="panel__notiz-trenner">/</span>
-              <input class="panel__notiz-ziel" type="number" min="1" max="99999" placeholder="52" />
-            </span>
-            <button class="panel__notiz-knopf" type="submit">Hinzufügen</button>
-            <button class="panel__notiz-ab" type="button" title="Abbrechen">✕</button>
-          </div>
-        </form>
         <span class="panel__hinweis"></span>
       </footer>
     </div>

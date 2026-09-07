@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Trophäenschrank – Merkliste</title>
+    <link rel="stylesheet" href="merkliste.css" />
+  </head>
+  <body>
+    <main class="seite">
+      <header class="kopf">
+        <div>
+          <h1>Merkliste</h1>
+          <p class="kopf__unter">
+            Was hier steht, wird im Spiel oben links eingeblendet.
+          </p>
+        </div>
+        <select id="spiel" class="feld feld--auswahl" aria-label="Spiel"></select>
+      </header>
+
+      <!-- ---------------- Eigene Einträge ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Eigene Einträge</h2>
+        <ul id="notizen" class="notizen"></ul>
+
+        <form id="form" class="form" autocomplete="off">
+          <div class="arten" role="group" aria-label="Art des Eintrags">
+            <button class="art" type="button" data-art="notiz">Notiz</button>
+            <button class="art" type="button" data-art="tracker">Tracker</button>
+            <button class="art" type="button" data-art="abschnitt">Abschnitt</button>
+          </div>
+          <p id="art-hilfe" class="hilfe"></p>
+          <div class="form__zeile">
+            <input id="text" class="feld" type="text" maxlength="90" />
+            <span id="zahlen" class="zahlen" hidden>
+              <input id="stand" class="feld feld--zahl" type="number" min="0" max="99999" value="0" />
+              <span class="trenner">/</span>
+              <input id="ziel" class="feld feld--zahl" type="number" min="1" max="99999" placeholder="52" />
+            </span>
+            <button id="speichern" class="knopf knopf--haupt" type="submit">Hinzufügen</button>
+            <button id="abbrechen" class="knopf knopf--leise" type="button" hidden>Abbrechen</button>
+          </div>
+          <p id="meldung" class="meldung" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <!-- ---------------- Achievements ---------------- -->
+      <section class="gruppe">
+        <div class="gruppe__kopf">
+          <h2 class="gruppe__titel">Achievements</h2>
+          <input id="suche" class="feld feld--suche" type="search" placeholder="Suchen…" spellcheck="false" />
+        </div>
+        <p id="ach-hinweis" class="hilfe"></p>
+        <ul id="achievements" class="achievements"></ul>
+      </section>
+
+      <footer class="fuss">
+        <span id="zaehler" class="zaehler"></span>
+        <button id="schliessen" class="knopf knopf--haupt" type="button">Fertig</button>
+      </footer>
+    </main>
+
+    <script src="merkliste.js"></script>
+  </body>
+</html>
