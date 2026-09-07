@@ -33,11 +33,6 @@ const GRENZEN = {
   anzeigeDauerSek: { min: 3, max: 30 },
   spielStartDauerSek: { min: 5, max: 90 },
   lautstaerke: { min: 0, max: 1 },
-  // Untergrenze bewusst nicht 0: Viele Spiele brauchen nach dem Start noch
-  // Sekunden fuer Logos und Ladebildschirme. Eine Vorschau, die in dieser
-  // Zeit laeuft, sieht niemand.
-  paradeVerzoegerungSek: { min: 5, max: 180 },
-  paradeDauerSek: { min: 5, max: 60 },
   merklisteGroesse: { min: 0.6, max: 1.6 },
 };
 
@@ -58,13 +53,6 @@ function standard() {
     lautstaerke: 0.22,
     eigenerTon: null,
     statusAbzeichen: (process.env.STATUS_BADGE || 'steam-overlay').toLowerCase(),
-
-    // --- Vorschau beim Spielstart ---
-    paradeAktiv: true,
-    paradeVerzoegerungSek: 25,
-    paradeDauerSek: 18,
-    // Nur offene zeigen, oder alle (dann sieht man auch, was man schon hat).
-    paradeNurOffene: false,
 
     // --- Merkliste ---
     merklisteAktiv: true,
@@ -122,15 +110,6 @@ function bereinige(roh) {
         : null,
 
     statusAbzeichen: ABZEICHEN.includes(e.statusAbzeichen) ? e.statusAbzeichen : s.statusAbzeichen,
-
-    paradeAktiv: e.paradeAktiv === undefined ? s.paradeAktiv : !!e.paradeAktiv,
-    paradeVerzoegerungSek: zahlIn(
-      e.paradeVerzoegerungSek,
-      GRENZEN.paradeVerzoegerungSek,
-      s.paradeVerzoegerungSek
-    ),
-    paradeDauerSek: zahlIn(e.paradeDauerSek, GRENZEN.paradeDauerSek, s.paradeDauerSek),
-    paradeNurOffene: e.paradeNurOffene === undefined ? s.paradeNurOffene : !!e.paradeNurOffene,
 
     merklisteAktiv: e.merklisteAktiv === undefined ? s.merklisteAktiv : !!e.merklisteAktiv,
     merklisteGroesse: zahlIn(e.merklisteGroesse, GRENZEN.merklisteGroesse, s.merklisteGroesse),

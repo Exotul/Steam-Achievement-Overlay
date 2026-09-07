@@ -622,87 +622,6 @@ function cssEscape(text) {
 }
 
 /* ==========================================================================
-   Vorschau beim Spielstart
-   ========================================================================== */
-
-const paradeEl = document.getElementById('parade');
-let paradeTimer = null;
-
-function zeigeParade({ gameName, achievements, nurOffene, dauerSek }) {
-  versteckeParade();
-  if (!achievements || achievements.length === 0) return;
-
-  const offen = achievements.filter((a) => !a.unlocked);
-  const gezeigt = nurOffene ? offen : achievements;
-  if (gezeigt.length === 0) return;
-
-  // Offene zuerst - sie sind der Grund, warum die Vorschau ueberhaupt laeuft.
-  const sortiert = [...gezeigt].sort((a, b) => Number(a.unlocked) - Number(b.unlocked));
-
-  const erreicht = achievements.length - offen.length;
-  paradeEl.querySelector('.parade__spiel').textContent = gameName || '';
-  paradeEl.querySelector('.parade__stand').textContent =
-    `${erreicht} von ${achievements.length} erreicht \u00b7 ${offen.length} offen`;
-
-  const reihe = paradeEl.querySelector('.parade__reihe');
-  reihe.innerHTML = '';
-  sortiert.forEach((a) => reihe.appendChild(paradeKarte(a)));
-
-  paradeEl.hidden = false;
-  paradeEl.classList.remove('parade--geht');
-
-  // Erst messen, dann bewegen: Die Strecke haengt von der tatsaechlichen
-  // Breite aller Karten ab, und die steht erst nach dem Einfuegen fest.
-  requestAnimationFrame(() => {
-    const strecke = reihe.scrollWidth - paradeEl.clientWidth;
-    const dauer = Math.max(5, dauerSek || 18);
-
-    if (strecke > 0) {
-      reihe.style.transition = `transform ${dauer}s linear`;
-      reihe.style.transform = `translateX(${-strecke}px)`;
-    } else {
-      // Passt ohnehin auf den Bildschirm - dann nicht kuenstlich schieben,
-      // sondern einfach stehen lassen.
-      reihe.style.transition = 'none';
-      reihe.style.transform = 'translateX(0)';
-    }
-
-    paradeTimer = setTimeout(() => {
-      paradeEl.classList.add('parade--geht');
-      paradeTimer = setTimeout(versteckeParade, 600);
-    }, dauer * 1000);
-  });
-}
-
-function paradeKarte(a) {
-  const stufe = stufeVon(a.category);
-  const el = document.createElement('div');
-  el.className = `parade-karte ${a.unlocked ? 'parade-karte--erreicht' : 'parade-karte--offen'}`;
-  el.style.setProperty('--tier-color', a.unlocked ? stufe.color : '#5f6675');
-  el.innerHTML = `
-    <img class="parade-karte__icon" src="${a.icon || '../assets/app-icon.png'}" alt=""
-         onerror="this.style.visibility='hidden'" />
-    <div class="parade-karte__text">
-      <p class="parade-karte__name">${escapeHtml(a.name)}</p>
-      <p class="parade-karte__zeile">
-        ${a.unlocked ? '<span class="parade-karte__haken">\u2713</span> erreicht' : a.category}
-      </p>
-    </div>
-  `;
-  return el;
-}
-
-function versteckeParade() {
-  clearTimeout(paradeTimer);
-  paradeTimer = null;
-  paradeEl.hidden = true;
-  paradeEl.classList.remove('parade--geht');
-  const reihe = paradeEl.querySelector('.parade__reihe');
-  reihe.style.transition = 'none';
-  reihe.style.transform = 'translateX(0)';
-}
-
-/* ==========================================================================
    Merkliste
    ========================================================================== */
 
@@ -874,28 +793,81 @@ function zeigePanel(sichtbar) {
   if (zeigen) {
     zeichnePanel();
     panelEl.hidden = false;
-    // Erst nach dem Einblenden fokussieren, sonst springt die Seite.
-    setTimeout(() => panelEl.querySelector('.panel__suche').focus(), 60);
+    // BEWUSST KEIN automatischer Fokus: Das Fenster geht auf, waehrend
+    // Steams Overlay erscheint - ihm in diesem Moment den Fokus wegzunehmen
+    // legt dessen Bedienung lahm. Wer tippen will, klickt hinein.
   } else {
     panelEl.hidden = true;
     panelEl.querySelector('.panel__suche').value = '';
+    zeigeNotizfeld(false);
+    gibMausFrei();
   }
   // Der Hauptprozess schaltet den Mausfang - ohne das waere entweder das
   // Panel nicht bedienbar oder das ganze Overlay dauerhaft im Weg.
   window.overlayAPI.panelZustand(!panelEl.hidden);
 }
 
-panelEl.querySelector('.panel__notiz').addEventListener('submit', async (e) => {
+/*
+ * Mausdurchlass.
+ *
+ * Das Overlay-Fenster ist bildschirmfuellend und unsichtbar. Nimmt es
+ * Klicks an, schluckt es ALLE - auch die fuer Steams Overlay und das Spiel;
+ * von aussen sieht das aus, als haenge der Rechner. Es laesst deshalb
+ * grundsaetzlich alles hindurch und nimmt nur dann etwas an, wenn der Zeiger
+ * tatsaechlich ueber der Uebersicht steht.
+ *
+ * Die Bewegungsmeldungen kommen auch im durchlaessigen Zustand an (das
+ * Fenster wird mit `forward: true` ignoriert), deshalb funktioniert die
+ * Erkennung ueberhaupt.
+ */
+let zeigerDrin = false;
+
+function pruefeZeiger(e) {
+  const drin = !panelEl.hidden && panelEl.contains(document.elementFromPoint(e.clientX, e.clientY));
+  if (drin === zeigerDrin) return;
+  zeigerDrin = drin;
+  window.overlayAPI.mausUeberBedienbar(drin);
+}
+
+document.addEventListener('mousemove', pruefeZeiger);
+
+/** Beim Schliessen den Durchlass wieder freigeben - sonst bleibt er haengen. */
+function gibMausFrei() {
+  if (!zeigerDrin) return;
+  zeigerDrin = false;
+  window.overlayAPI.mausUeberBedienbar(false);
+}
+
+/* ---------- Eigener Eintrag: erscheint erst auf Klick ---------- */
+
+const notizForm = panelEl.querySelector('.panel__notiz');
+
+function zeigeNotizfeld(sichtbar) {
+  notizForm.hidden = !sichtbar;
+  panelEl.querySelector('.panel__notiz-auf').hidden = sichtbar;
+  if (sichtbar) {
+    const feld = notizForm.querySelector('.panel__notiz-feld');
+    feld.value = '';
+    feld.focus();
+  }
+}
+
+panelEl.querySelector('.panel__notiz-auf').addEventListener('click', () => zeigeNotizfeld(true));
+panelEl.querySelector('.panel__notiz-ab').addEventListener('click', () => zeigeNotizfeld(false));
+
+notizForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const feld = panelEl.querySelector('.panel__notiz-feld');
   const text = feld.value.trim();
   if (!text) return;
   const antwort = await window.overlayAPI.notizHinzufuegen(text);
-  // Nur leeren, wenn es angenommen wurde - sonst muesste man bei einer
-  // Ablehnung alles neu tippen.
-  if (antwort && !antwort.grund) feld.value = '';
   uebernimmAntwort(antwort);
-  feld.focus();
+  if (antwort && antwort.grund) {
+    // Abgelehnt: Text stehen lassen, sonst muesste man alles neu tippen.
+    feld.focus();
+    return;
+  }
+  zeigeNotizfeld(false);
 });
 
 panelEl.querySelector('.panel__zu').addEventListener('click', () => zeigePanel(false));
@@ -907,17 +879,18 @@ panelEl.querySelectorAll('.panel__filter-knopf').forEach((k) => {
   });
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !panelEl.hidden) zeigePanel(false);
+  if (e.key !== 'Escape' || panelEl.hidden) return;
+  // Erst das Eingabefeld, dann die Uebersicht - sonst verliert man beim
+  // Abbrechen einer Eingabe gleich die ganze Ansicht.
+  if (!notizForm.hidden) zeigeNotizfeld(false);
+  else zeigePanel(false);
 });
 
-// Solange die Uebersicht offen ist, faengt das ganze Overlay-Fenster
-// Mausklicks ab - es liegt ja bildschirmfuellend ueber dem Spiel. Ein Klick
-// daneben soll deshalb schliessen, sonst wirkt der Rest des Bildschirms wie
-// eingefroren.
-document.addEventListener('mousedown', (e) => {
-  if (panelEl.hidden) return;
-  if (!panelEl.contains(e.target)) zeigePanel(false);
-});
+// Ein "Klick daneben schliesst" gibt es bewusst NICHT mehr: Klicks neben der
+// Uebersicht erreichen dieses Fenster gar nicht, sie gehen an Steams Overlay
+// und das Spiel. Das ist der ganze Zweck des Durchlasses - man soll waehrend
+// der geoeffneten Uebersicht weiterhin alles andere bedienen koennen.
+// Geschlossen wird ueber das Kreuz, Escape oder das Tastenkuerzel.
 
 window.overlayAPI.onAchievement(enqueueAchievement);
 window.overlayAPI.onGameDiamond(showDiamondCelebration);
@@ -927,7 +900,6 @@ window.overlayAPI.onEinstellungen((werte) => {
   zeichneMerkliste();
 });
 window.overlayAPI.onSpielDaten(setzeSpiel);
-window.overlayAPI.onParade(zeigeParade);
 window.overlayAPI.onPanel(zeigePanel);
 // --- Ladebalken beim Start ---------------------------------------------------
 // Der XP-Gesamtstand wird EINMAL beim Start ermittelt (danach nur noch

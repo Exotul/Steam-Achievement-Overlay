@@ -1,4 +1,21 @@
 /*
+ * WICHTIG - diese Regel muss ganz oben stehen.
+ *
+ * Das HTML-Attribut `hidden` bewirkt nur `display: none` aus dem
+ * Browser-Standard. Jede eigene Regel mit einem `display` schlaegt das:
+ * `.panel { display: flex }` hat dazu gefuehrt, dass die Uebersicht
+ * DAUERHAFT sichtbar war - ohne laufendes Spiel, ohne Tastendruck, ohne
+ * Steam-Overlay. Ausgeblendet wurde sie nie, sie sah nur beim ersten Start
+ * nach Absicht aus.
+ *
+ * Mit `!important` gilt `hidden` wieder als das, was es sein soll: die
+ * staerkste Aussage darueber, ob etwas zu sehen ist.
+ */
+[hidden] {
+  display: none !important;
+}
+
+/*
  * Position und Groesse kommen aus den Einstellungen. Die Ecke wird ueber eine
  * Klasse am <body> gesetzt, der Massstab ueber --groesse.
  *
@@ -946,135 +963,6 @@ body.pos-unten-links #stack {
 
 
 /* ==========================================================================
-   Vorschau beim Spielstart ("Parade")
-   ==========================================================================
-   Zieht einmal quer durch und verschwindet. Zweck ist ein Erinnern, kein
-   Nachschlagen - dafuer gibt es die Uebersicht. Deshalb bewusst ohne
-   Bedienelemente und ohne Mausfang: Sie soll niemanden aufhalten.
-   ========================================================================== */
-
-.parade {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 9vh;
-  pointer-events: none;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
-  color: #e8eaf0;
-  animation: parade-auf 0.5s ease-out;
-}
-
-.parade--geht {
-  animation: parade-zu 0.6s ease-in forwards;
-}
-
-@keyframes parade-auf {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes parade-zu {
-  to { opacity: 0; transform: translateY(18px); }
-}
-
-.parade__kopf {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 14px;
-  margin-bottom: 12px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
-}
-
-.parade__spiel {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.parade__stand {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #9aa1b0;
-}
-
-/* Die Bahn blendet an beiden Raendern aus, damit die Karten nicht hart
-   abgeschnitten erscheinen, sondern hinein- und hinausgleiten. */
-.parade__bahn {
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-}
-
-.parade__reihe {
-  display: flex;
-  gap: 14px;
-  width: max-content;
-  will-change: transform;
-}
-
-.parade-karte {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 290px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: rgba(21, 25, 32, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-left: 3px solid var(--tier-color, #5f6675);
-  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.8);
-}
-
-/* Erreichtes tritt zurueck - der Blick soll auf dem haengenbleiben, was
-   noch aussteht. Genau dafuer ist die Vorschau da. */
-.parade-karte--erreicht {
-  opacity: 0.45;
-}
-
-.parade-karte__icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-.parade-karte--offen .parade-karte__icon {
-  /* Offene Symbole liefert Steam bereits grau; der leichte Schleier macht
-     den Unterschied auch dann sichtbar, wenn ein Spiel das nicht tut. */
-  filter: grayscale(0.6) brightness(0.8);
-}
-
-.parade-karte__text {
-  min-width: 0;
-}
-
-.parade-karte__name {
-  margin: 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.parade-karte__zeile {
-  margin: 2px 0 0;
-  font-size: 0.76rem;
-  color: #9aa1b0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.parade-karte__haken {
-  color: #6bd39a;
-  font-weight: 700;
-}
-
-/* ==========================================================================
    Merkliste - dauerhaft oben links
    ==========================================================================
    Bewusst schmal und zurueckhaltend: Sie steht waehrend des ganzen Spiels
@@ -1500,10 +1388,46 @@ body.pos-unten-links #stack {
   min-height: 18px;
 }
 
+/* Der Knopf, der das Eingabefeld erst hervorholt. Es dauerhaft anzuzeigen
+   waere Platzverschwendung fuer etwas, das man selten braucht. */
+.panel__notiz-auf {
+  padding: 7px 14px;
+  margin-bottom: 9px;
+  border: 1px dashed rgba(107, 211, 154, 0.35);
+  border-radius: 8px;
+  background: transparent;
+  color: #6bd39a;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel__notiz-auf:hover {
+  background: rgba(107, 211, 154, 0.1);
+  border-style: solid;
+}
+
 .panel__notiz {
   display: flex;
   gap: 8px;
   margin-bottom: 9px;
+}
+
+.panel__notiz-ab {
+  width: 34px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: transparent;
+  color: #767d8c;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.panel__notiz-ab:hover {
+  color: #e07a7a;
+  border-color: rgba(224, 122, 122, 0.4);
 }
 
 .panel__notiz-feld {
@@ -1551,14 +1475,9 @@ body.pos-unten-links #stack {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .parade,
-  .parade--geht,
   .merkliste,
   .panel,
   .merkliste__eintrag--erledigt {
     animation: none;
-  }
-  .parade__reihe {
-    transition: none;
   }
 }

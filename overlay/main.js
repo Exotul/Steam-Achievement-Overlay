@@ -151,7 +151,6 @@ let merklisten = todoModul.laden();
 // Steht die Uebersicht gerade offen? Davon haengt ab, ob das Overlay-Fenster
 // Mausklicks annimmt.
 let panelOffen = false;
-let paradeTimer = null;
 
 // Lokale Achievement-Datei, deren Parser sich gegen den von Steam
 // bestaetigten Stand als korrekt erwiesen hat. Nur dann wird sie genutzt.
@@ -467,7 +466,6 @@ async function startAchievementTracking(appId, gameName) {
   }
 
   sendeSpielDaten();
-  planeParade(appId);
 
   if (achievementTimer) clearInterval(achievementTimer);
   checkAchievements();
@@ -614,7 +612,13 @@ async function starteStatusAbzeichen() {
 
   overlayDetector = new SteamOverlayDetector({
     steamPath: watcher.steamPath,
+    // Zeilen, die das Overlay betreffen aber auf kein Muster passen, ins
+    // Protokoll - so laesst sich die Erkennung mit echten Daten nachbessern
+    // statt zu raten. Genau so wurde das Format der Statistikdateien
+    // ermittelt.
+    onUnknownLine: (zeile) => logger.info('Steam-Overlay, unbekannte Zeile: ' + zeile.slice(0, 160)),
     onChange: (offen) => {
+      logger.info(`Steams Overlay erkannt als: ${offen ? 'offen' : 'geschlossen'}`);
       sendStatusBadge(offen);
       // In Steams Overlay hineinzuzeichnen ist ausgeschlossen - unser
       // Fenster liegt aber darueber, und waehrend Steams Overlay offen ist
@@ -692,8 +696,6 @@ function stopLocalWatcher() {
 function stopAchievementTracking() {
   if (achievementTimer) clearInterval(achievementTimer);
   achievementTimer = null;
-  clearTimeout(paradeTimer);
-  paradeTimer = null;
   if (panelOffen) zeigePanel(false);
   stopLocalWatcher();
   stoppeWiederholtePruefung();
@@ -981,34 +983,6 @@ function sendeSpielDaten() {
 }
 
 /**
- * Vorschau beim Spielstart.
- *
- * Bewusst verzoegert: Viele Spiele zeigen nach dem Start noch Logos,
- * Ladebildschirme und Menues. Eine Vorschau, die in dieser Zeit laeuft,
- * sieht schlicht niemand - und der Zweck ist ja, kurz in Erinnerung zu
- * rufen, was noch aussteht.
- */
-function planeParade(appId) {
-  clearTimeout(paradeTimer);
-  paradeTimer = null;
-  if (!einstellungen.paradeAktiv) return;
-
-  const verzoegerung = Math.max(5, einstellungen.paradeVerzoegerungSek) * 1000;
-  paradeTimer = setTimeout(() => {
-    paradeTimer = null;
-    // Inzwischen ein anderes Spiel (oder gar keins)? Dann nicht mehr zeigen.
-    if (trackedAppId !== appId || achievementIndex.size === 0) return;
-    sendToOverlay('parade', {
-      gameName: trackedGameName,
-      achievements: [...achievementIndex.values()],
-      nurOffene: einstellungen.paradeNurOffene,
-      dauerSek: einstellungen.paradeDauerSek,
-    });
-    logger.info(`Vorschau beim Spielstart gezeigt (${achievementIndex.size} Achievements)`);
-  }, verzoegerung);
-}
-
-/**
  * Uebersicht ein- oder ausblenden.
  *
  * Der Mausfang haengt daran: Das Overlay-Fenster ignoriert Klicks sonst
@@ -1026,21 +1000,43 @@ function zeigePanel(sichtbar) {
   sendToOverlay('panel', zeigen);
 }
 
-/** Wird vom Overlay gemeldet, sobald sich der Zustand tatsaechlich geaendert hat. */
+/**
+ * Wird vom Overlay gemeldet, sobald sich der Zustand tatsaechlich geaendert hat.
+ *
+ * WAS HIER NICHT MEHR PASSIERT - und warum:
+ *
+ * Frueher wurde bei offener Uebersicht der Mausfang fuer das GANZE Fenster
+ * eingeschaltet. Das Fenster ist bildschirmfuellend und unsichtbar; es hat
+ * damit jeden Klick geschluckt, auch die fuer Steams Overlay und das Spiel.
+ * Von aussen sah das aus, als haenge der Rechner - alles reagierte noch,
+ * aber nichts bekam die Klicks. Der Mausfang wird jetzt punktgenau
+ * geschaltet: Nur waehrend der Zeiger ueber der Uebersicht steht, siehe
+ * setzeMausdurchlass().
+ *
+ * Ebenso wurde hier focus() gerufen. Das nimmt Steams Overlay im selben
+ * Moment den Fokus weg, in dem es aufgeht. Jetzt wird das Fenster nur noch
+ * fokussierBAR gemacht - den Fokus holt es sich erst, wenn jemand
+ * ausdruecklich hineinklickt, und das ist eine bewusste Handlung.
+ */
 function setzePanelZustand(offen) {
   panelOffen = !!offen;
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  overlayWindow.setIgnoreMouseEvents(!panelOffen, { forward: true });
-  if (panelOffen) {
-    // Ohne Fokus nimmt das Fenster keine Tastatureingaben an - und ohne die
-    // funktionieren weder Suche noch Escape.
-    overlayWindow.setFocusable(true);
-    overlayWindow.focus();
-  } else {
-    // Danach wieder aus dem Weg: Ein fokussierbares Fenster ueber einem
-    // Vollbildspiel kann dieses aus dem Vordergrund draengen.
-    overlayWindow.setFocusable(false);
-  }
+
+  // Grundzustand ist IMMER durchlaessig.
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  overlayWindow.setFocusable(panelOffen);
+}
+
+/**
+ * Schaltet den Mausfang punktgenau.
+ *
+ * Das Overlay meldet beim Bewegen des Zeigers, ob er gerade ueber einem
+ * bedienbaren Bereich steht. Nur dann nimmt das Fenster Klicks an - sonst
+ * gehen sie hindurch an das, was darunter liegt.
+ */
+function setzeMausdurchlass(ueberBedienbar) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayWindow.setIgnoreMouseEvents(!ueberBedienbar, { forward: true });
 }
 
 function sendToOverlay(kanal, nutzlast) {
@@ -1690,6 +1686,11 @@ ipcMain.handle('merkliste:notiz-weg', (_e, id) => {
 
 ipcMain.handle('panel:zustand', (_e, offen) => {
   setzePanelZustand(offen);
+  return true;
+});
+
+ipcMain.handle('panel:maus', (_e, ueberBedienbar) => {
+  setzeMausdurchlass(ueberBedienbar);
   return true;
 });
 

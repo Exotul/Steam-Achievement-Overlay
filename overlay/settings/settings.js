@@ -12,7 +12,6 @@ const els = {};
 ['bildschirm', 'groesse', 'anzeigeDauerSek', 'spielStartDauerSek', 'lautstaerke',
  'statusAbzeichen', 'position', 'ton-name', 'ton-waehlen', 'ton-entfernen',
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
- 'paradeAktiv', 'paradeVerzoegerungSek', 'paradeDauerSek', 'paradeNurOffene',
  'merklisteAktiv', 'merklisteGroesse', 'panelTaste', 'panelBeiSteamOverlay',
 ].forEach((id) => {
   els[id] = document.getElementById(id);
@@ -23,14 +22,11 @@ const REGLER = {
   anzeigeDauerSek: (v) => `${Number(v).toFixed(1).replace('.', ',')} s`,
   spielStartDauerSek: (v) => `${Math.round(v)} s`,
   lautstaerke: (v) => (Number(v) === 0 ? 'stumm' : `${Math.round(v * 100)} %`),
-  paradeVerzoegerungSek: (v) =>
-    v >= 60 ? `${Math.round(v / 60)} min ${v % 60 ? (v % 60) + ' s' : ''}`.trim() : `${v} s`,
-  paradeDauerSek: (v) => `${Math.round(v)} s`,
   merklisteGroesse: (v) => `${Math.round(v * 100)} %`,
 };
 
 // Einstellungen, die nur an oder aus kennen.
-const SCHALTER = ['paradeAktiv', 'paradeNurOffene', 'merklisteAktiv', 'panelBeiSteamOverlay'];
+const SCHALTER = ['merklisteAktiv', 'panelBeiSteamOverlay'];
 
 let werte = null;
 let bestaetigungTimer = null;

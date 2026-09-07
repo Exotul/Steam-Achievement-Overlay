@@ -30,10 +30,6 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   onSpielDaten: (callback) => {
     ipcRenderer.on('spiel-daten', (_event, daten) => callback(daten));
   },
-  /** Vorschau beim Spielstart abspielen. */
-  onParade: (callback) => {
-    ipcRenderer.on('parade', (_event, daten) => callback(daten));
-  },
   /** Uebersicht ein- oder ausblenden (Tastenkuerzel, Tray, Steam-Overlay). */
   onPanel: (callback) => {
     ipcRenderer.on('panel', (_event, sichtbar) => callback(sichtbar));
@@ -56,4 +52,11 @@ contextBridge.exposeInMainWorld('overlayAPI', {
    * liesse sich das Spiel darunter nicht mehr bedienen.
    */
   panelZustand: (offen) => ipcRenderer.invoke('panel:zustand', offen),
+
+  /**
+   * Meldet, ob der Mauszeiger gerade ueber einem bedienbaren Bereich steht.
+   * Nur dann nimmt das Overlay-Fenster Klicks an - sonst gehen sie hindurch
+   * an Steams Overlay und das Spiel.
+   */
+  mausUeberBedienbar: (ja) => ipcRenderer.invoke('panel:maus', ja),
 });

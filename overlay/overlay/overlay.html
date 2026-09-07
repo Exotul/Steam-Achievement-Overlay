@@ -16,15 +16,6 @@
     <div id="stack"></div>
     <div id="diamond-layer"></div>
 
-    <!-- Vorschau beim Spielstart: die Achievements ziehen einmal durch. -->
-    <div id="parade" class="parade" hidden>
-      <div class="parade__kopf">
-        <p class="parade__spiel"></p>
-        <p class="parade__stand"></p>
-      </div>
-      <div class="parade__bahn"><div class="parade__reihe"></div></div>
-    </div>
-
     <!-- Merkliste, dauerhaft oben links angedockt. -->
     <div id="merkliste" class="merkliste" hidden>
       <p class="merkliste__titel">Noch offen</p>
@@ -50,14 +41,16 @@
       </div>
       <ul class="panel__liste"></ul>
       <footer class="panel__fuss">
-        <form class="panel__notiz" autocomplete="off">
+        <button class="panel__notiz-auf" type="button">+ Neuer Eintrag</button>
+        <form class="panel__notiz" autocomplete="off" hidden>
           <input
             class="panel__notiz-feld"
             type="text"
             maxlength="90"
-            placeholder="Eigener Eintrag, z. B. „Alle Audionotizen sammeln“"
+            placeholder="z. B. „Alle Audionotizen sammeln“"
           />
           <button class="panel__notiz-knopf" type="submit">Hinzufügen</button>
+          <button class="panel__notiz-ab" type="button" title="Abbrechen">✕</button>
         </form>
         <span class="panel__hinweis"></span>
       </footer>

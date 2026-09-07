@@ -2,6 +2,51 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Übersicht stand dauerhaft im Bild und blockierte die Bedienung
+
+Drei Fehler, die sich gegenseitig verstärkt haben.
+
+**1. Die Übersicht war nie ausgeblendet.** `.panel { display: flex }` schlägt
+das HTML-Attribut `hidden` — sie stand also von der ersten Sekunde an im Bild,
+ohne laufendes Spiel, ohne Tastendruck. Behoben durch eine `[hidden]`-Regel
+mit Vorrang, in allen drei Fenstern der App.
+
+**2. Steams Overlay wurde falsch erkannt.** Zwei Muster waren zu grob:
+
+- `enable` galt als „Overlay ist offen". Steam schreibt beim Start aber
+  `GameOverlayRenderer enabled` — das heißt nur, dass die *Funktion*
+  eingeschaltet ist. Die App hielt das Overlay dadurch immer für geöffnet.
+- In `deactivated` steckt `activated`. Die Zeile, die das **Schließen**
+  meldet, wurde deshalb als **Öffnen** gelesen — es ging nie wieder zu.
+
+Jetzt mit Wortgrenzen, ohne `enable`, mit Vorrang für „geschlossen" und
+zusätzlich der verbreiteten Schreibweise `overlay active: 0/1`. Zeilen, die
+auf kein Muster passen, landen im Protokoll — so lässt sich die Erkennung mit
+echten Daten nachbessern statt zu raten.
+
+**3. Das Overlay schluckte alle Mausklicks.** Bei offener Übersicht wurde der
+Mausfang für das ganze, bildschirmfüllende Fenster eingeschaltet. Damit gingen
+auch die Klicks für Steams Overlay und das Spiel dorthin — von außen sah das
+aus, als hänge der Rechner. Der Mausfang wird jetzt punktgenau geschaltet: nur
+während der Zeiger tatsächlich über der Übersicht steht. Alles daneben geht
+hindurch.
+
+Ebenso wurde beim Öffnen `focus()` gerufen und Steams Overlay damit im selben
+Moment der Fokus entzogen, in dem es aufgeht. Das passiert nicht mehr — den
+Fokus bekommt das Fenster erst, wenn jemand hineinklickt.
+
+### Vorschau beim Spielstart wieder entfernt
+
+Die durchrollenden Achievements waren im Spiel störend statt hilfreich.
+Ersatzlos entfernt, samt ihrer Einstellungen.
+
+### Eigener Eintrag erscheint erst auf Klick
+
+Das Eingabefeld stand dauerhaft in der Übersicht. Jetzt liegt dort ein Knopf
+**+ Neuer Eintrag**; das Feld erscheint erst danach und verschwindet nach dem
+Hinzufügen wieder. Escape schließt erst das Feld, dann die Übersicht.
+
+
 ### Eigene Einträge in der Merkliste
 
 Manche Achievements verlangen etwas, das das Spiel selbst nicht mitzählt —

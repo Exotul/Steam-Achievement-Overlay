@@ -21,9 +21,51 @@ const path = require('path');
  * Spiel verfolgt wird.
  */
 
-// Bewusst breit gefasst, weil Valve die Formulierung aendern kann.
-const ZEIGT_AN = /overlay.*(shown|showing|activated|opened|visible|enable)/i;
-const BLENDET_AUS = /overlay.*(hidden|hiding|deactivated|closed|dismissed|disable)/i;
+/*
+ * Muster fuer "Overlay ist jetzt sichtbar" bzw. "wieder weg".
+ *
+ * ZWEI FEHLER, die hier schon drinsteckten und echten Schaden angerichtet
+ * haben - beide sind der Grund fuer die Wortgrenzen und die Reihenfolge:
+ *
+ *  1. "enable" als Treffer fuer "sichtbar". Steam schreibt beim Start Zeilen
+ *     wie "GameOverlayRenderer enabled" - das heisst nur, dass die FUNKTION
+ *     eingeschaltet ist, nicht dass das Overlay offen waere. Die App hielt
+ *     das Overlay dadurch von Anfang an fuer geoeffnet.
+ *  2. "activated" ohne Wortgrenze. In "deactivated" steckt "activated" -
+ *     eine Zeile, die das Schliessen meldet, wurde also als Oeffnen gelesen.
+ *     Damit ging das Overlay in der Wahrnehmung der App nie wieder zu.
+ *
+ * Deshalb: Wortgrenzen ueberall, "enable/disable" gar nicht mehr, und unten
+ * wird ZUERST auf "geschlossen" geprueft. Bei einem Muster, das auf beides
+ * passt, ist "geschlossen" die harmlosere Annahme - ein faelschlich
+ * geschlossenes Overlay kostet einen Tastendruck, ein faelschlich offenes
+ * legt die Bedienung lahm.
+ */
+const ZEIGT_AN = /overlay\b.*\b(shown|showing|activated|opened|visible)\b/i;
+const BLENDET_AUS = /overlay\b.*\b(hidden|hiding|deactivated|closed|dismissed)\b/i;
+
+// Zusaetzliche, sehr verbreitete Schreibweise mit Zahlenwert.
+const AKTIV_ZAHL = /overlay\b.*\bactive\b\s*[:=]?\s*([01])\b/i;
+
+/**
+ * Bewertet eine einzelne Zeile - reine Funktion, damit sich genau das
+ * pruefen laesst, was hier schon zweimal falsch war.
+ *
+ * @returns {'auf'|'zu'|null}
+ */
+function bewerteZeile(zeile) {
+  const text = String(zeile || '');
+  if (!/overlay/i.test(text)) return null;
+
+  // Zahlenwert zuerst: Er ist eindeutig, wo die Worte es nicht sind.
+  const zahl = text.match(AKTIV_ZAHL);
+  if (zahl) return zahl[1] === '1' ? 'auf' : 'zu';
+
+  // "Geschlossen" vor "offen" - siehe Begruendung oben.
+  if (BLENDET_AUS.test(text)) return 'zu';
+  if (ZEIGT_AN.test(text)) return 'auf';
+  return null;
+}
 
 class SteamOverlayDetector {
   constructor({ steamPath, onChange, onUnknownLine }) {
@@ -79,15 +121,22 @@ class SteamOverlayDetector {
   }
 
   _bewerte(zeile) {
-    if (ZEIGT_AN.test(zeile)) {
+    const urteil = bewerteZeile(zeile);
+    if (urteil === 'auf') {
       this.erkannteEreignisse += 1;
       this._setze(true);
-    } else if (BLENDET_AUS.test(zeile)) {
+      return;
+    }
+    if (urteil === 'zu') {
       this.erkannteEreignisse += 1;
       this._setze(false);
-    } else if (/overlay/i.test(zeile)) {
+      return;
+    }
+    if (/overlay/i.test(zeile)) {
       // Zeile betrifft das Overlay, passt aber auf kein bekanntes Muster -
-      // fuer die spaetere Nachbesserung mitschreiben.
+      // fuer die spaetere Nachbesserung mitschreiben. Genau so wurde das
+      // Dateiformat der Statistikdateien ermittelt: nicht raten, sondern
+      // aufzeichnen und nachsehen.
       if (this.unbekannteZeilen.length < 40) this.unbekannteZeilen.push(zeile);
       this.onUnknownLine?.(zeile);
     }
@@ -111,3 +160,6 @@ class SteamOverlayDetector {
 }
 
 module.exports = SteamOverlayDetector;
+module.exports.bewerteZeile = bewerteZeile;
+module.exports.ZEIGT_AN = ZEIGT_AN;
+module.exports.BLENDET_AUS = BLENDET_AUS;

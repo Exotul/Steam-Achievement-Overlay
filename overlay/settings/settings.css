@@ -1,4 +1,21 @@
 /*
+ * WICHTIG - diese Regel muss ganz oben stehen.
+ *
+ * Das HTML-Attribut `hidden` bewirkt nur `display: none` aus dem
+ * Browser-Standard. Jede eigene Regel mit einem `display` schlaegt das:
+ * `.panel { display: flex }` hat dazu gefuehrt, dass die Uebersicht
+ * DAUERHAFT sichtbar war - ohne laufendes Spiel, ohne Tastendruck, ohne
+ * Steam-Overlay. Ausgeblendet wurde sie nie, sie sah nur beim ersten Start
+ * nach Absicht aus.
+ *
+ * Mit `!important` gilt `hidden` wieder als das, was es sein soll: die
+ * staerkste Aussage darueber, ob etwas zu sehen ist.
+ */
+[hidden] {
+  display: none !important;
+}
+
+/*
  * Einstellungsfenster - dieselbe Farbsprache wie Overlay, Einrichtung und
  * Dashboard (frontend/src/styles/tokens.css).
  *
