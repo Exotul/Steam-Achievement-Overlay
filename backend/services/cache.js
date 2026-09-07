@@ -52,6 +52,7 @@ function speichern() {
   const jetzt = Date.now();
   const daten = {};
   for (const [key, entry] of store.entries()) {
+    if (entry.fluechtig) continue;
     const restlaufzeit = entry.expiresAt - jetzt;
     if (restlaufzeit > PERSIST_MIN_TTL_MS) daten[key] = entry;
   }
@@ -69,18 +70,30 @@ function get(key) {
   return entry.value;
 }
 
-function set(key, value, ttlMs) {
+/**
+ * @param {object} [optionen]
+ * @param {boolean} [optionen.persistent] - ausdrueckliche Entscheidung, ob
+ *   der Eintrag auf die Platte soll. Ohne Angabe entscheidet die Laufzeit.
+ *
+ *   Gebraucht wird das fuer grosse, kurzlebige Eintraege: Die Achievement-
+ *   Listen aller Spiele wuerden die Datei auf ein Vielfaches aufblaehen,
+ *   obwohl sie nach Minuten ohnehin wertlos sind. Sie gehoeren in den
+ *   Arbeitsspeicher, nicht in eine Datei, die bei jedem Start gelesen wird.
+ */
+function set(key, value, ttlMs, optionen = {}) {
   laden();
-  store.set(key, { value, expiresAt: Date.now() + ttlMs });
-  if (ttlMs > PERSIST_MIN_TTL_MS) planeSpeichern();
+  const persistent =
+    optionen.persistent === undefined ? ttlMs > PERSIST_MIN_TTL_MS : optionen.persistent;
+  store.set(key, { value, expiresAt: Date.now() + ttlMs, fluechtig: !persistent });
+  if (persistent) planeSpeichern();
 }
 
 /** Holt aus dem Speicher, oder ruft fn() auf, legt das Ergebnis ab und gibt es zurück. */
-async function remember(key, ttlMs, fn) {
+async function remember(key, ttlMs, fn, optionen = {}) {
   const cached = get(key);
   if (cached !== undefined) return cached;
   const value = await fn();
-  set(key, value, ttlMs);
+  set(key, value, ttlMs, optionen);
   return value;
 }
 

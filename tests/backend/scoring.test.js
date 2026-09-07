@@ -137,6 +137,49 @@ test('Level steigt monoton und der Rest passt zur Stufe', () => {
  * auseinanderlaeuft - dann zeigt das Overlay beim Achievement einen anderen
  * Level als das Dashboard eine Sekunde spaeter.
  */
+/**
+ * Das Dashboard rechnet die XP selbst - es bekommt vom Backend nur Stufe und
+ * Prozentsatz, nicht die fertigen Punkte. Deshalb liegen die Stufenfaktoren
+ * dort ein VIERTES Mal, in frontend/src/lib/tiers.js.
+ *
+ * Genau diese Kopie wurde beim Anpassen der Faktoren uebersehen: Sie heisst
+ * dort "xpMultiplier" statt TIER_MULTIPLIER und steckt in einem Objekt
+ * zusammen mit Farben - eine Suche nach dem gewohnten Namen findet sie nicht.
+ * Das Dashboard hat daraufhin ein anderes Level angezeigt als das Overlay,
+ * ohne dass irgendetwas fehlgeschlagen waere.
+ */
+test('Dashboard verwendet dieselben Stufenfaktoren wie das Backend', async () => {
+  const tiers = await import(
+    pathToFileURL(path.join(__dirname, '..', '..', 'frontend', 'src', 'lib', 'tiers.js')).href
+  );
+
+  for (const [stufe, faktor] of Object.entries(xp.TIER_MULTIPLIER)) {
+    assert.strictEqual(
+      tiers.TIERS[stufe]?.xpMultiplier,
+      faktor,
+      `Stufenfaktor für ${stufe} weicht im Dashboard ab`
+    );
+  }
+});
+
+test('Dashboard und Backend errechnen dieselben XP je Achievement', async () => {
+  // Die Faktoren allein reichen nicht - auch die Formel drumherum muss
+  // dieselbe sein.
+  const tiers = await import(
+    pathToFileURL(path.join(__dirname, '..', '..', 'frontend', 'src', 'lib', 'tiers.js')).href
+  );
+
+  for (const stufe of ['Kupfer', 'Silber', 'Gold', 'Platin']) {
+    for (const prozent of [0.4, 7, 23, 61, 94]) {
+      assert.strictEqual(
+        tiers.achievementXp({ category: stufe, globalPercent: prozent }),
+        xp.achievementXp(stufe, prozent),
+        `XP weichen ab bei ${stufe} / ${prozent} %`
+      );
+    }
+  }
+});
+
 test('Overlay verwendet dieselben Stufenfaktoren wie das Backend', () => {
   const quelle = fs.readFileSync(
     path.join(__dirname, '..', '..', 'overlay', 'main.js'),

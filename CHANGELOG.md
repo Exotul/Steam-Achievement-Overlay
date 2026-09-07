@@ -2,6 +2,42 @@
 
 ## Noch nicht veröffentlicht
 
+### Das Dashboard lädt nicht mehr alles neu
+
+Beim Öffnen wurden im Hintergrund ausnahmslos alle Spiele neu abgefragt — bei
+einer gewachsenen Bibliothek mehrere hundert Anfragen, jedes Mal, obwohl die
+XP-Berechnung Minuten vorher dieselben Daten schon geholt hatte.
+
+Dieselbe Überlegung wie beim Start greift auch hier: **Achievements bekommt
+man nur durch Spielen.** Hat sich die Spielzeit eines Titels seit dem letzten
+Besuch nicht geändert, kann sich sein Fortschritt nicht geändert haben. Die
+Spielzeit steht in der Bibliotheksliste, die ohnehin geholt wird — dieser eine
+Aufruf genügt also, um zu wissen, was neu zu laden ist. Bei unveränderter
+Bibliothek kostet das Öffnen jetzt **genau eine Anfrage**.
+
+Dazu zwei Ursachen auf der Serverseite:
+
+- **Der Spielerstand wurde überhaupt nicht zwischengespeichert.** Diese
+  Abfrage lief bei jedem Aufruf erneut. Sie wird jetzt zehn Minuten gemerkt;
+  die Achievement-Erkennung umgeht den Speicher ausdrücklich, damit sie
+  weiterhin sofort sieht, was neu ist.
+- **Das angereicherte Ergebnis wurde nur acht Sekunden gemerkt** — bis die
+  letzte Kachel geladen war, galt die erste längst nicht mehr. Jetzt fünf
+  Minuten.
+
+Große, kurzlebige Einträge landen dabei bewusst nicht mehr auf der Platte: Sie
+würden die Zwischenspeicher-Datei vervielfachen, die bei jedem Start
+vollständig gelesen wird.
+
+### Behoben: Dashboard und Overlay zeigten verschiedene Level
+
+Die Stufenfaktoren lagen an einer vierten, bis dahin unbekannten Stelle
+(`frontend/src/lib/tiers.js`) — dort heißen sie `xpMultiplier` und stecken in
+einem Objekt zusammen mit Farben, weshalb sie bei der Umstellung der XP-Kurve
+übersehen wurden. Das Dashboard rechnete seitdem mit den alten Faktoren.
+Behoben, und ein Test vergleicht jetzt auch diese Kopie.
+
+
 ### Aussichtslose Versuche werden nicht mehr endlos wiederholt
 
 Bei einem zurückgezogenen Steam-Schlüssel stand im Protokoll immer wieder

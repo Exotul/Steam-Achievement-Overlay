@@ -83,7 +83,11 @@ async function spielXp(steamId, appId, spielzeit) {
   // Nacheinander kostet etwas Wartezeit je Spiel, spart aber an einer echten
   // Bibliothek rund ein Viertel aller Abfragen - und die Warteschlange ist
   // der Engpass, nicht die Latenz einzelner Aufrufe.
-  const playerAch = await steamApi.getPlayerAchievements(steamId, appId);
+  // Ausdruecklich frisch: Diese Berechnung laeuft nur fuer Spiele, deren
+  // Spielzeit sich geaendert hat - dort waere ein gemerkter Stand gerade
+  // der falsche. Das Ergebnis landet im Speicher und erspart dem
+  // Dashboard anschliessend dieselbe Abfrage.
+  const playerAch = await steamApi.getPlayerAchievements(steamId, appId, { frisch: true });
   const errungen = (playerAch || []).filter((a) => a.achieved);
 
   if (errungen.length === 0) {

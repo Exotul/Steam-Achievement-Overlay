@@ -76,15 +76,49 @@ async function getOwnedGames(steamId) {
  * Wirft keinen Fehler, sondern gibt null zurück, wenn das Spiel keine
  * Achievements hat oder das Profil privat ist.
  */
-async function getPlayerAchievements(steamId, appId) {
+// Wie lange ein Spielerstand wiederverwendet wird.
+//
+// Das war frueher gar nicht der Fall - diese Abfrage lief bei JEDEM Aufruf
+// erneut. Beim Oeffnen des Dashboards bedeutete das eine Steam-Anfrage je
+// Spiel, also bei einer gewachsenen Bibliothek mehrere hundert, obwohl die
+// XP-Berechnung Minuten vorher exakt dieselben Daten schon geholt hatte.
+//
+// Bewusst kurz gehalten: Die Achievement-Erkennung umgeht diesen Speicher
+// ohnehin (frisch: true), fuer alles andere sind zehn Minuten alte Daten
+// unkritisch - ein Dashboard muss nicht sekundengenau sein.
+const SPIELERSTAND_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * @param {object} [optionen]
+ * @param {boolean} [optionen.frisch] - Zwischenspeicher ueberspringen.
+ *   MUSS gesetzt sein, wo es um die Erkennung neuer Freischaltungen geht -
+ *   ein gemerkter Stand wuerde dort genau das verschlucken, worum es geht.
+ *   Das Ergebnis wird trotzdem abgelegt, damit alle anderen davon
+ *   profitieren.
+ */
+async function getPlayerAchievements(steamId, appId, optionen = {}) {
+  const schluessel = `spielerach:${steamId}:${appId}`;
+
+  if (!optionen.frisch) {
+    const gemerkt = cache.get(schluessel);
+    if (gemerkt !== undefined) return gemerkt;
+  }
+
   try {
     const { data } = await steamGet(`${BASE}/ISteamUserStats/GetPlayerAchievements/v1/`, {
       params: { key: key(), steamid: steamId, appid: appId, l: 'german' },
     });
-    return data.playerstats.achievements || [];
+    const ergebnis = data.playerstats.achievements || [];
+    // Ausdruecklich NICHT auf die Platte: Die Listen sind gross und nach
+    // Minuten wertlos. Sie wuerden die Zwischenspeicher-Datei vervielfachen,
+    // die beim Start vollstaendig gelesen wird.
+    cache.set(schluessel, ergebnis, SPIELERSTAND_TTL_MS, { persistent: false });
+    return ergebnis;
   } catch (err) {
     // Steam antwortet mit 400/403, wenn das Spiel keine Achievements hat
     // oder das Profil privat ist -> das ist ein normaler Fall, kein Crash.
+    // Kurz merken, damit nicht bei jedem Durchlauf erneut gefragt wird.
+    cache.set(schluessel, null, SPIELERSTAND_TTL_MS, { persistent: false });
     return null;
   }
 }
@@ -179,9 +213,9 @@ async function getPlayerSummaries(steamIds) {
 const scoring = require('./scoring');
 const { categorize, categorizeInContext, buildTierContext, estimateDifficulty } = scoring;
 
-async function buildEnrichedAchievements(steamId, appId) {
+async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
   const [playerAch, schema, percentages] = await Promise.all([
-    getPlayerAchievements(steamId, appId),
+    getPlayerAchievements(steamId, appId, optionen),
     getGameSchema(appId),
     getGlobalAchievementPercentages(appId),
   ]);

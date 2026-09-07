@@ -52,17 +52,28 @@ router.get('/games/:appId/achievements', async (req, res) => {
     const dringend = req.query.fresh === '1';
     const fetchFresh = () =>
       queue.mitPrioritaet(dringend ? 'dringend' : 'hintergrund', () =>
-        steamApi.buildEnrichedAchievements(req.user.steamId, req.params.appId)
+        // Nur die Erkennung umgeht den Spielerstand-Speicher. Das Dashboard
+        // darf ihn nutzen - sonst holt es beim Oeffnen die halbe Bibliothek
+        // neu, obwohl dieselben Daten Minuten vorher schon da waren.
+        steamApi.buildEnrichedAchievements(req.user.steamId, req.params.appId, {
+          frisch: dringend,
+        })
       );
 
     let result;
     try {
-      if (req.query.fresh === '1') {
+      // Acht Sekunden waren fuer das Dashboard sinnlos kurz: Bis die letzte
+      // Kachel geladen war, galt die erste laengst nicht mehr. Fuenf Minuten
+      // machen ein erneutes Oeffnen praktisch kostenlos, ohne dass jemand
+      // veraltete Zahlen sieht - waehrend eines Spiels schreibt die
+      // Erkennung diesen Eintrag ohnehin laufend neu.
+      const HALTBAR_MS = 5 * 60 * 1000;
+      if (dringend) {
         result = await fetchFresh();
-        // frisch geholten Stand trotzdem ablegen, damit das Dashboard davon profitiert
-        cache.set(cacheKey, result, 8 * 1000);
+        // frisch geholten Stand ablegen, damit das Dashboard davon profitiert
+        cache.set(cacheKey, result, HALTBAR_MS, { persistent: false });
       } else {
-        result = await cache.remember(cacheKey, 8 * 1000, fetchFresh);
+        result = await cache.remember(cacheKey, HALTBAR_MS, fetchFresh, { persistent: false });
       }
     } catch (fehler) {
       // Steam nicht erreichbar? Dann den letzten bekannten Stand ausliefern
