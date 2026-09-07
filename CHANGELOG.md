@@ -19,10 +19,23 @@ mit Vorrang, in allen drei Fenstern der App.
 - In `deactivated` steckt `activated`. Die Zeile, die das **Schließen**
   meldet, wurde deshalb als **Öffnen** gelesen — es ging nie wieder zu.
 
-Jetzt mit Wortgrenzen, ohne `enable`, mit Vorrang für „geschlossen" und
-zusätzlich der verbreiteten Schreibweise `overlay active: 0/1`. Zeilen, die
-auf kein Muster passen, landen im Protokoll — so lässt sich die Erkennung mit
-echten Daten nachbessern statt zu raten.
+- Das Muster verlangte `overlay` **vor** dem Zustandswort. Steam schreibt
+  aber `Showing overlay …` — genau andersherum. Damit wurde überhaupt nichts
+  erkannt.
+
+Die Erkennung ist jetzt an **echten Daten** ausgerichtet statt geraten. So
+schreibt Steam es tatsächlich:
+
+```
+… now requesting overlay enable
+Showing overlay and saving cursor show count: -7
+… now requesting overlay disable
+Hiding overlay and restoring cursor show count: -7
+```
+
+Diese vier Zeilen stehen als Testdaten im Projekt. Zusätzlich erkannt wird die
+verbreitete Form `overlay active: 0/1`; Zeilen ohne bekanntes Muster landen im
+Protokoll, damit sich das weiter nachbessern lässt.
 
 **3. Das Overlay schluckte alle Mausklicks.** Bei offener Übersicht wurde der
 Mausfang für das ganze, bildschirmfüllende Fenster eingeschaltet. Damit gingen

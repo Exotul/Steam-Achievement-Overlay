@@ -24,32 +24,48 @@ const path = require('path');
 /*
  * Muster fuer "Overlay ist jetzt sichtbar" bzw. "wieder weg".
  *
- * ZWEI FEHLER, die hier schon drinsteckten und echten Schaden angerichtet
- * haben - beide sind der Grund fuer die Wortgrenzen und die Reihenfolge:
+ * AN ECHTEN DATEN GEMESSEN, nicht geraten. So schreibt Steam es wirklich
+ * (aufgezeichnet auf einem Spielrechner, gameoverlay_renderer.txt):
  *
- *  1. "enable" als Treffer fuer "sichtbar". Steam schreibt beim Start Zeilen
+ *   ... - Detected hot-key via base input, now requesting overlay enable
+ *   ... - Showing overlay and saving cursor show count: -7
+ *   ... - Detected hot-key via base input, now requesting overlay disable
+ *   ... - Hiding overlay and restoring cursor show count: -7
+ *
+ * DREI FEHLER steckten hier nacheinander drin, alle mit spuerbaren Folgen:
+ *
+ *  1. "enable" galt als "sichtbar". Steam schreibt beim Start aber Zeilen
  *     wie "GameOverlayRenderer enabled" - das heisst nur, dass die FUNKTION
- *     eingeschaltet ist, nicht dass das Overlay offen waere. Die App hielt
- *     das Overlay dadurch von Anfang an fuer geoeffnet.
- *  2. "activated" ohne Wortgrenze. In "deactivated" steckt "activated" -
- *     eine Zeile, die das Schliessen meldet, wurde also als Oeffnen gelesen.
- *     Damit ging das Overlay in der Wahrnehmung der App nie wieder zu.
+ *     eingeschaltet ist. Die App hielt das Overlay dadurch immer fuer offen.
+ *  2. "activated" ohne Wortgrenze matcht auch "deactivated" - ausgerechnet
+ *     die Zeile, die das Schliessen meldet, wurde als Oeffnen gelesen.
+ *  3. Das Muster verlangte "overlay" VOR dem Zustandswort. Steam schreibt
+ *     aber "Showing overlay ..." - genau andersherum. Damit wurde ueberhaupt
+ *     nichts erkannt.
  *
- * Deshalb: Wortgrenzen ueberall, "enable/disable" gar nicht mehr, und unten
- * wird ZUERST auf "geschlossen" geprueft. Bei einem Muster, das auf beides
- * passt, ist "geschlossen" die harmlosere Annahme - ein faelschlich
- * geschlossenes Overlay kostet einen Tastendruck, ein faelschlich offenes
- * legt die Bedienung lahm.
+ * Deshalb jetzt: Reihenfolge egal, Wortgrenzen ueberall, "enable/disable"
+ * nur in der eindeutigen Form "requesting overlay enable". Und unten wird
+ * ZUERST auf "geschlossen" geprueft - bei einer Zeile, die auf beides passt,
+ * ist das die harmlosere Annahme. Ein faelschlich geschlossenes Overlay
+ * kostet einen Tastendruck, ein faelschlich offenes blendet dauerhaft etwas
+ * ein, das niemand angefordert hat.
  */
-const ZEIGT_AN = /overlay\b.*\b(shown|showing|activated|opened|visible)\b/i;
-const BLENDET_AUS = /overlay\b.*\b(hidden|hiding|deactivated|closed|dismissed)\b/i;
 
-// Zusaetzliche, sehr verbreitete Schreibweise mit Zahlenwert.
+// Die tatsaechliche Zustandsmeldung. Reihenfolge der Worte ist offen,
+// deshalb getrennt von der Pruefung auf "overlay".
+const AUF_WORTE = /\b(showing|shown|activated|opened|visible)\b/i;
+const ZU_WORTE = /\b(hiding|hidden|deactivated|closed|dismissed)\b/i;
+
+// Die Anforderung, die der Zustandsmeldung unmittelbar vorausgeht. Bewusst
+// eng gefasst: "enabled" allein waere die Startzeile und damit falsch.
+const ANFORDERUNG = /requesting\s+overlay\s+(enable|disable)\b/i;
+
+// Verbreitete Schreibweise mit Zahlenwert - eindeutig, wo Worte es nicht sind.
 const AKTIV_ZAHL = /overlay\b.*\bactive\b\s*[:=]?\s*([01])\b/i;
 
 /**
  * Bewertet eine einzelne Zeile - reine Funktion, damit sich genau das
- * pruefen laesst, was hier schon zweimal falsch war.
+ * pruefen laesst, was hier schon dreimal falsch war.
  *
  * @returns {'auf'|'zu'|null}
  */
@@ -57,15 +73,22 @@ function bewerteZeile(zeile) {
   const text = String(zeile || '');
   if (!/overlay/i.test(text)) return null;
 
-  // Zahlenwert zuerst: Er ist eindeutig, wo die Worte es nicht sind.
+  // Eindeutiges zuerst.
   const zahl = text.match(AKTIV_ZAHL);
   if (zahl) return zahl[1] === '1' ? 'auf' : 'zu';
 
+  const anforderung = text.match(ANFORDERUNG);
+  if (anforderung) return anforderung[1].toLowerCase() === 'enable' ? 'auf' : 'zu';
+
   // "Geschlossen" vor "offen" - siehe Begruendung oben.
-  if (BLENDET_AUS.test(text)) return 'zu';
-  if (ZEIGT_AN.test(text)) return 'auf';
+  if (ZU_WORTE.test(text)) return 'zu';
+  if (AUF_WORTE.test(text)) return 'auf';
   return null;
 }
+
+// Namen aus Ruecksicht auf bestehende Aufrufe erhalten.
+const ZEIGT_AN = AUF_WORTE;
+const BLENDET_AUS = ZU_WORTE;
 
 class SteamOverlayDetector {
   constructor({ steamPath, onChange, onUnknownLine }) {

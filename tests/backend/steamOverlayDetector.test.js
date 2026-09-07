@@ -20,13 +20,57 @@ const { bewerteZeile } = require('../../overlay/lib/steamOverlayDetector');
  * muss - besonders in den Fällen, die schon einmal schiefgingen.
  */
 
+// --- Echte Zeilen von einem Spielrechner --------------------------------------
+
+/**
+ * Aufgezeichnet aus gameoverlay_renderer.txt, während zweimal Shift+Tab
+ * gedrückt wurde. Das sind keine ausgedachten Beispiele, sondern das, was
+ * Steam tatsächlich schreibt - und damit der eigentliche Maßstab.
+ */
+const ECHT_AUF = [
+  'Mon Sep 07 08:37:17 2026 UTC - Detected hot-key via base input, now requesting overlay enable',
+  'Mon Sep 07 08:37:17 2026 UTC - Showing overlay and saving cursor show count: -7',
+];
+const ECHT_ZU = [
+  'Mon Sep 07 08:37:24 2026 UTC - Detected hot-key via base input, now requesting overlay disable',
+  'Mon Sep 07 08:37:24 2026 UTC - Hiding overlay and restoring cursor show count: -7',
+];
+
+test('Die echten Öffnen-Zeilen werden erkannt', () => {
+  ECHT_AUF.forEach((z) => assert.strictEqual(bewerteZeile(z), 'auf', z));
+});
+
+test('Die echten Schließen-Zeilen werden erkannt', () => {
+  ECHT_ZU.forEach((z) => assert.strictEqual(bewerteZeile(z), 'zu', z));
+});
+
+test('Die Wortstellung darf keine Rolle spielen', () => {
+  // Der dritte Fehler: Das Muster verlangte "overlay" VOR dem Zustandswort.
+  // Steam schreibt aber "Showing overlay ..." - damit wurde gar nichts
+  // erkannt, obwohl die Zeile eindeutig war.
+  assert.strictEqual(bewerteZeile('Showing overlay'), 'auf');
+  assert.strictEqual(bewerteZeile('overlay is showing'), 'auf');
+  assert.strictEqual(bewerteZeile('Hiding overlay'), 'zu');
+  assert.strictEqual(bewerteZeile('overlay is hiding'), 'zu');
+});
+
+test('"cursor show count" wird nicht als "showing" missverstanden', () => {
+  // Steht in BEIDEN echten Zeilen, auch in der zum Schließen.
+  assert.strictEqual(bewerteZeile('Hiding overlay and restoring cursor show count: -9'), 'zu');
+});
+
 // --- Die beiden echten Fehler ------------------------------------------------
 
 test('Eine Startzeile über die eingeschaltete Funktion ist KEIN offenes Overlay', () => {
-  // Der Fehler, der die Übersicht dauerhaft eingeblendet hat.
+  // Der Fehler, der die Übersicht dauerhaft eingeblendet hat. "enabled" heißt
+  // nur, dass die Funktion bereitsteht - nicht, dass das Overlay offen ist.
   assert.strictEqual(bewerteZeile('GameOverlayRenderer enabled'), null);
   assert.strictEqual(bewerteZeile('Steam overlay: renderer enabled for this process'), null);
   assert.strictEqual(bewerteZeile('overlay hook installed, overlay is enabled'), null);
+
+  // Die ausdrückliche Anforderung dagegen schon - sie ist eindeutig.
+  assert.strictEqual(bewerteZeile('now requesting overlay enable'), 'auf');
+  assert.strictEqual(bewerteZeile('now requesting overlay disable'), 'zu');
 });
 
 test('"deactivated" wird nicht als "activated" gelesen', () => {
