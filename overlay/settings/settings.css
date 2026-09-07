@@ -329,3 +329,64 @@ body {
     transition: none;
   }
 }
+
+/* ---------- Schalter ---------- */
+/* Ein Kippschalter statt eines Kaestchens: Bei einer Einstellung, die etwas
+   ein- oder ausschaltet, liest sich der Zustand so schneller ab. */
+
+.schalter {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 25px;
+  cursor: pointer;
+}
+
+.schalter input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.schalter__bahn {
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  background: var(--bg-inset);
+  border: 1px solid var(--hairline);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.schalter__bahn::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.schalter input:checked + .schalter__bahn {
+  background: rgba(139, 147, 224, 0.28);
+  border-color: var(--akzent);
+}
+
+.schalter input:checked + .schalter__bahn::after {
+  transform: translateX(19px);
+  background: var(--akzent);
+}
+
+.schalter input:focus-visible + .schalter__bahn {
+  box-shadow: 0 0 0 3px rgba(139, 147, 224, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schalter__bahn,
+  .schalter__bahn::after {
+    transition: none;
+  }
+}

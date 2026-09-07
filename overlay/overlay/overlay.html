@@ -15,6 +15,44 @@
   <body>
     <div id="stack"></div>
     <div id="diamond-layer"></div>
+
+    <!-- Vorschau beim Spielstart: die Achievements ziehen einmal durch. -->
+    <div id="parade" class="parade" hidden>
+      <div class="parade__kopf">
+        <p class="parade__spiel"></p>
+        <p class="parade__stand"></p>
+      </div>
+      <div class="parade__bahn"><div class="parade__reihe"></div></div>
+    </div>
+
+    <!-- Merkliste, dauerhaft oben links angedockt. -->
+    <div id="merkliste" class="merkliste" hidden>
+      <p class="merkliste__titel">Noch offen</p>
+      <ul class="merkliste__liste"></ul>
+    </div>
+
+    <!-- Übersicht aller Achievements des laufenden Spiels. -->
+    <div id="panel" class="panel" hidden>
+      <header class="panel__kopf">
+        <div>
+          <h1 class="panel__spiel"></h1>
+          <p class="panel__stand"></p>
+        </div>
+        <button class="panel__zu" type="button" title="Schließen">✕</button>
+      </header>
+      <div class="panel__werkzeuge">
+        <input class="panel__suche" type="search" placeholder="Suchen…" spellcheck="false" />
+        <div class="panel__filter" role="group">
+          <button class="panel__filter-knopf" data-filter="offen">Offen</button>
+          <button class="panel__filter-knopf" data-filter="erreicht">Erreicht</button>
+          <button class="panel__filter-knopf" data-filter="alle">Alle</button>
+        </div>
+      </div>
+      <ul class="panel__liste"></ul>
+      <footer class="panel__fuss">
+        <span class="panel__hinweis"></span>
+      </footer>
+    </div>
     <div id="status-badge" class="status-badge status-badge--hidden">
       <img class="status-badge__logo" src="../assets/app-icon.png" alt="" />
       <div class="status-badge__text">

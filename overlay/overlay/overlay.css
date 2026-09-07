@@ -925,3 +925,475 @@ body.pos-unten-links #stack {
     box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 0 26px rgba(95, 211, 232, 0);
   }
 }
+
+
+/* ==========================================================================
+   Vorschau beim Spielstart ("Parade")
+   ==========================================================================
+   Zieht einmal quer durch und verschwindet. Zweck ist ein Erinnern, kein
+   Nachschlagen - dafuer gibt es die Uebersicht. Deshalb bewusst ohne
+   Bedienelemente und ohne Mausfang: Sie soll niemanden aufhalten.
+   ========================================================================== */
+
+.parade {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 9vh;
+  pointer-events: none;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  animation: parade-auf 0.5s ease-out;
+}
+
+.parade--geht {
+  animation: parade-zu 0.6s ease-in forwards;
+}
+
+@keyframes parade-auf {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes parade-zu {
+  to { opacity: 0; transform: translateY(18px); }
+}
+
+.parade__kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+
+.parade__spiel {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.parade__stand {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #9aa1b0;
+}
+
+/* Die Bahn blendet an beiden Raendern aus, damit die Karten nicht hart
+   abgeschnitten erscheinen, sondern hinein- und hinausgleiten. */
+.parade__bahn {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+.parade__reihe {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  will-change: transform;
+}
+
+.parade-karte {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 290px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(21, 25, 32, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid var(--tier-color, #5f6675);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.8);
+}
+
+/* Erreichtes tritt zurueck - der Blick soll auf dem haengenbleiben, was
+   noch aussteht. Genau dafuer ist die Vorschau da. */
+.parade-karte--erreicht {
+  opacity: 0.45;
+}
+
+.parade-karte__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.parade-karte--offen .parade-karte__icon {
+  /* Offene Symbole liefert Steam bereits grau; der leichte Schleier macht
+     den Unterschied auch dann sichtbar, wenn ein Spiel das nicht tut. */
+  filter: grayscale(0.6) brightness(0.8);
+}
+
+.parade-karte__text {
+  min-width: 0;
+}
+
+.parade-karte__name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parade-karte__zeile {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: #9aa1b0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.parade-karte__haken {
+  color: #6bd39a;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Merkliste - dauerhaft oben links
+   ==========================================================================
+   Bewusst schmal und zurueckhaltend: Sie steht waehrend des ganzen Spiels
+   da. Alles, was hier auffaellt, faellt nach einer Stunde zur Last.
+   ========================================================================== */
+
+.merkliste {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  width: 260px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(18, 21, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  transform: scale(var(--merkliste-groesse, 1));
+  transform-origin: top left;
+  animation: merk-auf 0.4s ease-out;
+}
+
+@keyframes merk-auf {
+  from { opacity: 0; transform: scale(var(--merkliste-groesse, 1)) translateX(-12px); }
+  to { opacity: 1; transform: scale(var(--merkliste-groesse, 1)) translateX(0); }
+}
+
+.merkliste__titel {
+  margin: 0 0 8px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #5f6675;
+}
+
+.merkliste__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.merkliste__eintrag {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.merkliste__punkt {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--tier-color, #8b93e0);
+}
+
+.merkliste__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Kurzes Aufleuchten, wenn ein Eintrag erledigt ist und gleich verschwindet. */
+.merkliste__eintrag--erledigt {
+  animation: merk-erledigt 1.4s ease-out forwards;
+}
+
+@keyframes merk-erledigt {
+  0% { color: #6bd39a; }
+  70% { color: #6bd39a; opacity: 1; }
+  100% { opacity: 0; max-height: 0; }
+}
+
+/* ==========================================================================
+   Uebersicht aller Achievements
+   ==========================================================================
+   Das einzige Fenster im Overlay, das Mausklicks annimmt. Der Hauptprozess
+   schaltet den Mausfang nur ein, solange es offen ist - sonst waere das
+   ganze Overlay fuer das Spiel darunter im Weg.
+   ========================================================================== */
+
+.panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, 82vw);
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: rgba(17, 20, 27, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.9);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  pointer-events: auto;
+  animation: panel-auf 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes panel-auf {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.panel__kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.panel__spiel {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.panel__stand {
+  margin: 3px 0 0;
+  font-size: 0.85rem;
+  color: #9aa1b0;
+}
+
+.panel__zu {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #9aa1b0;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.panel__zu:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e8eaf0;
+}
+
+.panel__werkzeuge {
+  display: flex;
+  gap: 10px;
+  padding: 14px 22px;
+}
+
+.panel__suche {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.3);
+  color: #e8eaf0;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.panel__suche:focus {
+  outline: none;
+  border-color: #8b93e0;
+}
+
+.panel__filter {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.panel__filter-knopf {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #9aa1b0;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel__filter-knopf:hover {
+  color: #e8eaf0;
+}
+
+.panel__filter-knopf[aria-pressed='true'] {
+  background: rgba(139, 147, 224, 0.2);
+  color: #b9beef;
+}
+
+.panel__liste {
+  margin: 0;
+  padding: 0 12px 6px;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.panel__liste::-webkit-scrollbar {
+  width: 9px;
+}
+
+.panel__liste::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+}
+
+.panel-eintrag {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 10px;
+}
+
+.panel-eintrag:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.panel-eintrag--erreicht .panel-eintrag__name {
+  color: #9aa1b0;
+}
+
+.panel-eintrag__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.panel-eintrag--offen .panel-eintrag__icon {
+  filter: grayscale(0.6) brightness(0.8);
+}
+
+.panel-eintrag__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-eintrag__name {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-eintrag__desc {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: #767d8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-eintrag__meta {
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.72rem;
+  color: #767d8c;
+}
+
+.panel-eintrag__stufe {
+  display: block;
+  font-weight: 700;
+  color: var(--tier-color, #9aa1b0);
+}
+
+/* Der Haken fuer die Merkliste. Bewusst gross genug, um ihn auch mit einem
+   Controller-Mauszeiger zu treffen. */
+.panel-eintrag__haken {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: transparent;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.panel-eintrag__haken:hover {
+  border-color: #8b93e0;
+}
+
+.panel-eintrag__haken[aria-pressed='true'] {
+  background: #8b93e0;
+  border-color: #8b93e0;
+  color: #12151c;
+}
+
+.panel-eintrag--erreicht .panel-eintrag__haken {
+  visibility: hidden;
+}
+
+.panel__fuss {
+  padding: 11px 22px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.76rem;
+  color: #767d8c;
+  min-height: 18px;
+}
+
+.panel__leer {
+  padding: 34px 12px;
+  text-align: center;
+  color: #767d8c;
+  font-size: 0.85rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parade,
+  .parade--geht,
+  .merkliste,
+  .panel,
+  .merkliste__eintrag--erledigt {
+    animation: none;
+  }
+  .parade__reihe {
+    transition: none;
+  }
+}

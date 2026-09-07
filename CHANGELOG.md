@@ -2,6 +2,36 @@
 
 ## Noch nicht veröffentlicht
 
+### Achievement-Übersicht, Vorschau beim Spielstart, Merkliste
+
+**Übersicht** — alle Achievements des laufenden Spiels, mit Suche und Filter
+(Offen / Erreicht / Alle), seltenste zuerst. Zu öffnen über `Strg+Umschalt+A`,
+über das Tray-Menü, und automatisch, sobald Steams Overlay erkannt wird.
+
+Eine Anmerkung dazu, die wichtig ist: **In Steams Overlay hineinzeichnen kann
+diese App nicht.** Steam injiziert es direkt in die Grafikausgabe des Spiels;
+von außen kommt man da nicht heran. Unser eigenes Fenster liegt aber darüber,
+und während Steams Overlay offen ist, gibt es ohnehin einen Mauszeiger — genau
+dann ist die Übersicht bedienbar. Das Tastenkürzel ist der verlässliche Weg,
+weil die Erkennung von Steams Overlay auf Formulierungen in einer Logdatei
+beruht, die Valve jederzeit ändern kann.
+
+**Vorschau beim Spielstart** — die Achievements ziehen einmal quer durch,
+Offene zuerst, Erreichte abgeblendet. Bewusst verzögert (Vorgabe 25 Sekunden):
+Viele Spiele zeigen nach dem Start noch Logos und Ladebildschirme, und was
+währenddessen läuft, sieht niemand. Dauer, Verzögerung und ob nur Offene
+gezeigt werden, sind einstellbar.
+
+**Merkliste** — in der Übersicht Achievements anhaken, sie bleiben oben links
+eingeblendet, solange das Spiel läuft. Wird eines davon errungen, leuchtet der
+Eintrag kurz grün auf und verschwindet. Höchstens zwölf gleichzeitig, sonst
+verdeckt die Liste das Spiel. Größe getrennt einstellbar.
+
+Der Mausfang des Overlays wird nur eingeschaltet, solange die Übersicht offen
+ist — sonst läge das bildschirmfüllende Fenster dem Spiel dauerhaft im Weg.
+Ein Klick daneben oder Escape schließt sie wieder.
+
+
 ### Das Dashboard lädt nicht mehr alles neu
 
 Beim Öffnen wurden im Hintergrund ausnahmslos alle Spiele neu abgefragt — bei

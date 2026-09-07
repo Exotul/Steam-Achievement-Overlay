@@ -1,8 +1,10 @@
 const { ladeKonfiguration, schluesselFehlt, BENUTZER_CONFIG } = require('./lib/config');
 const konfig = ladeKonfiguration(__dirname);
 const path = require('path');
-const { app, BrowserWindow, Tray, Menu, screen, nativeImage, shell, dialog, ipcMain } =
-  require('electron');
+const {
+  app, BrowserWindow, Tray, Menu, screen, nativeImage, shell, dialog, ipcMain,
+  globalShortcut,
+} = require('electron');
 const SteamClient = require('./lib/steamClient');
 const { ensureBackendRunning } = require('./lib/backendManager');
 const { LocalWatcher, findSteamPath } = require('./lib/localWatcher');
@@ -51,6 +53,7 @@ if (konfig.uebernommen) {
 }
 const steamKey = require('./lib/steamKey');
 const einstellungenModul = require('./lib/einstellungen');
+const todoModul = require('./lib/todo');
 const SteamOverlayDetector = require('./lib/steamOverlayDetector');
 const {
   findVerifiedSource,
@@ -142,6 +145,13 @@ function levelAus(totalXp) {
 }
 let localWatcher = null;
 let localWatchReady = false;
+
+// Merklisten je Spiel, aus dem Benutzerordner.
+let merklisten = todoModul.laden();
+// Steht die Uebersicht gerade offen? Davon haengt ab, ob das Overlay-Fenster
+// Mausklicks annimmt.
+let panelOffen = false;
+let paradeTimer = null;
 
 // Lokale Achievement-Datei, deren Parser sich gegen den von Steam
 // bestaetigten Stand als korrekt erwiesen hat. Nur dann wird sie genutzt.
@@ -443,6 +453,18 @@ async function startAchievementTracking(appId, gameName) {
     startLocalWatcher(appId, [...achievementIndex.keys()], gameName);
   }
 
+  // Merkliste um das bereinigen, was inzwischen erreicht wurde - eine
+  // erledigte Aufgabe soll nicht weiter auf dem Bildschirm stehen.
+  const erreicht = [...achievementIndex.values()].filter((a) => a.unlocked).map((a) => a.apiName);
+  const bereinigt = todoModul.entferneErreichte(merklisten, appId, erreicht);
+  if (bereinigt.entfernt.length > 0) {
+    merklisten = todoModul.speichern(bereinigt.listen);
+    logger.info(`Merkliste: ${bereinigt.entfernt.length} erledigte Einträge entfernt`);
+  }
+
+  sendeSpielDaten();
+  planeParade(appId);
+
   if (achievementTimer) clearInterval(achievementTimer);
   checkAchievements();
   achievementTimer = setInterval(checkAchievements, ACHIEVEMENT_POLL_INTERVAL_MS);
@@ -588,7 +610,16 @@ async function starteStatusAbzeichen() {
 
   overlayDetector = new SteamOverlayDetector({
     steamPath: watcher.steamPath,
-    onChange: (offen) => sendStatusBadge(offen),
+    onChange: (offen) => {
+      sendStatusBadge(offen);
+      // In Steams Overlay hineinzuzeichnen ist ausgeschlossen - unser
+      // Fenster liegt aber darueber, und waehrend Steams Overlay offen ist
+      // hat der Nutzer ohnehin einen Mauszeiger. Genau dann ist die
+      // Uebersicht bedienbar.
+      if (!einstellungen.panelBeiSteamOverlay) return;
+      if (offen) zeigePanel(true);
+      else if (panelOffen) zeigePanel(false);
+    },
   });
 
   const gestartet = overlayDetector.start();
@@ -657,6 +688,9 @@ function stopLocalWatcher() {
 function stopAchievementTracking() {
   if (achievementTimer) clearInterval(achievementTimer);
   achievementTimer = null;
+  clearTimeout(paradeTimer);
+  paradeTimer = null;
+  if (panelOffen) zeigePanel(false);
   stopLocalWatcher();
   stoppeWiederholtePruefung();
   stoppeStatusAbzeichen();
@@ -665,6 +699,7 @@ function stopAchievementTracking() {
   trackedGameName = null;
   unlockedBaseline = null;
   achievementIndex = new Map();
+  sendeSpielDaten();
 }
 
 async function checkAchievements() {
@@ -692,8 +727,20 @@ async function checkAchievements() {
 
     newlyUnlocked.forEach((a) => {
       unlockedBaseline.add(a.apiName);
+      // Der Index haelt den Stand fuer Merkliste und Uebersicht.
+      const bekannt = achievementIndex.get(a.apiName);
+      if (bekannt) bekannt.unlocked = true;
       sendAchievementToOverlay(a);
     });
+
+    if (newlyUnlocked.length > 0) {
+      const erledigt = todoModul.entferneErreichte(
+        merklisten,
+        trackedAppId,
+        newlyUnlocked.map((a) => a.apiName)
+      );
+      if (erledigt.entfernt.length > 0) merklisten = todoModul.speichern(erledigt.listen);
+    }
 
     if (result.isDiamond && !diamondCelebrated.has(trackedAppId)) {
       diamondCelebrated.add(trackedAppId);
@@ -786,6 +833,11 @@ function buildTrayMenu(statusLine) {
     { label: 'Dashboard öffnen', click: () => shell.openExternal(BASE_URL) },
     { label: 'Einstellungen…', click: zeigeEinstellungen },
     { type: 'separator' },
+    {
+      label: 'Achievements des Spiels…',
+      enabled: trackedAppId !== null,
+      click: () => zeigePanel(true),
+    },
     { label: 'Test-Achievement anzeigen', click: handleTestAchievement },
     autostart.isAvailable()
       ? {
@@ -908,6 +960,83 @@ function einstellungenFuerOverlay() {
     }
   }
   return { ...einstellungen, eigenerTonUrl };
+}
+
+/**
+ * Schickt die vollstaendige Achievement-Liste des verfolgten Spiels ans
+ * Overlay. Merkliste und Uebersicht arbeiten ausschliesslich damit - sie
+ * fragen nie selbst bei Steam nach.
+ */
+function sendeSpielDaten() {
+  sendToOverlay('spiel-daten', {
+    appId: trackedAppId,
+    gameName: trackedGameName,
+    achievements: [...achievementIndex.values()],
+    merkliste: merklisten[String(trackedAppId)] || [],
+  });
+}
+
+/**
+ * Vorschau beim Spielstart.
+ *
+ * Bewusst verzoegert: Viele Spiele zeigen nach dem Start noch Logos,
+ * Ladebildschirme und Menues. Eine Vorschau, die in dieser Zeit laeuft,
+ * sieht schlicht niemand - und der Zweck ist ja, kurz in Erinnerung zu
+ * rufen, was noch aussteht.
+ */
+function planeParade(appId) {
+  clearTimeout(paradeTimer);
+  paradeTimer = null;
+  if (!einstellungen.paradeAktiv) return;
+
+  const verzoegerung = Math.max(5, einstellungen.paradeVerzoegerungSek) * 1000;
+  paradeTimer = setTimeout(() => {
+    paradeTimer = null;
+    // Inzwischen ein anderes Spiel (oder gar keins)? Dann nicht mehr zeigen.
+    if (trackedAppId !== appId || achievementIndex.size === 0) return;
+    sendToOverlay('parade', {
+      gameName: trackedGameName,
+      achievements: [...achievementIndex.values()],
+      nurOffene: einstellungen.paradeNurOffene,
+      dauerSek: einstellungen.paradeDauerSek,
+    });
+    logger.info(`Vorschau beim Spielstart gezeigt (${achievementIndex.size} Achievements)`);
+  }, verzoegerung);
+}
+
+/**
+ * Uebersicht ein- oder ausblenden.
+ *
+ * Der Mausfang haengt daran: Das Overlay-Fenster ignoriert Klicks sonst
+ * vollstaendig, weil es ueber dem Spiel liegt. Nur solange die Uebersicht
+ * offen ist, nimmt es welche an.
+ */
+function zeigePanel(sichtbar) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const zeigen = sichtbar === undefined ? !panelOffen : !!sichtbar;
+  if (zeigen && achievementIndex.size === 0) {
+    logger.info('Übersicht angefordert, aber kein Spiel mit Achievements verfolgt');
+    return;
+  }
+  if (zeigen) sendeSpielDaten();
+  sendToOverlay('panel', zeigen);
+}
+
+/** Wird vom Overlay gemeldet, sobald sich der Zustand tatsaechlich geaendert hat. */
+function setzePanelZustand(offen) {
+  panelOffen = !!offen;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayWindow.setIgnoreMouseEvents(!panelOffen, { forward: true });
+  if (panelOffen) {
+    // Ohne Fokus nimmt das Fenster keine Tastatureingaben an - und ohne die
+    // funktionieren weder Suche noch Escape.
+    overlayWindow.setFocusable(true);
+    overlayWindow.focus();
+  } else {
+    // Danach wieder aus dem Weg: Ein fokussierbares Fenster ueber einem
+    // Vollbildspiel kann dieses aus dem Vordergrund draengen.
+    overlayWindow.setFocusable(false);
+  }
 }
 
 function sendToOverlay(kanal, nutzlast) {
@@ -1381,6 +1510,8 @@ function wendeEinstellungenAn(vorher) {
     sendToOverlay('einstellungen', einstellungenFuerOverlay());
   }
 
+  if (!vorher || vorher.panelTaste !== einstellungen.panelTaste) setzeTastenkuerzel();
+
   // Das Status-Abzeichen haengt an einer Betriebsart, die sich geaendert
   // haben kann - neu aufsetzen, aber nur wenn gerade ein Spiel verfolgt wird.
   if (vorher && vorher.statusAbzeichen !== einstellungen.statusAbzeichen && trackedAppId !== null) {
@@ -1488,15 +1619,57 @@ function zeigeEinstellungen() {
   });
 }
 
+/**
+ * Tastenkuerzel fuer die Uebersicht.
+ *
+ * Warum nicht Shift+Tab: Das gehoert Steam. Es abzufangen wuerde das
+ * Steam-Overlay selbst stoeren - und darauf ist im Spiel Verlass, auf uns
+ * nicht. Stattdessen ein eigenes Kuerzel, das ueberall funktioniert, plus
+ * das automatische Aufgehen, sobald Steams Overlay erkannt wird.
+ */
+function setzeTastenkuerzel() {
+  globalShortcut.unregisterAll();
+  const taste = (einstellungen.panelTaste || '').trim();
+  if (!taste) return;
+
+  try {
+    const ok = globalShortcut.register(taste, () => zeigePanel());
+    if (ok) logger.info(`Tastenkürzel für die Übersicht: ${taste}`);
+    else logger.warn(`Tastenkürzel ${taste} ist belegt - Übersicht nur über das Tray-Menü`);
+  } catch (err) {
+    logger.warn(`Tastenkürzel ${taste} nicht verwendbar: ${err.message}`);
+  }
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-icon.png'));
   tray = new Tray(icon);
   buildTrayMenu();
 }
 
+// Merkliste und Mausfang gelten fuer die ganze Laufzeit, nicht nur solange
+// ein Fenster offen ist - deshalb hier und nicht in einem Fensterbehandler.
+ipcMain.handle('merkliste:setzen', (_e, apiName, angehakt) => {
+  const ergebnis = todoModul.setze(merklisten, trackedAppId, apiName, angehakt);
+  if (ergebnis.geaendert) {
+    merklisten = todoModul.speichern(ergebnis.listen);
+    logger.info(`Merkliste: ${apiName} ${angehakt ? 'gesetzt' : 'entfernt'}`);
+  }
+  return {
+    merkliste: merklisten[String(trackedAppId)] || [],
+    grund: ergebnis.grund,
+  };
+});
+
+ipcMain.handle('panel:zustand', (_e, offen) => {
+  setzePanelZustand(offen);
+  return true;
+});
+
 app.whenReady().then(async () => {
   createOverlayWindow();
   createTray();
+  setzeTastenkuerzel();
   // Der Schluessel wird VOR dem Backend gebraucht: Es bekommt ihn beim
   // Starten als Umgebungsvariable mit. Liefe die Einrichtung erst danach,
   // arbeitete das Backend die ganze Sitzung ohne Schluessel weiter und die
@@ -1559,6 +1732,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll();
   stopLocalWatcher();
   if (backendChild) backendChild.kill();
 });

@@ -157,6 +157,11 @@ function logoSvg(color, glow) {
 }
 
 function showAchievementToast(achievement) {
+  // Die Merkliste und die Uebersicht muessen denselben Stand zeigen wie die
+  // Meldung - sonst steht eine gerade errungene Trophaee weiter als "offen"
+  // oben links, genau waehrend die Meldung das Gegenteil behauptet.
+  if (!achievement.nurTest) markiereErreicht(achievement.apiName);
+
   const tier = TIERS[achievement.category] || TIERS.Platin;
   // Versteckte Achievements liefern von Steam oft gar keine oder eine leere
   // Beschreibung - dann lassen wir die Zeile ganz weg, statt Leerraum zu zeigen.
@@ -527,10 +532,314 @@ function showXpToast(xp) {
   setTimeout(() => el.remove(), dauer);
 }
 
+/* ==========================================================================
+   Achievements des laufenden Spiels
+   ==========================================================================
+   Das Overlay bekommt beim Spielstart die vollstaendige Liste und haelt sie
+   hier. Alle drei Ansichten unten - Vorschau, Merkliste, Uebersicht - lesen
+   daraus; keine davon fragt selbst etwas ab.
+   ========================================================================== */
+
+let spiel = { appId: null, name: '', achievements: [], merkliste: [] };
+
+function stufeVon(kategorie) {
+  return TIERS[kategorie] || TIERS.Platin;
+}
+
+function setzeSpiel(daten) {
+  spiel = {
+    appId: daten.appId ?? null,
+    name: daten.gameName || '',
+    achievements: Array.isArray(daten.achievements) ? daten.achievements : [],
+    merkliste: Array.isArray(daten.merkliste) ? daten.merkliste : [],
+  };
+  zeichneMerkliste();
+  if (!panelEl.hidden) zeichnePanel();
+}
+
+/** Einzelnes Achievement als erreicht markieren, ohne alles neu zu laden. */
+function markiereErreicht(apiName) {
+  const treffer = spiel.achievements.find((a) => a.apiName === apiName);
+  if (treffer) treffer.unlocked = true;
+
+  // Aus der Merkliste nehmen - aber sichtbar, nicht heimlich. Genau in dem
+  // Moment, in dem eine Aufgabe erfuellt ist, will man sie verschwinden
+  // sehen, nicht einfach weg haben.
+  if (spiel.merkliste.includes(apiName)) {
+    const eintrag = merklisteEl.querySelector(`[data-api="${cssEscape(apiName)}"]`);
+    spiel.merkliste = spiel.merkliste.filter((n) => n !== apiName);
+    if (eintrag) {
+      eintrag.classList.add('merkliste__eintrag--erledigt');
+      setTimeout(() => zeichneMerkliste(), 1500);
+    } else {
+      zeichneMerkliste();
+    }
+  }
+  if (!panelEl.hidden) zeichnePanel();
+}
+
+/** Fuer Attributselektoren: Steam-API-Namen sind zwar zahm, aber nicht garantiert. */
+function cssEscape(text) {
+  return String(text).replace(/["\\]/g, '\\$&');
+}
+
+/* ==========================================================================
+   Vorschau beim Spielstart
+   ========================================================================== */
+
+const paradeEl = document.getElementById('parade');
+let paradeTimer = null;
+
+function zeigeParade({ gameName, achievements, nurOffene, dauerSek }) {
+  versteckeParade();
+  if (!achievements || achievements.length === 0) return;
+
+  const offen = achievements.filter((a) => !a.unlocked);
+  const gezeigt = nurOffene ? offen : achievements;
+  if (gezeigt.length === 0) return;
+
+  // Offene zuerst - sie sind der Grund, warum die Vorschau ueberhaupt laeuft.
+  const sortiert = [...gezeigt].sort((a, b) => Number(a.unlocked) - Number(b.unlocked));
+
+  const erreicht = achievements.length - offen.length;
+  paradeEl.querySelector('.parade__spiel').textContent = gameName || '';
+  paradeEl.querySelector('.parade__stand').textContent =
+    `${erreicht} von ${achievements.length} erreicht \u00b7 ${offen.length} offen`;
+
+  const reihe = paradeEl.querySelector('.parade__reihe');
+  reihe.innerHTML = '';
+  sortiert.forEach((a) => reihe.appendChild(paradeKarte(a)));
+
+  paradeEl.hidden = false;
+  paradeEl.classList.remove('parade--geht');
+
+  // Erst messen, dann bewegen: Die Strecke haengt von der tatsaechlichen
+  // Breite aller Karten ab, und die steht erst nach dem Einfuegen fest.
+  requestAnimationFrame(() => {
+    const strecke = reihe.scrollWidth - paradeEl.clientWidth;
+    const dauer = Math.max(5, dauerSek || 18);
+
+    if (strecke > 0) {
+      reihe.style.transition = `transform ${dauer}s linear`;
+      reihe.style.transform = `translateX(${-strecke}px)`;
+    } else {
+      // Passt ohnehin auf den Bildschirm - dann nicht kuenstlich schieben,
+      // sondern einfach stehen lassen.
+      reihe.style.transition = 'none';
+      reihe.style.transform = 'translateX(0)';
+    }
+
+    paradeTimer = setTimeout(() => {
+      paradeEl.classList.add('parade--geht');
+      paradeTimer = setTimeout(versteckeParade, 600);
+    }, dauer * 1000);
+  });
+}
+
+function paradeKarte(a) {
+  const stufe = stufeVon(a.category);
+  const el = document.createElement('div');
+  el.className = `parade-karte ${a.unlocked ? 'parade-karte--erreicht' : 'parade-karte--offen'}`;
+  el.style.setProperty('--tier-color', a.unlocked ? stufe.color : '#5f6675');
+  el.innerHTML = `
+    <img class="parade-karte__icon" src="${a.icon || '../assets/app-icon.png'}" alt=""
+         onerror="this.style.visibility='hidden'" />
+    <div class="parade-karte__text">
+      <p class="parade-karte__name">${escapeHtml(a.name)}</p>
+      <p class="parade-karte__zeile">
+        ${a.unlocked ? '<span class="parade-karte__haken">\u2713</span> erreicht' : a.category}
+      </p>
+    </div>
+  `;
+  return el;
+}
+
+function versteckeParade() {
+  clearTimeout(paradeTimer);
+  paradeTimer = null;
+  paradeEl.hidden = true;
+  paradeEl.classList.remove('parade--geht');
+  const reihe = paradeEl.querySelector('.parade__reihe');
+  reihe.style.transition = 'none';
+  reihe.style.transform = 'translateX(0)';
+}
+
+/* ==========================================================================
+   Merkliste
+   ========================================================================== */
+
+const merklisteEl = document.getElementById('merkliste');
+
+function zeichneMerkliste() {
+  const aktiv = einst.merklisteAktiv !== false;
+  const offen = spiel.merkliste
+    .map((name) => spiel.achievements.find((a) => a.apiName === name))
+    .filter((a) => a && !a.unlocked);
+
+  if (!aktiv || offen.length === 0) {
+    merklisteEl.hidden = true;
+    return;
+  }
+
+  merklisteEl.style.setProperty('--merkliste-groesse', einst.merklisteGroesse ?? 1);
+  const liste = merklisteEl.querySelector('.merkliste__liste');
+  liste.innerHTML = '';
+
+  offen.forEach((a) => {
+    const li = document.createElement('li');
+    li.className = 'merkliste__eintrag';
+    li.dataset.api = a.apiName;
+    li.innerHTML = `
+      <span class="merkliste__punkt" style="background:${stufeVon(a.category).color}"></span>
+      <span class="merkliste__name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</span>
+    `;
+    liste.appendChild(li);
+  });
+
+  merklisteEl.hidden = false;
+}
+
+/* ==========================================================================
+   Uebersicht
+   ========================================================================== */
+
+const panelEl = document.getElementById('panel');
+let panelFilter = 'offen';
+
+function zeichnePanel() {
+  const alle = spiel.achievements;
+  const erreicht = alle.filter((a) => a.unlocked).length;
+
+  panelEl.querySelector('.panel__spiel').textContent = spiel.name || 'Kein Spiel erkannt';
+  panelEl.querySelector('.panel__stand').textContent = alle.length
+    ? `${erreicht} von ${alle.length} erreicht \u00b7 ${alle.length - erreicht} offen`
+    : 'Keine Achievements bekannt';
+
+  panelEl.querySelectorAll('.panel__filter-knopf').forEach((k) => {
+    k.setAttribute('aria-pressed', String(k.dataset.filter === panelFilter));
+  });
+
+  const suche = panelEl.querySelector('.panel__suche').value.trim().toLowerCase();
+  const gefiltert = alle
+    .filter((a) => {
+      if (panelFilter === 'offen' && a.unlocked) return false;
+      if (panelFilter === 'erreicht' && !a.unlocked) return false;
+      if (!suche) return true;
+      return (
+        a.name.toLowerCase().includes(suche) ||
+        (a.description || '').toLowerCase().includes(suche)
+      );
+    })
+    // Seltenes zuerst: Das ist das, was am ehesten eine Planung wert ist.
+    .sort((a, b) => a.globalPercent - b.globalPercent);
+
+  const liste = panelEl.querySelector('.panel__liste');
+  liste.innerHTML = '';
+
+  if (gefiltert.length === 0) {
+    const leer = document.createElement('li');
+    leer.className = 'panel__leer';
+    leer.textContent = suche
+      ? 'Nichts gefunden.'
+      : panelFilter === 'offen'
+        ? 'Alles erreicht. Nichts mehr offen.'
+        : 'Noch nichts erreicht.';
+    liste.appendChild(leer);
+  } else {
+    gefiltert.forEach((a) => liste.appendChild(panelEintrag(a)));
+  }
+
+  const gemerkt = spiel.merkliste.length;
+  panelEl.querySelector('.panel__hinweis').textContent = gemerkt
+    ? `${gemerkt} auf der Merkliste \u00b7 sie bleiben oben links eingeblendet`
+    : 'Haken setzen, um ein Achievement dauerhaft einzublenden';
+}
+
+function panelEintrag(a) {
+  const stufe = stufeVon(a.category);
+  const gemerkt = spiel.merkliste.includes(a.apiName);
+
+  const li = document.createElement('li');
+  li.className = `panel-eintrag ${a.unlocked ? 'panel-eintrag--erreicht' : 'panel-eintrag--offen'}`;
+  li.style.setProperty('--tier-color', stufe.color);
+  li.innerHTML = `
+    <img class="panel-eintrag__icon" src="${a.icon || '../assets/app-icon.png'}" alt=""
+         onerror="this.style.visibility='hidden'" />
+    <div class="panel-eintrag__text">
+      <p class="panel-eintrag__name">${escapeHtml(a.name)}</p>
+      ${a.description ? `<p class="panel-eintrag__desc">${escapeHtml(a.description)}</p>` : ''}
+    </div>
+    <div class="panel-eintrag__meta">
+      <span class="panel-eintrag__stufe">${a.category}</span>
+      ${a.globalPercent.toFixed(1)}%
+    </div>
+    <button class="panel-eintrag__haken" type="button"
+            aria-pressed="${gemerkt}"
+            title="${gemerkt ? 'Von der Merkliste nehmen' : 'Auf die Merkliste setzen'}">\u2713</button>
+  `;
+
+  li.querySelector('.panel-eintrag__haken').addEventListener('click', async () => {
+    const antwort = await window.overlayAPI.merklisteSetzen(a.apiName, !gemerkt);
+    if (antwort && Array.isArray(antwort.merkliste)) {
+      spiel.merkliste = antwort.merkliste;
+      zeichneMerkliste();
+      zeichnePanel();
+    }
+    if (antwort && antwort.grund) {
+      panelEl.querySelector('.panel__hinweis').textContent = antwort.grund;
+    }
+  });
+
+  return li;
+}
+
+function zeigePanel(sichtbar) {
+  const zeigen = sichtbar === undefined ? panelEl.hidden : sichtbar;
+  if (zeigen) {
+    zeichnePanel();
+    panelEl.hidden = false;
+    // Erst nach dem Einblenden fokussieren, sonst springt die Seite.
+    setTimeout(() => panelEl.querySelector('.panel__suche').focus(), 60);
+  } else {
+    panelEl.hidden = true;
+    panelEl.querySelector('.panel__suche').value = '';
+  }
+  // Der Hauptprozess schaltet den Mausfang - ohne das waere entweder das
+  // Panel nicht bedienbar oder das ganze Overlay dauerhaft im Weg.
+  window.overlayAPI.panelZustand(!panelEl.hidden);
+}
+
+panelEl.querySelector('.panel__zu').addEventListener('click', () => zeigePanel(false));
+panelEl.querySelector('.panel__suche').addEventListener('input', zeichnePanel);
+panelEl.querySelectorAll('.panel__filter-knopf').forEach((k) => {
+  k.addEventListener('click', () => {
+    panelFilter = k.dataset.filter;
+    zeichnePanel();
+  });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !panelEl.hidden) zeigePanel(false);
+});
+
+// Solange die Uebersicht offen ist, faengt das ganze Overlay-Fenster
+// Mausklicks ab - es liegt ja bildschirmfuellend ueber dem Spiel. Ein Klick
+// daneben soll deshalb schliessen, sonst wirkt der Rest des Bildschirms wie
+// eingefroren.
+document.addEventListener('mousedown', (e) => {
+  if (panelEl.hidden) return;
+  if (!panelEl.contains(e.target)) zeigePanel(false);
+});
+
 window.overlayAPI.onAchievement(enqueueAchievement);
 window.overlayAPI.onGameDiamond(showDiamondCelebration);
 window.overlayAPI.onWelcome(showWelcomeToast);
-window.overlayAPI.onEinstellungen(wendeEinstellungenAn);
+window.overlayAPI.onEinstellungen((werte) => {
+  wendeEinstellungenAn(werte);
+  zeichneMerkliste();
+});
+window.overlayAPI.onSpielDaten(setzeSpiel);
+window.overlayAPI.onParade(zeigeParade);
+window.overlayAPI.onPanel(zeigePanel);
 // --- Ladebalken beim Start ---------------------------------------------------
 // Der XP-Gesamtstand wird EINMAL beim Start ermittelt (danach nur noch
 // fortgeschrieben). Das dauert bei grossen Bibliotheken einen Moment -
