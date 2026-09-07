@@ -3,105 +3,212 @@ const path = require('path');
 const os = require('os');
 
 /**
- * Merkliste: Achievements, die dauerhaft eingeblendet bleiben sollen.
+ * Merkliste: was in diesem Spiel noch aussteht.
  *
- * Je Spiel eine eigene Liste - eine gemeinsame wäre nutzlos, weil ein
- * Achievement immer nur in seinem Spiel erreichbar ist.
+ * Zwei Arten von Einträgen:
  *
- * Bewusst ohne Abhängigkeiten und mit getrennter reiner Logik: Die Datei
- * liegt im Benutzerordner und darf von Hand bearbeitet werden. Ein
- * beschädigter Eintrag darf die Einblendung nicht zerlegen und schon gar
- * nicht die App am Starten hindern.
+ *  - **Achievements** - über den Haken in der Übersicht gesetzt. Sie
+ *    verschwinden von selbst, sobald sie errungen sind.
+ *  - **Eigene Einträge** - frei geschriebene Notizen. Sie verschwinden NIE
+ *    von selbst, denn niemand außer dem Schreibenden weiß, wann sie erledigt
+ *    sind. Genau dafür gibt es sie: Manche Achievements verlangen etwas, das
+ *    das Spiel selbst nicht mitzählt ("alle Audionotizen sammeln"), und wer
+ *    sich dafür einen Merkzettel macht, will ihn beim nächsten Start
+ *    wiederfinden und nicht neu schreiben.
+ *
+ * Je Spiel eine eigene Liste - eine gemeinsame wäre nutzlos, weil beides
+ * immer nur in seinem Spiel gilt.
+ *
+ * Die Datei liegt in `~/.trophaenschrank/` und damit AUSSERHALB des
+ * Programmordners: Sie übersteht dadurch Updates, das Deinstallieren und
+ * landet nie in einem Repository.
+ *
+ * Bewusst ohne Abhängigkeiten und mit getrennter reiner Logik: Die Datei darf
+ * von Hand bearbeitet werden, und ein beschädigter Eintrag darf weder die
+ * Einblendung zerlegen noch die App am Starten hindern.
  */
 
 const ORDNER = process.env.DATA_DIR || path.join(os.homedir(), '.trophaenschrank');
 const DATEI = path.join(ORDNER, 'merkliste.json');
 
-// Mehr als das sinnvoll gleichzeitig einzublenden verdeckt das Spiel. Die
-// Grenze ist keine Schikane, sondern verhindert, dass jemand versehentlich
-// vierzig Einträge anhakt und danach nichts mehr sieht.
+// Mehr gleichzeitig einzublenden verdeckt das Spiel. Die Grenze ist keine
+// Schikane, sondern verhindert, dass jemand versehentlich vierzig Einträge
+// anhakt und danach nichts mehr sieht. Sie gilt für beide Arten zusammen.
 const MAX_JE_SPIEL = 12;
+const MAX_TEXT_LAENGE = 90;
+
+const leer = () => ({ achievements: [], notizen: [] });
+
+/** Eindeutige, kurze Kennung für eine Notiz. */
+function neueId() {
+  return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function bereinigeText(roh) {
+  // Zeilenumbrüche würden die einzeilige Einblendung sprengen.
+  return String(roh == null ? '' : roh)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_TEXT_LAENGE);
+}
 
 /**
- * Bringt beliebigen Inhalt in die Form { "<appId>": ["API_NAME", ...] }.
- * Alles, was nicht passt, fällt weg statt einen Fehler auszulösen.
+ * Bringt beliebigen Inhalt in die erwartete Form.
+ *
+ * Nimmt auch das ältere Format entgegen, in dem je Spiel nur eine Liste von
+ * API-Namen stand. Es einfach zu verwerfen wäre der bequeme Weg gewesen -
+ * aber dann wäre eine mühsam zusammengestellte Merkliste beim Update weg,
+ * und das ist genau das, was hier nie passieren soll.
  */
 function bereinige(roh) {
   if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {};
 
   const sauber = {};
-  for (const [appId, liste] of Object.entries(roh)) {
-    if (!Array.isArray(liste)) continue;
-    const namen = [];
-    for (const eintrag of liste) {
-      if (typeof eintrag !== 'string') continue;
-      const name = eintrag.trim();
-      // Doppelte still zusammenfassen - sie würden sonst doppelt erscheinen.
-      if (name.length > 0 && !namen.includes(name)) namen.push(name);
-      if (namen.length >= MAX_JE_SPIEL) break;
+  for (const [appId, wert] of Object.entries(roh)) {
+    // Älteres Format: nur eine Liste von API-Namen.
+    const eintrag = Array.isArray(wert) ? { achievements: wert, notizen: [] } : wert;
+    if (!eintrag || typeof eintrag !== 'object') continue;
+
+    const achievements = [];
+    if (Array.isArray(eintrag.achievements)) {
+      for (const name of eintrag.achievements) {
+        if (typeof name !== 'string') continue;
+        const sauberName = name.trim();
+        if (sauberName && !achievements.includes(sauberName)) achievements.push(sauberName);
+      }
     }
-    if (namen.length > 0) sauber[String(appId)] = namen;
+
+    const notizen = [];
+    const gesehen = new Set();
+    if (Array.isArray(eintrag.notizen)) {
+      for (const notiz of eintrag.notizen) {
+        if (!notiz || typeof notiz !== 'object') continue;
+        const text = bereinigeText(notiz.text);
+        if (!text) continue;
+        // Eine Notiz ohne Kennung bekommt eine - sonst liesse sie sich nicht
+        // gezielt wieder entfernen.
+        let id = typeof notiz.id === 'string' && notiz.id.trim() ? notiz.id.trim() : neueId();
+        while (gesehen.has(id)) id = neueId();
+        gesehen.add(id);
+        notizen.push({ id, text });
+      }
+    }
+
+    if (achievements.length > 0 || notizen.length > 0) {
+      sauber[String(appId)] = { achievements, notizen };
+    }
   }
   return sauber;
 }
 
+/** Der Eintrag eines Spiels - immer vollständig, auch wenn es keinen gibt. */
+function fuerSpiel(listen, appId) {
+  const alle = bereinige(listen);
+  const eintrag = alle[String(appId)];
+  return eintrag ? { achievements: [...eintrag.achievements], notizen: [...eintrag.notizen] } : leer();
+}
+
+/** Wie viele Einträge insgesamt - beide Arten zusammen. */
+function anzahl(listen, appId) {
+  const e = fuerSpiel(listen, appId);
+  return e.achievements.length + e.notizen.length;
+}
+
+function schreibeZurueck(alle, appId, eintrag) {
+  const schluessel = String(appId);
+  if (eintrag.achievements.length > 0 || eintrag.notizen.length > 0) alle[schluessel] = eintrag;
+  else delete alle[schluessel];
+  return alle;
+}
+
 /**
- * Setzt einen Eintrag oder entfernt ihn - reine Funktion, damit sich das
- * Verhalten an den Rändern (voll, doppelt, unbekannt) prüfen lässt.
- *
+ * Setzt einen Achievement-Haken oder nimmt ihn weg.
  * @returns {{listen: object, geaendert: boolean, grund: string|null}}
  */
 function setze(listen, appId, apiName, angehakt) {
   const alle = bereinige(listen);
-  const schluessel = String(appId);
+  const eintrag = fuerSpiel(alle, appId);
   const name = String(apiName || '').trim();
-  if (name.length === 0) return { listen: alle, geaendert: false, grund: 'leerer Name' };
+  if (!name) return { listen: alle, geaendert: false, grund: 'leerer Name' };
 
-  const liste = alle[schluessel] ? [...alle[schluessel]] : [];
-  const drin = liste.includes(name);
+  const drin = eintrag.achievements.includes(name);
 
   if (angehakt) {
     if (drin) return { listen: alle, geaendert: false, grund: null };
-    if (liste.length >= MAX_JE_SPIEL) {
+    if (anzahl(alle, appId) >= MAX_JE_SPIEL) {
       return {
         listen: alle,
         geaendert: false,
         grund: `Mehr als ${MAX_JE_SPIEL} gleichzeitig würden das Spiel verdecken.`,
       };
     }
-    liste.push(name);
+    eintrag.achievements.push(name);
   } else {
     if (!drin) return { listen: alle, geaendert: false, grund: null };
-    liste.splice(liste.indexOf(name), 1);
+    eintrag.achievements.splice(eintrag.achievements.indexOf(name), 1);
   }
 
-  if (liste.length > 0) alle[schluessel] = liste;
-  else delete alle[schluessel];
-
-  return { listen: alle, geaendert: true, grund: null };
+  return { listen: schreibeZurueck(alle, appId, eintrag), geaendert: true, grund: null };
 }
 
 /**
- * Entfernt Einträge, die inzwischen erreicht wurden.
+ * Fügt eine eigene Notiz hinzu.
+ * @returns {{listen: object, notiz: object|null, grund: string|null}}
+ */
+function notizHinzufuegen(listen, appId, text, id = neueId()) {
+  const alle = bereinige(listen);
+  const eintrag = fuerSpiel(alle, appId);
+  const sauber = bereinigeText(text);
+
+  if (!sauber) return { listen: alle, notiz: null, grund: 'Der Eintrag ist leer.' };
+
+  // Denselben Text nicht zweimal - das ist fast immer ein Doppelklick.
+  if (eintrag.notizen.some((n) => n.text.toLowerCase() === sauber.toLowerCase())) {
+    return { listen: alle, notiz: null, grund: 'Steht schon auf der Liste.' };
+  }
+
+  if (anzahl(alle, appId) >= MAX_JE_SPIEL) {
+    return {
+      listen: alle,
+      notiz: null,
+      grund: `Mehr als ${MAX_JE_SPIEL} gleichzeitig würden das Spiel verdecken.`,
+    };
+  }
+
+  const notiz = { id, text: sauber };
+  eintrag.notizen.push(notiz);
+  return { listen: schreibeZurueck(alle, appId, eintrag), notiz, grund: null };
+}
+
+/** Entfernt eine eigene Notiz - nur von Hand, nie von selbst. */
+function notizEntfernen(listen, appId, id) {
+  const alle = bereinige(listen);
+  const eintrag = fuerSpiel(alle, appId);
+  const vorher = eintrag.notizen.length;
+
+  eintrag.notizen = eintrag.notizen.filter((n) => n.id !== id);
+  if (eintrag.notizen.length === vorher) return { listen: alle, geaendert: false };
+
+  return { listen: schreibeZurueck(alle, appId, eintrag), geaendert: true };
+}
+
+/**
+ * Entfernt Achievements, die inzwischen erreicht wurden.
  *
- * Sonst stünde eine erledigte Aufgabe für immer auf dem Bildschirm - und
- * genau in dem Moment, in dem sie erfüllt ist, will man sie verschwinden
- * sehen.
+ * Eigene Notizen bleiben ausdrücklich stehen: Ob eine Notiz erledigt ist,
+ * weiß nur derjenige, der sie geschrieben hat. Sie automatisch zu entfernen,
+ * weil zufällig ein Achievement fiel, würde genau die Arbeit vernichten, die
+ * sich jemand gemacht hat.
  */
 function entferneErreichte(listen, appId, erreichteApiNames) {
   const alle = bereinige(listen);
-  const schluessel = String(appId);
-  const liste = alle[schluessel];
-  if (!liste) return { listen: alle, entfernt: [] };
-
+  const eintrag = fuerSpiel(alle, appId);
   const erreicht = new Set(erreichteApiNames || []);
-  const bleibt = liste.filter((n) => !erreicht.has(n));
-  const entfernt = liste.filter((n) => erreicht.has(n));
 
-  if (bleibt.length > 0) alle[schluessel] = bleibt;
-  else delete alle[schluessel];
+  const entfernt = eintrag.achievements.filter((n) => erreicht.has(n));
+  eintrag.achievements = eintrag.achievements.filter((n) => !erreicht.has(n));
 
-  return { listen: alle, entfernt };
+  return { listen: schreibeZurueck(alle, appId, eintrag), entfernt };
 }
 
 /** Liest die Merklisten. Fehlt oder klemmt die Datei: leere Listen. */
@@ -125,9 +232,16 @@ function speichern(listen, datei = DATEI) {
 
 module.exports = {
   DATEI,
+  ORDNER,
   MAX_JE_SPIEL,
+  MAX_TEXT_LAENGE,
+  neueId,
   bereinige,
+  fuerSpiel,
+  anzahl,
   setze,
+  notizHinzufuegen,
+  notizEntfernen,
   entferneErreichte,
   laden,
   speichern,

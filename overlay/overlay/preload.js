@@ -46,6 +46,10 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   merklisteSetzen: (apiName, angehakt) =>
     ipcRenderer.invoke('merkliste:setzen', apiName, angehakt),
 
+  /** Eigener Eintrag - eine frei geschriebene Notiz. */
+  notizHinzufuegen: (text) => ipcRenderer.invoke('merkliste:notiz-hinzu', text),
+  notizEntfernen: (id) => ipcRenderer.invoke('merkliste:notiz-weg', id),
+
   /**
    * Meldet, ob die Uebersicht gerade offen ist. Der Hauptprozess schaltet
    * daraufhin den Mausfang des Overlay-Fensters - waere er dauerhaft an,

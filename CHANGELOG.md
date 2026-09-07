@@ -2,6 +2,46 @@
 
 ## Noch nicht veröffentlicht
 
+### Eigene Einträge in der Merkliste
+
+Manche Achievements verlangen etwas, das das Spiel selbst nicht mitzählt —
+„alle Audionotizen sammeln" in BioShock etwa. Dafür gibt es jetzt **eigene
+Einträge**: frei geschriebene Notizen, die in derselben Liste stehen wie die
+angehakten Achievements.
+
+Der entscheidende Unterschied: **Eine eigene Notiz verschwindet nie von
+selbst.** Ob sie erledigt ist, weiß nur derjenige, der sie geschrieben hat.
+Sie bleibt über beliebig viele Spielstarts stehen, bis man sie von Hand
+entfernt. Angehakte Achievements verschwinden dagegen weiterhin automatisch,
+sobald sie errungen sind.
+
+Zu schreiben unten in der Übersicht (`Strg+Umschalt+A`), zu entfernen über
+das ✕ daneben.
+
+### Erledigtes leuchtet grün auf
+
+Wird ein Achievement errungen, das auf der Merkliste steht, umrandet sich der
+Eintrag grün, leuchtet kurz, und fällt dann zusammen. Es ist der einzige
+Moment, in dem die Merkliste Aufmerksamkeit verlangen darf — man hat gerade
+geschafft, was da stand.
+
+### Das Tastenkürzel steht jetzt im Status-Abzeichen
+
+Unter Spielname und Fortschritt steht nun `Strg+Umschalt+A · Achievements`.
+Das Abzeichen erscheint in der Vorgabe-Betriebsart genau dann, wenn Steams
+Overlay offen ist — also im selben Moment, in dem die Übersicht bedienbar
+wäre. Ein Hinweis, den man dauerhaft im Bild hätte, wäre nach dem dritten Mal
+nur noch im Weg.
+
+### Zur Speicherung — was ohnehin schon galt
+
+Die Merkliste liegt in `~/.trophaenschrank/merkliste.json`, also **außerhalb**
+des Programmordners. Sie übersteht damit Updates und das Deinstallieren, und
+sie kann nicht versehentlich in ein Repository geraten. Das Dateiformat wurde
+für die eigenen Einträge erweitert; bestehende Listen im alten Format werden
+beim Lesen übernommen statt verworfen.
+
+
 ### Achievement-Übersicht, Vorschau beim Spielstart, Merkliste
 
 **Übersicht** — alle Achievements des laufenden Spiels, mit Suche und Filter

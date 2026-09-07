@@ -540,18 +540,55 @@ function showXpToast(xp) {
    daraus; keine davon fragt selbst etwas ab.
    ========================================================================== */
 
-let spiel = { appId: null, name: '', achievements: [], merkliste: [] };
+let spiel = {
+  appId: null,
+  name: '',
+  achievements: [],
+  // { achievements: [apiName], notizen: [{ id, text }] }
+  merkliste: { achievements: [], notizen: [] },
+};
+
+/** Merkliste in eine einheitliche Anzeigeliste bringen. */
+function merkEintraege() {
+  const ausAchievements = (spiel.merkliste.achievements || [])
+    .map((name) => spiel.achievements.find((a) => a.apiName === name))
+    // Bereits Erreichtes gehoert nicht mehr auf die Liste. Der Hauptprozess
+    // raeumt es zwar weg, aber zwischen Freischaltung und Aufraeumen liegen
+    // Sekunden - und in genau diesen Sekunden soll es nicht mehr dastehen.
+    .filter((a) => a && !a.unlocked)
+    .map((a) => ({
+      art: 'achievement',
+      schluessel: a.apiName,
+      text: a.name,
+      farbe: stufeVon(a.category).color,
+    }));
+
+  const ausNotizen = (spiel.merkliste.notizen || []).map((n) => ({
+    art: 'notiz',
+    schluessel: n.id,
+    text: n.text,
+    farbe: '#6bd39a',
+  }));
+
+  // Eigene Eintraege ans Ende: Sie verschwinden nie von selbst und wuerden
+  // sonst die wechselnden Achievements dauerhaft nach unten druecken.
+  return [...ausAchievements, ...ausNotizen];
+}
 
 function stufeVon(kategorie) {
   return TIERS[kategorie] || TIERS.Platin;
 }
 
 function setzeSpiel(daten) {
+  const merk = daten.merkliste && typeof daten.merkliste === 'object' ? daten.merkliste : {};
   spiel = {
     appId: daten.appId ?? null,
     name: daten.gameName || '',
     achievements: Array.isArray(daten.achievements) ? daten.achievements : [],
-    merkliste: Array.isArray(daten.merkliste) ? daten.merkliste : [],
+    merkliste: {
+      achievements: Array.isArray(merk.achievements) ? merk.achievements : [],
+      notizen: Array.isArray(merk.notizen) ? merk.notizen : [],
+    },
   };
   zeichneMerkliste();
   if (!panelEl.hidden) zeichnePanel();
@@ -565,12 +602,13 @@ function markiereErreicht(apiName) {
   // Aus der Merkliste nehmen - aber sichtbar, nicht heimlich. Genau in dem
   // Moment, in dem eine Aufgabe erfuellt ist, will man sie verschwinden
   // sehen, nicht einfach weg haben.
-  if (spiel.merkliste.includes(apiName)) {
-    const eintrag = merklisteEl.querySelector(`[data-api="${cssEscape(apiName)}"]`);
-    spiel.merkliste = spiel.merkliste.filter((n) => n !== apiName);
+  const stand = spiel.merkliste.achievements || [];
+  if (stand.includes(apiName)) {
+    const eintrag = merklisteEl.querySelector(`[data-schluessel="${cssEscape(apiName)}"]`);
+    spiel.merkliste.achievements = stand.filter((n) => n !== apiName);
     if (eintrag) {
       eintrag.classList.add('merkliste__eintrag--erledigt');
-      setTimeout(() => zeichneMerkliste(), 1500);
+      setTimeout(zeichneMerkliste, 1700);
     } else {
       zeichneMerkliste();
     }
@@ -672,11 +710,9 @@ const merklisteEl = document.getElementById('merkliste');
 
 function zeichneMerkliste() {
   const aktiv = einst.merklisteAktiv !== false;
-  const offen = spiel.merkliste
-    .map((name) => spiel.achievements.find((a) => a.apiName === name))
-    .filter((a) => a && !a.unlocked);
+  const eintraege = merkEintraege();
 
-  if (!aktiv || offen.length === 0) {
+  if (!aktiv || eintraege.length === 0) {
     merklisteEl.hidden = true;
     return;
   }
@@ -685,13 +721,13 @@ function zeichneMerkliste() {
   const liste = merklisteEl.querySelector('.merkliste__liste');
   liste.innerHTML = '';
 
-  offen.forEach((a) => {
+  eintraege.forEach((e) => {
     const li = document.createElement('li');
-    li.className = 'merkliste__eintrag';
-    li.dataset.api = a.apiName;
+    li.className = `merkliste__eintrag merkliste__eintrag--${e.art}`;
+    li.dataset.schluessel = e.schluessel;
     li.innerHTML = `
-      <span class="merkliste__punkt" style="background:${stufeVon(a.category).color}"></span>
-      <span class="merkliste__name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</span>
+      <span class="merkliste__punkt" style="background:${e.farbe}"></span>
+      <span class="merkliste__name" title="${escapeHtml(e.text)}">${escapeHtml(e.text)}</span>
     `;
     liste.appendChild(li);
   });
@@ -749,15 +785,63 @@ function zeichnePanel() {
     gefiltert.forEach((a) => liste.appendChild(panelEintrag(a)));
   }
 
-  const gemerkt = spiel.merkliste.length;
+  zeichneNotizen();
+
+  const gemerkt = merkEintraege().length;
   panelEl.querySelector('.panel__hinweis').textContent = gemerkt
     ? `${gemerkt} auf der Merkliste \u00b7 sie bleiben oben links eingeblendet`
-    : 'Haken setzen, um ein Achievement dauerhaft einzublenden';
+    : 'Haken setzen oder unten einen eigenen Eintrag schreiben';
+}
+
+/**
+ * Eigene Eintraege stehen ueber der Achievement-Liste - sie sind wenige und
+ * sollen nicht zwischen hunderten Achievements untergehen.
+ */
+function zeichneNotizen() {
+  const alt = panelEl.querySelector('.panel__notizen');
+  if (alt) alt.remove();
+
+  const notizen = spiel.merkliste.notizen || [];
+  if (notizen.length === 0) return;
+
+  const kasten = document.createElement('div');
+  kasten.className = 'panel__notizen';
+  kasten.innerHTML = '<p class="panel__notizen-titel">Eigene Einträge</p>';
+
+  notizen.forEach((n) => {
+    const zeile = document.createElement('div');
+    zeile.className = 'panel-notiz';
+    zeile.innerHTML = `
+      <span class="panel-notiz__punkt"></span>
+      <span class="panel-notiz__text">${escapeHtml(n.text)}</span>
+      <button class="panel-notiz__weg" type="button" title="Eintrag entfernen">\u2715</button>
+    `;
+    zeile.querySelector('.panel-notiz__weg').addEventListener('click', async () => {
+      uebernimmAntwort(await window.overlayAPI.notizEntfernen(n.id));
+    });
+    kasten.appendChild(zeile);
+  });
+
+  panelEl.querySelector('.panel__liste').before(kasten);
+}
+
+/** Antwort des Hauptprozesses uebernehmen - er kennt den gueltigen Stand. */
+function uebernimmAntwort(antwort) {
+  if (!antwort) return;
+  if (antwort.merkliste && typeof antwort.merkliste === 'object') {
+    spiel.merkliste = {
+      achievements: antwort.merkliste.achievements || [],
+      notizen: antwort.merkliste.notizen || [],
+    };
+    zeichneMerkliste();
+    zeichnePanel();
+  }
+  if (antwort.grund) panelEl.querySelector('.panel__hinweis').textContent = antwort.grund;
 }
 
 function panelEintrag(a) {
   const stufe = stufeVon(a.category);
-  const gemerkt = spiel.merkliste.includes(a.apiName);
+  const gemerkt = (spiel.merkliste.achievements || []).includes(a.apiName);
 
   const li = document.createElement('li');
   li.className = `panel-eintrag ${a.unlocked ? 'panel-eintrag--erreicht' : 'panel-eintrag--offen'}`;
@@ -779,15 +863,7 @@ function panelEintrag(a) {
   `;
 
   li.querySelector('.panel-eintrag__haken').addEventListener('click', async () => {
-    const antwort = await window.overlayAPI.merklisteSetzen(a.apiName, !gemerkt);
-    if (antwort && Array.isArray(antwort.merkliste)) {
-      spiel.merkliste = antwort.merkliste;
-      zeichneMerkliste();
-      zeichnePanel();
-    }
-    if (antwort && antwort.grund) {
-      panelEl.querySelector('.panel__hinweis').textContent = antwort.grund;
-    }
+    uebernimmAntwort(await window.overlayAPI.merklisteSetzen(a.apiName, !gemerkt));
   });
 
   return li;
@@ -808,6 +884,19 @@ function zeigePanel(sichtbar) {
   // Panel nicht bedienbar oder das ganze Overlay dauerhaft im Weg.
   window.overlayAPI.panelZustand(!panelEl.hidden);
 }
+
+panelEl.querySelector('.panel__notiz').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const feld = panelEl.querySelector('.panel__notiz-feld');
+  const text = feld.value.trim();
+  if (!text) return;
+  const antwort = await window.overlayAPI.notizHinzufuegen(text);
+  // Nur leeren, wenn es angenommen wurde - sonst muesste man bei einer
+  // Ablehnung alles neu tippen.
+  if (antwort && !antwort.grund) feld.value = '';
+  uebernimmAntwort(antwort);
+  feld.focus();
+});
 
 panelEl.querySelector('.panel__zu').addEventListener('click', () => zeigePanel(false));
 panelEl.querySelector('.panel__suche').addEventListener('input', zeichnePanel);
@@ -930,7 +1019,7 @@ window.overlayAPI.onCompletionTime(showCompletionTime);
 // Steam-Overlay mehrfach hintereinander geoeffnet wird.
 const badge = document.getElementById('status-badge');
 
-window.overlayAPI.onStatusBadge(({ visible, gameName, unlockedCount, totalCount }) => {
+window.overlayAPI.onStatusBadge(({ visible, gameName, unlockedCount, totalCount, panelTaste }) => {
   if (!visible) {
     badge.classList.add('status-badge--hidden');
     return;
@@ -943,5 +1032,25 @@ window.overlayAPI.onStatusBadge(({ visible, gameName, unlockedCount, totalCount 
     ? `${unlockedCount} / ${totalCount} · ${Math.round((unlockedCount / totalCount) * 100)}%`
     : 'wird verfolgt';
 
+  // Das Abzeichen erscheint genau dann, wenn Steams Overlay offen ist - also
+  // in dem Moment, in dem die Uebersicht bedienbar ist. Der beste Platz, um
+  // an das Kuerzel zu erinnern, ohne es dauerhaft ins Bild zu haengen.
+  const tasteEl = badge.querySelector('.status-badge__taste');
+  if (panelTaste) {
+    tasteEl.textContent = `${lesbareTaste(panelTaste)} \u00b7 Achievements`;
+    tasteEl.hidden = false;
+  } else {
+    tasteEl.hidden = true;
+  }
+
   badge.classList.remove('status-badge--hidden');
 });
+
+/** "Control+Shift+A" liest sich auf Deutsch als "Strg+Umschalt+A". */
+function lesbareTaste(taste) {
+  return String(taste)
+    .replace(/CommandOrControl|Control|Ctrl/gi, 'Strg')
+    .replace(/Shift/gi, 'Umschalt')
+    .replace(/Alt/gi, 'Alt')
+    .replace(/\+/g, '+');
+}

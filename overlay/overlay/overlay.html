@@ -50,6 +50,15 @@
       </div>
       <ul class="panel__liste"></ul>
       <footer class="panel__fuss">
+        <form class="panel__notiz" autocomplete="off">
+          <input
+            class="panel__notiz-feld"
+            type="text"
+            maxlength="90"
+            placeholder="Eigener Eintrag, z. B. „Alle Audionotizen sammeln“"
+          />
+          <button class="panel__notiz-knopf" type="submit">Hinzufügen</button>
+        </form>
         <span class="panel__hinweis"></span>
       </footer>
     </div>
@@ -58,6 +67,7 @@
       <div class="status-badge__text">
         <p class="status-badge__game"></p>
         <p class="status-badge__progress"></p>
+        <p class="status-badge__taste"></p>
       </div>
     </div>
     <script src="overlay.js"></script>

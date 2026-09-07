@@ -633,6 +633,24 @@ body.pos-unten-links #stack {
   color: #9aa1b0;
 }
 
+/*
+ * Das Tastenkuerzel fuer die Uebersicht.
+ *
+ * Steht genau hier, weil das Abzeichen in der Betriebsart "steam-overlay"
+ * nur dann erscheint, wenn Steams Overlay offen ist - also in dem Moment, in
+ * dem die Uebersicht bedienbar waere. Ein Hinweis, den man dauerhaft im Bild
+ * haette, waere nach dem dritten Mal nur noch im Weg.
+ */
+.status-badge__taste {
+  margin: 5px 0 0;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.2px;
+  color: #6b7280;
+}
+
 /* ---------- Animiertes Logo in Stufenfarbe ---------- */
 
 .toast__logo {
@@ -1127,15 +1145,59 @@ body.pos-unten-links #stack {
   white-space: nowrap;
 }
 
-/* Kurzes Aufleuchten, wenn ein Eintrag erledigt ist und gleich verschwindet. */
+/*
+ * Erledigt: Der Rand leuchtet gruen auf, dann faellt der Eintrag zusammen.
+ *
+ * Bewusst deutlich und bewusst kurz. Es ist der einzige Moment, in dem die
+ * Merkliste ueberhaupt Aufmerksamkeit verlangen darf - man hat gerade
+ * geschafft, was da stand.
+ */
 .merkliste__eintrag--erledigt {
-  animation: merk-erledigt 1.4s ease-out forwards;
+  position: relative;
+  border-radius: 6px;
+  animation: merk-erledigt 1.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes merk-erledigt {
-  0% { color: #6bd39a; }
-  70% { color: #6bd39a; opacity: 1; }
-  100% { opacity: 0; max-height: 0; }
+  0% {
+    box-shadow: 0 0 0 0 rgba(107, 211, 154, 0);
+    background: rgba(107, 211, 154, 0);
+  }
+  14% {
+    box-shadow: 0 0 0 1.5px #6bd39a, 0 0 14px 2px rgba(107, 211, 154, 0.55);
+    background: rgba(107, 211, 154, 0.14);
+    color: #a8e8c6;
+  }
+  62% {
+    box-shadow: 0 0 0 1.5px #6bd39a, 0 0 14px 2px rgba(107, 211, 154, 0.55);
+    background: rgba(107, 211, 154, 0.14);
+    color: #a8e8c6;
+    opacity: 1;
+    max-height: 40px;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(107, 211, 154, 0);
+    background: rgba(107, 211, 154, 0);
+    opacity: 0;
+    max-height: 0;
+    margin-top: -7px;
+  }
+}
+
+/* Der Punkt eines erledigten Eintrags wird gruen mit - sonst bliebe die alte
+   Stufenfarbe mitten im gruenen Aufleuchten stehen. */
+.merkliste__eintrag--erledigt .merkliste__punkt {
+  background: #6bd39a !important;
+  box-shadow: 0 0 8px rgba(107, 211, 154, 0.9);
+}
+
+/* Eigene Eintraege: derselbe Aufbau, nur ein offener statt gefuellter Punkt -
+   sie stehen fuer etwas, das die App nicht selbst pruefen kann. */
+.merkliste__eintrag--notiz .merkliste__punkt {
+  background: transparent !important;
+  border: 1.5px solid #6bd39a;
+  width: 7px;
+  height: 7px;
 }
 
 /* ==========================================================================
@@ -1370,12 +1432,115 @@ body.pos-unten-links #stack {
   visibility: hidden;
 }
 
+/* ---------- Eigene Eintraege im Panel ---------- */
+
+.panel__notizen {
+  margin: 0 22px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(107, 211, 154, 0.06);
+  border: 1px solid rgba(107, 211, 154, 0.18);
+}
+
+.panel__notizen-titel {
+  margin: 0 0 7px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: #6bd39a;
+}
+
+.panel-notiz {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  font-size: 0.84rem;
+}
+
+.panel-notiz__punkt {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid #6bd39a;
+}
+
+.panel-notiz__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-notiz__weg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #767d8c;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.panel-notiz__weg:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e07a7a;
+}
+
 .panel__fuss {
   padding: 11px 22px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 0.76rem;
   color: #767d8c;
   min-height: 18px;
+}
+
+.panel__notiz {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.panel__notiz-feld {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.3);
+  color: #e8eaf0;
+  font-family: inherit;
+  font-size: 0.84rem;
+}
+
+.panel__notiz-feld::placeholder {
+  color: #545b69;
+}
+
+.panel__notiz-feld:focus {
+  outline: none;
+  border-color: #6bd39a;
+}
+
+.panel__notiz-knopf {
+  padding: 8px 15px;
+  border: 1px solid rgba(107, 211, 154, 0.35);
+  border-radius: 8px;
+  background: rgba(107, 211, 154, 0.12);
+  color: #6bd39a;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.panel__notiz-knopf:hover {
+  background: rgba(107, 211, 154, 0.22);
 }
 
 .panel__leer {

@@ -319,6 +319,10 @@ function sendStatusBadge(visible) {
     gameName: trackedGameName,
     unlockedCount: stand ? stand.unlockedCount : null,
     totalCount: stand ? stand.totalCount : null,
+    // Das Abzeichen ist genau dann sichtbar, wenn Steams Overlay offen ist -
+    // also in dem Moment, in dem jemand die Uebersicht auch bedienen kann.
+    // Der beste Platz fuer den Hinweis, wie man sie aufruft.
+    panelTaste: einstellungen.panelTaste || '',
   });
 }
 
@@ -972,7 +976,7 @@ function sendeSpielDaten() {
     appId: trackedAppId,
     gameName: trackedGameName,
     achievements: [...achievementIndex.values()],
-    merkliste: merklisten[String(trackedAppId)] || [],
+    merkliste: todoModul.fuerSpiel(merklisten, trackedAppId),
   });
 }
 
@@ -1649,16 +1653,39 @@ function createTray() {
 
 // Merkliste und Mausfang gelten fuer die ganze Laufzeit, nicht nur solange
 // ein Fenster offen ist - deshalb hier und nicht in einem Fensterbehandler.
+/** Antwort an die Uebersicht - immer der vollstaendige, gerade gueltige Stand. */
+function merklisteAntwort(grund = null) {
+  return { merkliste: todoModul.fuerSpiel(merklisten, trackedAppId), grund };
+}
+
 ipcMain.handle('merkliste:setzen', (_e, apiName, angehakt) => {
   const ergebnis = todoModul.setze(merklisten, trackedAppId, apiName, angehakt);
   if (ergebnis.geaendert) {
     merklisten = todoModul.speichern(ergebnis.listen);
     logger.info(`Merkliste: ${apiName} ${angehakt ? 'gesetzt' : 'entfernt'}`);
   }
-  return {
-    merkliste: merklisten[String(trackedAppId)] || [],
-    grund: ergebnis.grund,
-  };
+  return merklisteAntwort(ergebnis.grund);
+});
+
+ipcMain.handle('merkliste:notiz-hinzu', (_e, text) => {
+  if (trackedAppId === null) {
+    return merklisteAntwort('Ohne laufendes Spiel gibt es keine Liste, in die das gehört.');
+  }
+  const ergebnis = todoModul.notizHinzufuegen(merklisten, trackedAppId, text);
+  if (ergebnis.notiz) {
+    merklisten = todoModul.speichern(ergebnis.listen);
+    logger.info(`Merkliste: eigener Eintrag hinzugefügt (App ${trackedAppId})`);
+  }
+  return merklisteAntwort(ergebnis.grund);
+});
+
+ipcMain.handle('merkliste:notiz-weg', (_e, id) => {
+  const ergebnis = todoModul.notizEntfernen(merklisten, trackedAppId, id);
+  if (ergebnis.geaendert) {
+    merklisten = todoModul.speichern(ergebnis.listen);
+    logger.info(`Merkliste: eigener Eintrag entfernt (App ${trackedAppId})`);
+  }
+  return merklisteAntwort(null);
 });
 
 ipcMain.handle('panel:zustand', (_e, offen) => {
