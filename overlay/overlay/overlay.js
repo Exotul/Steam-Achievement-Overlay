@@ -467,12 +467,15 @@ window.overlayAPI.onWelcome(showWelcomeToast);
 
 let ladeMeldung = null;
 
-function zeigeLadefortschritt({ fertig, done, total, level }) {
+function zeigeLadefortschritt({ fertig, phase, done, total, ausSpeicher, level }) {
   if (fertig) {
     if (!ladeMeldung) return;
-    ladeMeldung.querySelector('.xp-toast__gain').textContent = `Level ${level}`;
-    ladeMeldung.querySelector('.xp-toast__counts').textContent = 'bereit';
-    ladeMeldung.querySelector('.xp-toast__bar-fill').style.width = '100%';
+    const balken = ladeMeldung.querySelector('.xp-toast__bar-fill');
+    balken.classList.remove('xp-toast__bar-fill--unbestimmt');
+    balken.style.width = '100%';
+    ladeMeldung.querySelector('.xp-toast__level-num').textContent = level;
+    ladeMeldung.querySelector('.xp-toast__gain').textContent = 'Trophäenschrank bereit';
+    ladeMeldung.querySelector('.xp-toast__counts').textContent = `Level ${level}`;
     const weg = ladeMeldung;
     ladeMeldung = null;
     setTimeout(() => weg.remove(), 2500);
@@ -492,16 +495,36 @@ function zeigeLadefortschritt({ fertig, done, total, level }) {
           <span class="xp-toast__gain">Trophäen werden gezählt</span>
           <span class="xp-toast__counts"></span>
         </div>
-        <div class="xp-toast__bar"><div class="xp-toast__bar-fill" style="width:0%"></div></div>
+        <div class="xp-toast__bar">
+          <div class="xp-toast__bar-fill xp-toast__bar-fill--unbestimmt" style="width:0%"></div>
+        </div>
       </div>
     `;
     stack.appendChild(ladeMeldung);
   }
 
-  const prozent = total > 0 ? Math.round((done / total) * 100) : 0;
-  ladeMeldung.querySelector('.xp-toast__counts').textContent =
-    total > 0 ? `${done} / ${total} Spiele` : 'wird vorbereitet…';
-  ladeMeldung.querySelector('.xp-toast__bar-fill').style.width = `${prozent}%`;
+  const text = ladeMeldung.querySelector('.xp-toast__gain');
+  const zaehler = ladeMeldung.querySelector('.xp-toast__counts');
+  const balken = ladeMeldung.querySelector('.xp-toast__bar-fill');
+
+  // Solange die Bibliothek geholt wird, ist noch nicht bekannt, wie viele
+  // Spiele zu pruefen sind. Frueher stand der Balken hier bei starren 0 % -
+  // das sah nach einem Haenger aus, obwohl gearbeitet wurde. Ein wandernder
+  // Balken sagt ehrlich "ich arbeite, weiss aber noch nicht wie lange".
+  if (!(total > 0)) {
+    text.textContent = 'Steam-Bibliothek wird geladen';
+    zaehler.textContent = '';
+    balken.classList.add('xp-toast__bar-fill--unbestimmt');
+    balken.style.width = '100%';
+    return;
+  }
+
+  balken.classList.remove('xp-toast__bar-fill--unbestimmt');
+  text.textContent = 'Trophäen werden gezählt';
+  zaehler.textContent = `${done} / ${total} Spiele`;
+  // Nicht auf ganze Prozent runden - bei vielen Spielen bewegt sich der
+  // Balken sonst je Spiel um nichts (derselbe Fehler wie beim XP-Balken).
+  balken.style.width = `${(done / total) * 100}%`;
 }
 
 window.overlayAPI.onXpLoading(zeigeLadefortschritt);

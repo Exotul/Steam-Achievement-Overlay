@@ -2,6 +2,31 @@
 
 ## Noch nicht veröffentlicht
 
+### Kein Warten mehr beim Start
+
+Beim Start stand minutenlang "Trophäen werden gezählt" mit einem grauen
+Balken, der sich nicht bewegte. Drei Ursachen, alle behoben:
+
+- **Der zuletzt berechnete Stand wird jetzt sofort angezeigt.** Er wird
+  langfristig gemerkt; die Neuberechnung läuft still im Hintergrund und
+  ersetzt ihn, wenn sie fertig ist. Damit ist das Level unmittelbar da und
+  XP-Meldungen funktionieren ab der ersten Sekunde. Es gibt in diesem Fall
+  gar keinen Ladebalken mehr, weil es nichts zu warten gibt.
+- **Ein Spiel, dessen Spielzeit sich nicht geändert hat, wird nicht mehr
+  abgefragt.** Trophäen bekommt man nur durch Spielen - die Abfrage war reine
+  Verschwendung. An einer echten Bibliothek mit 488 gespielten Titeln: statt
+  976 Steam-Abfragen beim zweiten Start nur noch drei.
+- **Die weltweiten Prozentsätze werden nur noch geholt, wo etwas
+  freigeschaltet ist.** Bei der Hälfte der Bibliothek war diese Abfrage
+  umsonst; der erste, kalte Durchlauf braucht dadurch rund ein Viertel
+  weniger Abfragen.
+
+Muss doch einmal gewartet werden (allererster Start), zeigt der Balken jetzt
+den echten Fortschritt. Solange noch gar nicht feststeht, wie viele Spiele zu
+prüfen sind, wandert ein Schimmer über den Balken, statt ihn bei starren 0 %
+stehen zu lassen - das sah nach einem Absturz aus, obwohl gearbeitet wurde.
+
+
 ### Erststart auf einem fremden Rechner
 
 Eine frisch installierte App war für jeden unbenutzbar, der sie nicht selbst

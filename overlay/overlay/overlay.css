@@ -833,6 +833,47 @@
   background: linear-gradient(90deg, #5fd3e8, #9a8cf2);
 }
 
+/*
+ * Unbestimmter Balken: solange noch nicht feststeht, WIE VIEL zu tun ist.
+ *
+ * Vorher stand der Balken in dieser Phase auf starren 0 % und wirkte dadurch
+ * wie ein Haenger, obwohl im Hintergrund gearbeitet wurde. Ein wandernder
+ * Schimmer sagt ehrlich: Es passiert etwas, die Dauer ist nur noch nicht
+ * abschaetzbar. Die Breite steht dabei auf 100 %, gefaerbt wird per Verlauf.
+ */
+.xp-toast__bar-fill--unbestimmt {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 147, 224, 0.12) 0%,
+    rgba(139, 147, 224, 0.12) 30%,
+    #8b93e0 50%,
+    rgba(139, 147, 224, 0.12) 70%,
+    rgba(139, 147, 224, 0.12) 100%
+  );
+  background-size: 220% 100%;
+  animation: balken-wandert 1.5s ease-in-out infinite;
+  /* Beim Wechsel auf echten Fortschritt soll die Breite nicht von 100 %
+     zurueckspringen - der Uebergang wird dort ohnehin neu gesetzt. */
+  transition: none;
+}
+
+@keyframes balken-wandert {
+  0% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -30% 0;
+  }
+}
+
+/* Wer Bewegung reduziert haben moechte, bekommt einen ruhigen Balken. */
+@media (prefers-reduced-motion: reduce) {
+  .xp-toast__bar-fill--unbestimmt {
+    animation: none;
+    background: rgba(139, 147, 224, 0.45);
+  }
+}
+
 /* Kurzes Aufleuchten im Moment des Levelaufstiegs. */
 .xp-toast--flash {
   animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,

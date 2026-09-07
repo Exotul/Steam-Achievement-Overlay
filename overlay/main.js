@@ -787,7 +787,7 @@ function buildTrayMenu(statusLine) {
 async function ladeXpStand() {
   let gemeldet = false;
 
-  for (let versuch = 0; versuch < 600; versuch++) {
+  for (let versuch = 0; versuch < 900; versuch++) {
     let antwort;
     try {
       antwort = await steamClient.xpSummary();
@@ -797,19 +797,36 @@ async function ladeXpStand() {
 
     if (antwort.status === 'ready') {
       xpStand = antwort;
-      if (gemeldet) {
-        sendToOverlay('xp-loading', { fertig: true, level: antwort.level });
+
+      // "veraltet" heisst: Das ist der zuletzt fertig berechnete Stand, im
+      // Hintergrund laeuft gerade eine Neuberechnung. Damit ist sofort ein
+      // Level da und XP-Meldungen funktionieren - deshalb wird hier KEIN
+      // Ladebalken gezeigt. Es gibt nichts, worauf jemand warten muesste.
+      if (antwort.veraltet) {
+        if (!gemeldet) {
+          logger.info(
+            `XP-Stand aus dem Speicher: Level ${antwort.level} ` +
+              `(${antwort.totalXp} XP) - Neuberechnung laeuft im Hintergrund`
+          );
+        }
+        gemeldet = true;
+        await new Promise((r) => setTimeout(r, 3000));
+        continue; // still weiterfragen, bis der frische Wert da ist
       }
+
+      if (gemeldet) sendToOverlay('xp-loading', { fertig: true, level: antwort.level });
       logger.info(`XP-Stand geladen: Level ${antwort.level} (${antwort.totalXp} XP)`);
       return;
     }
 
-    // Noch am Rechnen -> Fortschritt anzeigen.
+    // Kein frueherer Stand vorhanden - hier wartet also wirklich jemand.
     gemeldet = true;
     sendToOverlay('xp-loading', {
       fertig: false,
+      phase: antwort.phase || 'start',
       done: antwort.done || 0,
       total: antwort.total || 0,
+      ausSpeicher: antwort.ausSpeicher || 0,
     });
     await new Promise((r) => setTimeout(r, 1000));
   }
