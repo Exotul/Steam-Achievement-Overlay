@@ -95,7 +95,14 @@ function rueckblick({ appId, steamId = null } = {}) {
   // Angehängt wird chronologisch, aber darauf verlassen wir uns nicht: Eine
   // gekürzte oder von Hand bearbeitete Datei soll hier nichts durcheinander
   // bringen.
-  const letztes = eigene.reduce((a, b) => (b.ts > a.ts ? b : a));
+  //
+  // `>=` statt `>` ist hier der ganze Punkt: Zwei Freischaltungen können
+  // innerhalb derselben Millisekunde eintreffen - bei einem Spielstart, der
+  // mehrere auf einmal nachmeldet, ist das sogar der Normalfall. Mit `>`
+  // gewinnt bei Gleichstand der ZUERST geschriebene, und die Meldung zeigte
+  // dann die vorletzte Trophäe statt der letzten. Bei gleichem Zeitstempel
+  // entscheidet die Reihenfolge in der Datei, und die ist die des Anhängens.
+  const letztes = eigene.reduce((a, b) => (b.ts >= a.ts ? b : a));
 
   return {
     ts: letztes.ts,

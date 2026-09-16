@@ -22,6 +22,19 @@ wenn sie in den Einstellungen abgeschaltet ist. Der Klang ist absteigend statt
 aufsteigend — ein Schluss, keine Ankündigung — und bewusst ruhiger als die
 Diamant-Feier.
 
+### Dabei gefunden: Der Rückblick zeigte die vorletzte Trophäe
+
+Zwei Freischaltungen können innerhalb derselben Millisekunde eintreffen — bei
+einem Spielstart, der mehrere auf einmal nachmeldet, ist das sogar der
+Normalfall. Die Suche nach dem jüngsten Eintrag verglich mit `>`, und bei
+Gleichstand gewann damit der **zuerst** geschriebene. Angezeigt wurde dann die
+vorletzte Trophäe.
+
+Aufgefallen ist es, weil derselbe Test auf Node 20 rot und auf Node 24 grün
+war — ein Zeichen dafür, dass etwas von der Ausführungsgeschwindigkeit
+abhängt und nicht von der Logik. Bei gleichem Zeitstempel entscheidet jetzt
+die Reihenfolge in der Datei, und die ist die des Anhängens.
+
 ### „Zuletzt vor 3 Wochen“ in der Spielstart-Meldung
 
 Die Meldung zeigte Titel, Fortschritt und Tastenkürzel. „12 von 45“ sagt aber
