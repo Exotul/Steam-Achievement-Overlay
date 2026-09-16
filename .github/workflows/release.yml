@@ -16,13 +16,20 @@
 #
 # Die Versionsnummer im Tag muss zu `overlay/package.json` passen; der Schritt
 # "Versionsnummer prüfen" bricht sonst ab, bevor irgendetwas gebaut wird.
+#
+# AUFBAU: Erst der Job "tests" - der läuft bei jedem Push auf main, damit ein
+# Fehler auffällt, solange er noch billig zu beheben ist. Der Job
+# "windows-installer" hängt daran und startet nur bei einem Tag oder von Hand.
 
 name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
   # Von Hand auslösbar, um den Build zu prüfen, ohne zu veröffentlichen.
   workflow_dispatch:
 
@@ -31,7 +38,39 @@ permissions:
   contents: write
 
 jobs:
+  # Eigener Job, damit die Tests bei JEDEM Push laufen - nicht erst, wenn ein
+  # Tag gesetzt ist. Genau daran ist v1.0.0 gescheitert: Der Testbefehl
+  # benutzte ein Glob-Muster, das erst Node 21 versteht. Auf dem
+  # Entwicklungsrechner lief Node 24 und alles war grün; auf Node 20 - der
+  # Fassung, die Electron 31 und damit die ausgelieferte App benutzt - brach
+  # er ab. Aufgefallen ist das erst nach dem Tag.
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Dieselbe Fassung, die Electron 31 mitbringt. Die Tests sollen auf
+          # dem Node laufen, auf dem das Programm nachher wirklich läuft.
+          node-version: 20
+
+      - name: Fassungen protokollieren
+        shell: bash
+        run: |
+          echo "Node:  $(node -v)"
+          echo "npm:   $(npm -v)"
+
+      - name: Tests
+        shell: bash
+        # Läuft ohne npm install - das ist eine Projektregel, kein Zufall.
+        run: npm test
+
   windows-installer:
+    # Ohne grüne Tests wird nichts gebaut und erst recht nichts veröffentlicht.
+    needs: tests
+    # Nur für Tags und Handstart - ein Push auf main soll keinen Installer bauen.
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     # Muss Windows sein: Das Signieren der Programmdatei braucht
     # Windows-eigene Werkzeuge.
     runs-on: windows-latest
@@ -55,11 +94,6 @@ jobs:
             echo "Bei gleicher Nummer erkennt die App kein Update - deshalb bricht das hier ab."
             exit 1
           fi
-
-      - name: Tests
-        shell: bash
-        # Läuft ohne npm install, deshalb vor allem anderen.
-        run: npm test
 
       - name: Abhängigkeiten - Backend
         # Wird als extraResources mitgepackt, braucht also seine node_modules.

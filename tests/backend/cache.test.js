@@ -66,22 +66,14 @@ test('Eine Änderung schreibt nur die betroffene Art neu', () => {
   cache.set('globalpct:1', { p: 1 }, LANG);
   cache._speichern();
 
-  const pfadVon = (f) => path.join(dir, 'cache', f);
-  const vorher = dateienIn(dir).map((f) => fs.statSync(pfadVon(f)).mtimeMs);
-
-  const bis = Date.now() + 30;
-  while (Date.now() < bis) {
-    /* kurz warten, damit sich die Zeitstempel unterscheiden können */
-  }
-
+  // Bewusst NICHT ueber Zeitstempel: Deren Aufloesung haengt am Dateisystem,
+  // und ein Test, der auf einem anderen Rechner anders ausgeht, ist keiner.
+  // `speichern()` meldet selbst, was es angefasst hat.
   cache.set('globalpct:2', { p: 2 }, LANG);
-  cache._speichern();
+  const geschrieben = cache._speichern();
 
-  const dateien = dateienIn(dir);
-  const nachher = dateien.map((f) => fs.statSync(pfadVon(f)).mtimeMs);
-  const angefasst = dateien.filter((f, i) => nachher[i] !== vorher[i]);
-
-  assert.deepStrictEqual(angefasst, ['globalpct.json'], 'nur die geänderte Art darf neu geschrieben werden');
+  assert.deepStrictEqual(geschrieben, ['globalpct'], 'nur die geänderte Art darf geschrieben werden');
+  assert.deepStrictEqual(dateienIn(dir), ['globalpct.json', 'schema.json'], 'beide bleiben bestehen');
 
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -98,7 +90,7 @@ test('Schlüssel ohne Art landen gesammelt in einer Datei', () => {
 test('Kurzlebige Einträge landen nicht auf der Platte', () => {
   const { dir, cache } = frisch('fluechtig');
   cache.set('presence:ich', { inGame: true }, 5000);
-  cache._speichern();
+  assert.deepStrictEqual(cache._speichern(), [], 'es gibt nichts zu schreiben');
 
   assert.deepStrictEqual(dateienIn(dir), [], 'nichts Kurzlebiges gehört in eine Datei');
 

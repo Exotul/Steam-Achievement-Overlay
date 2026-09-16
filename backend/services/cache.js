@@ -129,9 +129,12 @@ function planeSpeichern(art) {
   }, SPEICHER_VERZOEGERUNG_MS);
 }
 
-/** Schreibt nur die Arten, an denen sich seit dem letzten Mal etwas geändert hat. */
+/**
+ * Schreibt nur die Arten, an denen sich seit dem letzten Mal etwas geändert hat.
+ * @returns {string[]} die tatsächlich geschriebenen Arten
+ */
 function speichern() {
-  if (schmutzigeArten.size === 0) return;
+  if (schmutzigeArten.size === 0) return [];
 
   const jetzt = Date.now();
   const nachArt = new Map();
@@ -147,9 +150,12 @@ function speichern() {
     nachArt.get(art)[key] = entry;
   }
 
+  const geschrieben = [];
   for (const [art, daten] of nachArt.entries()) {
     storage.speichereSnapshot(dateiFuer(art), daten);
+    geschrieben.push(art);
   }
+  return geschrieben.sort();
 }
 
 function get(key) {
