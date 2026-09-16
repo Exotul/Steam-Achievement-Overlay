@@ -13,6 +13,9 @@ const els = {};
  'statusAbzeichen', 'position', 'ton-name', 'ton-waehlen', 'ton-entfernen',
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
+ // aus dem Tray-Menue hierher gezogen
+ 'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
+ 'updates', 'beenden', 'diagnose', 'keycheck', 'protokoll', 'protokollordner', 'aufzeichnung',
 ].forEach((id) => {
   els[id] = document.getElementById(id);
 });
@@ -93,6 +96,34 @@ function zeigeSchluessel(vorhanden) {
   els['key-aendern'].textContent = vorhanden ? 'Ändern…' : 'Jetzt eintragen…';
 }
 
+/**
+ * Zeigt den Teil des Zustands, den nur der Hauptprozess kennt.
+ *
+ * Jede Aktion in den Abschnitten "Programm" und "Diagnose" gibt diesen Stand
+ * zurueck. So steht nach dem Abmelden auch wirklich "Nicht angemeldet" da und
+ * nicht mehr der Name von eben.
+ */
+function zeigeProgramm(st) {
+  els['konto-status'].textContent = st.angemeldetAls
+    ? `Angemeldet als ${st.angemeldetAls}.`
+    : 'Nicht angemeldet \u2014 die Anmeldung l\u00e4uft \u00fcber das Symbol in der Taskleiste.';
+  els.abmelden.disabled = !st.angemeldetAls;
+
+  els.version.textContent = `Trophäenschrank ${st.version}`;
+  // Ohne Installation gibt es keine Updates - dann waere der Knopf eine
+  // Einladung zu einer Enttaeuschung.
+  els.updates.disabled = !st.updatesMoeglich;
+  els.updates.title = st.updatesMoeglich
+    ? ''
+    : 'Nur in der installierten Fassung - diese hier läuft aus dem Projektordner.';
+
+  els['autostart-zeile'].hidden = !st.autostartVerfuegbar;
+  els.autostart.checked = st.autostartAn;
+
+  els.aufzeichnung.textContent = st.zeichnetAuf ? 'Beenden und speichern' : 'Starten\u2026';
+  els.aufzeichnung.classList.toggle('knopf--laeuft', st.zeichnetAuf);
+}
+
 function bestaetige(text = 'Gespeichert') {
   els.gespeichert.textContent = text;
   els.gespeichert.classList.add('gespeichert--sichtbar');
@@ -160,6 +191,33 @@ els['key-aendern'].addEventListener('click', async () => {
 });
 
 els.test.addEventListener('click', () => window.settingsAPI.testMeldung());
+els['test-diamant'].addEventListener('click', () => window.settingsAPI.testDiamant());
+
+// --- Programm & Diagnose ----------------------------------------------------
+
+els.autostart.addEventListener('change', async () => {
+  // Den zurueckgemeldeten Stand setzen, nicht den angeklickten: Schlaegt das
+  // Eintragen fehl, springt der Schalter zurueck statt zu behaupten, es habe
+  // geklappt.
+  els.autostart.checked = await window.settingsAPI.autostart(els.autostart.checked);
+});
+
+els.abmelden.addEventListener('click', async () => {
+  zeigeProgramm(await window.settingsAPI.abmelden());
+  bestaetige('Abgemeldet');
+});
+
+els.updates.addEventListener('click', () => window.settingsAPI.updatesPruefen());
+els.beenden.addEventListener('click', () => window.settingsAPI.beenden());
+
+els.diagnose.addEventListener('click', () => window.settingsAPI.diagnose());
+els.keycheck.addEventListener('click', () => window.settingsAPI.keycheck());
+els.protokoll.addEventListener('click', () => window.settingsAPI.protokoll(false));
+els.protokollordner.addEventListener('click', () => window.settingsAPI.protokoll(true));
+
+els.aufzeichnung.addEventListener('click', async () => {
+  zeigeProgramm(await window.settingsAPI.aufzeichnung());
+});
 
 els.zuruecksetzen.addEventListener('click', async () => {
   zeigeWerte(await window.settingsAPI.zuruecksetzen());
@@ -170,8 +228,16 @@ els.schliessen.addEventListener('click', () => window.settingsAPI.schliessen());
 
 // --- Start ------------------------------------------------------------------
 
-window.settingsAPI.laden().then(({ einstellungen, bildschirme, schluesselVorhanden }) => {
+window.settingsAPI.laden().then(({ einstellungen, bildschirme, schluesselVorhanden, programm }) => {
   zeigeBildschirme(bildschirme, einstellungen.bildschirm);
   zeigeWerte(einstellungen);
   zeigeSchluessel(schluesselVorhanden);
+  zeigeProgramm(programm);
+});
+
+// Der Stand kann sich aendern, waehrend das Fenster offen steht - etwa wenn
+// die Anmeldung im Browser abgeschlossen wird. Beim Zurueckwechseln also neu
+// holen, statt Veraltetes stehen zu lassen.
+window.addEventListener('focus', async () => {
+  zeigeProgramm(await window.settingsAPI.programm());
 });

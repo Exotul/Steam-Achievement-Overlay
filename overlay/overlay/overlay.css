@@ -344,29 +344,39 @@ body.pos-unten-links #stack {
 
 /* ---------- Diamant-Feier (ganzes Spiel abgeschlossen) ---------- */
 
+/* Bildschirmmitte, nicht oben am Rand.
+   Das Overlay-Fenster deckt den ganzen Bildschirm ab, "zentriert" ist hier
+   also wirklich die Bildschirmmitte. Die gewoehnlichen Meldungen bleiben in
+   ihrer eingestellten Ecke - der Diamant ist der eine Moment, der den Blick
+   vom Spiel wegholen darf. */
 #diamond-layer {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 90px;
   pointer-events: none;
 }
 
 .diamond-card {
   position: relative;
   width: 560px;
-  padding: 30px 40px;
+  padding: 40px 40px 34px;
   border-radius: 18px;
   text-align: center;
   background: rgba(15, 18, 24, 0.97);
+  /* Laesst die Funken an der Kante enden, statt sie frei im Bild stehen zu
+     lassen. Alles, was ueber den Rand hinausleuchten soll, muss deshalb ein
+     Schlagschatten sein - ein Element dahinter wuerde hier abgeschnitten. */
   overflow: hidden;
   transform: scale(0.85);
   opacity: 0;
   animation: diamond-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) forwards,
     diamond-out 0.5s ease forwards 7.6s;
-  box-shadow: 0 30px 80px -16px rgba(0, 0, 0, 0.75);
+  box-shadow:
+    0 30px 80px -16px rgba(0, 0, 0, 0.75),
+    0 0 46px -6px rgba(95, 211, 232, 0.4),
+    0 0 90px -10px rgba(154, 140, 242, 0.32);
 }
 
 @keyframes diamond-in {
@@ -395,15 +405,34 @@ body.pos-unten-links #stack {
   }
 }
 
-/* rotierender, unscharfer Regenbogen-Rahmen hinter der Karte */
+/*
+ * Umlaufender Rahmen aus zwei Farben.
+ *
+ * Gedreht wird der VERLAUF, nicht das Element. Vorher stand hier
+ * `transform: rotate(360deg)` - dabei dreht sich der maskierte Ring als
+ * Ganzes, und weil die Karte breiter als hoch ist, wandern seine Ecken quer
+ * durch die Karte. Zu sehen waren zwei Diagonalen, die mitten durch die
+ * Ueberschrift liefen. Solange die Karte oben am Rand klebte, ist das
+ * niemandem aufgefallen; in der Bildmitte ist es das Erste, was man sieht.
+ *
+ * Damit ein Winkel ueberhaupt animierbar ist, muss er als Eigenschaft mit
+ * Typ angemeldet sein - ohne @property waere `--rahmen-winkel` nur Text und
+ * wuerde springen statt zu laufen.
+ */
+@property --rahmen-winkel {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .diamond-card::before {
   content: '';
   position: absolute;
   inset: -2px;
   border-radius: 20px;
-  padding: 2px;
+  padding: 2.5px;
   background: conic-gradient(
-    from 0deg,
+    from var(--rahmen-winkel),
     #5fd3e8,
     #9a8cf2,
     #5fd3e8,
@@ -414,12 +443,12 @@ body.pos-unten-links #stack {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   animation: diamond-border-spin 3.5s linear infinite;
-  opacity: 0.85;
+  opacity: 1;
 }
 
 @keyframes diamond-border-spin {
   to {
-    transform: rotate(360deg);
+    --rahmen-winkel: 360deg;
   }
 }
 
@@ -438,16 +467,172 @@ body.pos-unten-links #stack {
   animation: shine-sweep 1.6s ease-in-out 0.5s 3;
 }
 
+/* Das Spielsymbol ist jetzt Beiwerk neben dem Namen - die Buehne gehoert
+   der Marke darueber. */
 .diamond-card__icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
-  margin-bottom: 14px;
-  animation: icon-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  animation-delay: 0.2s;
-  transform: scale(0.4);
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  vertical-align: -5px;
+  margin-right: 8px;
+}
+
+/* ---------- Die Marke: Raute wird Diamant ---------- */
+
+.diamant-marke {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 18px;
+}
+
+.diamant-marke__svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 14px rgba(95, 211, 232, 0.45));
+  animation: marke-auf 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s backwards;
+}
+
+@keyframes marke-auf {
+  from {
+    transform: scale(0.4) rotate(-25deg);
+    opacity: 0;
+  }
+}
+
+/*
+ * Der eigentliche Morph.
+ *
+ * `d` ist in Chromium eine animierbare Eigenschaft, solange beide Pfade
+ * dieselbe Folge von Befehlen haben - deshalb die doppelte Spitze in der
+ * Raute (siehe overlay.js). Der Startwert steht hier und nicht als Attribut
+ * im SVG, damit beides an einer Stelle liegt.
+ */
+.diamant-marke__form {
+  d: path('M 50 6 L 50 6 L 94 50 L 50 94 L 6 50 Z');
+  stroke-dasharray: 250;
+  stroke-dashoffset: 250;
+  animation:
+    marke-zeichnen 0.7s ease-out 0.25s forwards,
+    marke-morph 1.1s cubic-bezier(0.65, 0, 0.3, 1) 0.9s forwards;
+}
+
+@keyframes marke-zeichnen {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes marke-morph {
+  to {
+    d: path('M 22 30 L 78 30 L 94 46 L 50 94 L 6 46 Z');
+  }
+}
+
+/* Die Schliff-Linien gehoeren zum Diamanten, nicht zur Raute - sie kommen
+   erst, wenn die Form fertig umgeklappt ist. */
+.diamant-marke__facetten {
   opacity: 0;
-  box-shadow: 0 0 24px 4px rgba(95, 211, 232, 0.35);
+  animation: facetten-ein 0.7s ease-out 1.75s forwards;
+}
+
+@keyframes facetten-ein {
+  to {
+    opacity: 0.75;
+  }
+}
+
+/* Weicher Lichtschein hinter der Form, der mit dem Morph aufgeht. */
+.diamant-marke__schein {
+  position: absolute;
+  inset: -34%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(127, 227, 245, 0.42) 0%,
+    rgba(154, 140, 242, 0.2) 42%,
+    transparent 70%
+  );
+  opacity: 0;
+  animation: schein-ein 1.4s ease-out 0.9s forwards;
+}
+
+@keyframes schein-ein {
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.72;
+  }
+}
+
+/*
+ * Ein Glanzlicht, das immer wieder ueber den fertigen Stein wandert.
+ * Der Ausschnitt ist die Diamantform - deshalb erst sichtbar, wenn der Morph
+ * durch ist, und deshalb als eigenes Element statt im SVG: ein clip-path
+ * mit festen Prozentwerten ist billiger als ein wanderndes SVG-Muster.
+ */
+.diamant-marke__glanz {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(22% 30%, 78% 30%, 94% 46%, 50% 94%, 6% 46%);
+  opacity: 0;
+  animation: glanz-ein 0.4s ease 2s forwards;
+  overflow: hidden;
+}
+
+.diamant-marke__glanz::after {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.75) 50%,
+    transparent 62%
+  );
+  transform: translateX(-100%);
+  animation: glanz-lauf 2.6s ease-in-out 2.2s infinite;
+}
+
+@keyframes glanz-ein {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glanz-lauf {
+  0% {
+    transform: translateX(-100%);
+  }
+  55%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Wer Bewegung abgeschaltet hat, bekommt den fertigen Stein sofort - aber
+   eben den Stein, nicht die Raute. */
+@media (prefers-reduced-motion: reduce) {
+  .diamant-marke__svg,
+  .diamant-marke__schein,
+  .diamant-marke__facetten,
+  .diamant-marke__glanz::after {
+    animation: none;
+  }
+
+  .diamant-marke__form {
+    d: path('M 22 30 L 78 30 L 94 46 L 50 94 L 6 46 Z');
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .diamant-marke__schein,
+  .diamant-marke__facetten {
+    opacity: 0.72;
+  }
 }
 
 .diamond-card__eyebrow {
@@ -478,9 +663,12 @@ body.pos-unten-links #stack {
 }
 
 .diamond-card__game {
-  margin: 0;
+  margin: 10px 0 0;
   font-size: 1rem;
   color: #cfd3dc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .diamond-sparkle {

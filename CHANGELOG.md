@@ -2,6 +2,75 @@
 
 ## Noch nicht veröffentlicht
 
+### Kein Konsolenfenster mehr
+
+`start.bat` rief `npm start` auf und endete mit `pause`. Dadurch stand die
+ganze Zeit ein schwarzes Fenster im Weg — und wer es schloss, beendete damit
+die App. Es war die einzige Art, das Programm loszuwerden.
+
+Jetzt startet die Datei Electron direkt und schließt sich sofort wieder. Die
+App läuft nur noch als Symbol in der Taskleiste; beendet wird sie dort per
+Rechtsklick oder in den Einstellungen unter *Programm*.
+
+Zwei Dinge dabei mitgenommen:
+
+- Der Backend-Prozess wird mit `windowsHide` gestartet. Er erbt sonst die
+  Konsole des Elternprozesses — und hat der keine, legt Windows je nach
+  gestarteter Datei eine neue an. Ein schwarzes Fenster mitten im Spiel ist
+  das Letzte, was ein Overlay tun sollte.
+- Die Prüfung auf `overlay\.env` ist raus. Sie verhinderte den Start, obwohl
+  die App längst ihr eigenes Einrichtungsfenster mitbringt und den Schlüssel
+  selbst unter `~/.trophaenschrank/config.env` ablegt.
+
+### Das Tray-Menü enthält nur noch Tägliches
+
+Es war wieder auf fünfzehn Einträge angewachsen und mischte zwei
+verschiedene Dinge: das, was man beim Spielen anklickt, und Werkzeuge, die
+man ein- oder zweimal im Leben braucht. Ein Menü, in dem man suchen muss, ist
+keins mehr.
+
+Geblieben sind acht Einträge: Status, Anmelden, Achievements des Spiels,
+Merkliste, Dashboard, Einstellungen, Beenden.
+
+Umgezogen sind **Abmelden**, **Autostart**, **Version und Updates**, die
+komplette **Diagnose** (lokale Erkennung, Schlüsselprüfung, Protokoll,
+Aufzeichnung) und die **Testmeldungen**. Im Einstellungsfenster ist neben
+jedem Punkt Platz für einen Satz, der erklärt wozu er gut ist — im
+Kontextmenü war der nie.
+
+### Die Diamant-Meldung steht jetzt in der Bildschirmmitte
+
+Sie klebte bisher 90 Pixel unter dem oberen Rand, wie eine gewöhnliche
+Meldung. Für den einen Moment, den es pro Spiel genau einmal gibt, ist das zu
+beiläufig.
+
+Neu ist die **Marke**: das App-Symbol, also unsere Raute, zeichnet sich
+zunächst selbst — und verwandelt sich dann in die Silhouette eines
+geschliffenen Diamanten. Die Spitze oben klappt dabei nach links und rechts
+auf und wird zur Tafel des Schliffs; anschließend erscheinen die
+Facettenlinien, und ein Glanzlicht wandert über den fertigen Stein.
+
+Technisch hängt das daran, dass beide Umrisse **dieselbe Bauart** haben
+müssen — ein M, vier L, ein Z. Nur dann führt der Browser den einen in den
+anderen über; bei unterschiedlich vielen Punkten springt die Form. Die obere
+Spitze ist deshalb doppelt aufgeführt. Nachgemessen im echten Chromium: Der
+berechnete Pfad zur Halbzeit liegt punktweise zwischen beiden Formen, es
+fließt also wirklich.
+
+**Dabei aufgefallen:** Der umlaufende Farbrahmen der Karte drehte das
+*Element* statt des Verlaufs. Weil die Karte breiter als hoch ist, wanderten
+seine Ecken als zwei Diagonalen quer durch die Karte — mitten durch die
+Überschrift. Solange die Karte oben am Rand klebte, ist das niemandem
+aufgefallen; in der Bildmitte war es das Erste, was man sieht. Jetzt dreht
+sich der Verlauf.
+
+### Testmeldung für den Diamant-Status
+
+Die echte Feier gibt es pro Spiel genau einmal im Leben. Wer sie einstellen
+oder auch nur einmal in Ruhe ansehen wollte, hatte bisher keine Möglichkeit
+dazu. In den Einstellungen steht jetzt neben "Testmeldung zeigen" ein zweiter
+Knopf "Diamant-Meldung zeigen". Am Fortschritt ändert er nichts.
+
 ### Behoben: Der Zwischenspeicher konnte sich selbst zerstören
 
 Gesucht war ein Geschwindigkeitsproblem — gefunden wurde ein Datenverlust.

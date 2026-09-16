@@ -25,7 +25,7 @@ Willst du eine fertige `.exe` statt `npm start`? Siehe die Anleitung
 
 Beim ersten Start ist noch niemand eingeloggt. Rechtsklick auf das
 Diamant-Icon im System-Tray → "Mit Steam anmelden" öffnet ein Fenster mit dem
-echten Steam-Login. Danach schließt es sich automatisch, und das Tray-Menü
+echten Steam-Login. Danach schließt es sich automatisch, und das Menü
 zeigt deinen Namen. Die Session bleibt über Neustarts hinweg bestehen
 (Electron speichert die Cookies), ein erneutes Einloggen ist danach in der
 Regel nicht mehr nötig.
@@ -54,7 +54,7 @@ Abzeichen dauerhaft ein, statt es nie zu zeigen.
 Die Achievement-Meldungen selbst sind davon unabhängig und erscheinen
 weiterhin immer, auch außerhalb des Steam-Overlays.
 
-**Falls die Erkennung bei dir nicht greift:** Tray-Menü -> "Lokale Erkennung
+**Falls die Erkennung bei dir nicht greift:** *Einstellungen → Diagnose* -> "Lokale Erkennung
 prüfen…" listet unter "Status-Abzeichen" die Zeilen auf, die aus Steams
 Protokoll nicht zugeordnet werden konnten. Damit lässt sich die Erkennung
 gezielt anpassen, statt zu raten.
@@ -79,7 +79,7 @@ Während der einmaligen Berechnung erscheint ein Ladebalken mit dem Fortschritt
 
 ## Test-Achievement
 
-Tray-Menü -> "Test-Achievement anzeigen". Spielt die komplette Abfolge mit
+*Einstellungen* -> "Testmeldung zeigen" (daneben "Diamant-Meldung zeigen"). Spielt die komplette Abfolge mit
 einem erfundenen Achievement ab - Popup, Ton, XP-Meldung -, **ohne** etwas am
 tatsächlichen Stand zu ändern. Gedacht zum Prüfen von Aussehen, Position und
 Ton, ohne erst ein Achievement erspielen zu müssen. Bei jedem Aufruf kommt die
@@ -88,7 +88,7 @@ lassen.
 
 ## Automatisch mit Windows starten
 
-Tray-Menü -> Haken bei "Automatisch mit Windows starten". Die App trägt sich
+*Einstellungen → Programm* -> Schalter "Automatisch mit Windows starten". Die App trägt sich
 dann über die Bordmittel des Betriebssystems in den Autostart ein (unter
 Windows der übliche Registrierungseintrag, unter macOS die Anmeldeobjekte) -
 es wird nichts Eigenes ins System geschrieben, und der Haken lässt sich
@@ -120,7 +120,7 @@ das laufende Spiel **nicht** heraus, wenn:
   "Öffentlich" stehen.
 
 In beiden Fällen erscheinen gar keine Meldungen, weil die App nicht weiß,
-welches Spiel sie beobachten soll. Tray-Menü -> "Lokale Erkennung prüfen…"
+welches Spiel sie beobachten soll. *Einstellungen → Diagnose* -> "Lokale Erkennung prüfen…"
 zeigt ganz oben, was Steam gerade meldet.
 
 ### Web-API (Grundlage, immer aktiv)
@@ -184,7 +184,7 @@ bei der Prüfung durch, bevor es jemals etwas melden darf. Zusätzlich gilt:
 Meldet die Datei mehr als fünf neue Einträge auf einmal, wird nichts
 angezeigt.
 
-**Status prüfen:** Tray-Menü -> "Lokale Erkennung prüfen…". Bei Erfolg steht
+**Status prüfen:** *Einstellungen → Diagnose* -> "Lokale Erkennung prüfen…". Bei Erfolg steht
 dort "GEFUNDEN und geprüft"; andernfalls listet die Diagnose jede geprüfte
 Datei mit dem konkreten Grund auf (z. B. "gelesen: 3 Einträge, Steam
 bestätigt: 5"), sodass sich gezielt nachbessern lässt.
@@ -194,7 +194,7 @@ Im Tray steht hinter dem Spielnamen `· lokal (sofort)` oder
 
 ### Dateiänderungen aufzeichnen (Diagnose)
 
-Tray-Menü -> "Dateiänderungen aufzeichnen…". Zeichnet auf, welche Dateien
+*Einstellungen → Diagnose* -> "Dateiänderungen aufzeichnen". Zeichnet auf, welche Dateien
 unter dem Steam-Ordner sich während des Spielens tatsächlich ändern, und
 legt einen lesbaren Bericht auf dem Schreibtisch ab.
 

@@ -218,25 +218,89 @@ function showAchievementToast(achievement) {
   }
 }
 
+/**
+ * Die Raute aus dem App-Symbol, die sich in einen geschliffenen Diamanten
+ * verwandelt.
+ *
+ * Beide Umrisse haben mit Absicht dieselbe Bauart - ein M, vier L, ein Z.
+ * Nur dann kann der Browser den einen in den anderen ueberfuehren; bei
+ * unterschiedlich vielen Punkten springt die Form statt zu fliessen. Die
+ * Spitze oben ist deshalb doppelt aufgefuehrt: Genau sie klappt beim Morph
+ * nach links und rechts auf und wird zur Tafel des Schliffs.
+ */
+const RAUTE = 'M 50 6 L 50 6 L 94 50 L 50 94 L 6 50 Z';
+const SCHLIFF = 'M 22 30 L 78 30 L 94 46 L 50 94 L 6 46 Z';
+
+function diamantMarke() {
+  // Eigene Kennung je Aufruf: Zwei gleichzeitig sichtbare Marken wuerden
+  // sich sonst denselben Verlauf teilen.
+  const id = `dm${Math.random().toString(36).slice(2, 8)}`;
+  return `
+    <div class="diamant-marke">
+      <span class="diamant-marke__schein"></span>
+      <svg class="diamant-marke__svg" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <linearGradient id="${id}" x1="0" y1="0" x2="0.7" y2="1">
+            <stop offset="0%" stop-color="#bff3fb" stop-opacity="0.55" />
+            <stop offset="55%" stop-color="#5fd3e8" stop-opacity="0.30" />
+            <stop offset="100%" stop-color="#9a8cf2" stop-opacity="0.45" />
+          </linearGradient>
+        </defs>
+        <path class="diamant-marke__form" fill="url(#${id})" stroke="#7fe3f5"
+              stroke-width="5" stroke-linejoin="round" />
+        <g class="diamant-marke__facetten" fill="none" stroke="#bff3fb" stroke-width="2.4"
+           stroke-linecap="round" opacity="0.75">
+          <path d="M 22 30 L 50 94" />
+          <path d="M 78 30 L 50 94" />
+          <path d="M 6 46 L 94 46" />
+        </g>
+      </svg>
+      <span class="diamant-marke__glanz"></span>
+    </div>`;
+}
+
+// Muss zu den Verzoegerungen in overlay.css passen (.diamant-marke__form).
+const MORPH_START_MS = 900;
+const MORPH_DAUER_MS = 1100;
+
 function showDiamondCelebration({ gameName, icon }) {
   const el = document.createElement('div');
   el.className = 'diamond-card';
   el.innerHTML = `
-    ${icon ? `<img class="diamond-card__icon" src="${icon}" alt="" />` : ''}
+    ${diamantMarke()}
     <p class="diamond-card__eyebrow">Alle Achievements freigeschaltet</p>
     <h2 class="diamond-card__title">DIAMANT-STATUS</h2>
-    <p class="diamond-card__game">${escapeHtml(gameName || 'Spiel abgeschlossen')}</p>
+    <p class="diamond-card__game">
+      ${icon ? `<img class="diamond-card__icon" src="${icon}" alt="" onerror="this.remove()" />` : ''}
+      <span>${escapeHtml(gameName || 'Spiel abgeschlossen')}</span>
+    </p>
   `;
   diamondLayer.appendChild(el);
 
   playDiamondFanfare();
-  spawnSparkles(el, {
-    count: 18,
+
+  // Beide Funkenwolken gehen vom Stein aus, nicht von der Kartenmitte.
+  // Vorher lagen sie mitten auf der Ueberschrift und sahen aus wie Schmutz
+  // auf dem Text; aus dem Stein heraus lesen sie sich als sein Funkeln.
+  const marke = el.querySelector('.diamant-marke');
+  spawnSparkles(marke, {
+    count: 16,
     colors: ['#5fd3e8', '#9a8cf2', '#ffffff'],
     size: [4, 8],
-    distance: [60, 140],
+    distance: [55, 105],
     duration: [0.9, 1.5],
   });
+  setTimeout(() => {
+    if (marke.isConnected) {
+      spawnSparkles(marke, {
+        count: 14,
+        colors: ['#bff3fb', '#ffffff', '#9a8cf2'],
+        size: [3, 6],
+        distance: [50, 95],
+        duration: [0.7, 1.2],
+      });
+    }
+  }, MORPH_START_MS + MORPH_DAUER_MS - 200);
 
   setTimeout(() => el.remove(), 8200);
 }

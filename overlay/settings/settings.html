@@ -9,7 +9,7 @@
     <main class="seite">
       <header class="kopf">
         <h1>Einstellungen</h1>
-        <p class="kopf__unter">Änderungen wirken sofort — zum Ausprobieren gibt es unten eine Testmeldung.</p>
+        <p class="kopf__unter">Änderungen wirken sofort — zum Ausprobieren gibt es unten Testmeldungen.</p>
       </header>
 
       <!-- ---------------- Anzeige ---------------- -->
@@ -198,14 +198,120 @@
           <button id="key-aendern" class="knopf knopf--leise" type="button">Ändern…</button>
         </div>
 
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Steam-Konto</label>
+            <p class="hilfe">
+              <span id="konto-status" class="dateiname"></span>
+            </p>
+          </div>
+          <button id="abmelden" class="knopf knopf--leise" type="button">Abmelden</button>
+        </div>
+
         <p class="fussnote">
           Der Schlüssel bleibt auf diesem Rechner. Er wird ausschließlich an Steam selbst gesendet,
           an keinen anderen Server, und nicht ins Protokoll geschrieben.
         </p>
       </section>
 
+      <!-- ---------------- Programm ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Programm</h2>
+
+        <div class="zeile" id="autostart-zeile">
+          <div class="zeile__text">
+            <label for="autostart">Automatisch mit Windows starten</label>
+            <p class="hilfe">
+              Die App startet dann still im Hintergrund mit — ohne Begrüßungsmeldung.
+            </p>
+          </div>
+          <label class="schalter">
+            <input id="autostart" type="checkbox" />
+            <span class="schalter__bahn"></span>
+          </label>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Version</label>
+            <p class="hilfe">
+              <span id="version" class="dateiname"></span>
+            </p>
+          </div>
+          <button id="updates" class="knopf knopf--leise" type="button">Nach Updates suchen</button>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Trophäenschrank beenden</label>
+            <p class="hilfe">
+              Schließt Overlay und Hintergrunddienst. Geht auch über das Symbol in der
+              Taskleiste, rechte Maustaste.
+            </p>
+          </div>
+          <button id="beenden" class="knopf knopf--leise" type="button">Beenden</button>
+        </div>
+      </section>
+
+      <!-- ---------------- Diagnose ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Diagnose</h2>
+        <p class="fussnote fussnote--oben">
+          Wird nur gebraucht, wenn etwas klemmt. Im Normalbetrieb ist hier nichts zu tun.
+        </p>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Lokale Erkennung prüfen</label>
+            <p class="hilfe">
+              Vergleicht, was die App in Steams Dateien liest, mit dem, was Steam selbst
+              meldet. Weichen beide ab, steht es im Ergebnis.
+            </p>
+          </div>
+          <button id="diagnose" class="knopf knopf--leise" type="button">Prüfen…</button>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Steam-Schlüssel prüfen</label>
+            <p class="hilfe">Fragt Steam, ob der hinterlegte Schlüssel angenommen wird.</p>
+          </div>
+          <button id="keycheck" class="knopf knopf--leise" type="button">Prüfen…</button>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Protokoll</label>
+            <p class="hilfe">
+              Schreibt mit, was die App tut. Schlüssel und Kennungen stehen nicht darin.
+            </p>
+          </div>
+          <div class="knopfgruppe">
+            <button id="protokoll" class="knopf knopf--leise" type="button">Öffnen</button>
+            <button id="protokollordner" class="knopf knopf--leise" type="button">Ordner</button>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Dateiänderungen aufzeichnen</label>
+            <p class="hilfe">
+              Für den Fall, dass Achievements nicht erkannt werden: Zeichnet auf, welche
+              Steam-Dateien sich ändern. Erfasst nur Pfade, Größen und Zeitpunkte — keine
+              Inhalte.
+            </p>
+          </div>
+          <button id="aufzeichnung" class="knopf knopf--leise" type="button">Starten…</button>
+        </div>
+      </section>
+
       <footer class="fuss">
-        <button id="test" class="knopf knopf--leise" type="button">Testmeldung zeigen</button>
+        <div class="knopfgruppe">
+          <button id="test" class="knopf knopf--leise" type="button">Testmeldung zeigen</button>
+          <button id="test-diamant" class="knopf knopf--leise" type="button">
+            Diamant-Meldung zeigen
+          </button>
+        </div>
         <div class="fuss__rechts">
           <span id="gespeichert" class="gespeichert" role="status" aria-live="polite"></span>
           <button id="zuruecksetzen" class="knopf knopf--leise" type="button">Zurücksetzen</button>

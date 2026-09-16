@@ -52,7 +52,12 @@ cp .env.example .env     # STEAM_API_KEY und SESSION_SECRET eintragen
 
 **Windows:** Doppelklick auf `start.bat` im Hauptordner.
 
-**Manuell:**
+Es bleibt dabei kein Fenster offen. Die App laeuft als Symbol in der
+Taskleiste (unten rechts, im Infobereich) — dort per Rechtsklick auf
+**Beenden** schliesst sie sich wieder. Alternativ in den Einstellungen unter
+*Programm*.
+
+**Manuell** (hierbei bleibt die Konsole offen, weil sie am Terminal haengt):
 
 ```bash
 cd overlay
@@ -94,7 +99,8 @@ Eine ausführliche Anleitung zum Einrichten von GitHub liegt als
 benutzt hat.
 
 
-Im Tray-Menü stehen die laufende Version und "Nach Updates suchen…".
+Unter *Einstellungen → Programm* stehen die laufende Version und
+"Nach Updates suchen".
 
 **Wie es sich verhält:**
 
@@ -222,8 +228,8 @@ Schlüsselprüfung und die Drosselung in der Warteschlange.
 
 Overlay und Backend schreiben gemeinsam nach
 `~/.trophaenschrank/logs/trophaenschrank.log`. Jede Zeile trägt Zeitstempel
-und Bereich (`[overlay]` oder `[backend]`). Erreichbar über das Tray-Menü:
-"Protokoll öffnen" bzw. "Protokollordner öffnen".
+und Bereich (`[overlay]` oder `[backend]`). Erreichbar über
+*Einstellungen → Diagnose → Protokoll*: "Öffnen" bzw. "Ordner".
 
 Mitgeschrieben werden die Dinge, die bei den bisherigen Fehlersuchen gefehlt
 haben:

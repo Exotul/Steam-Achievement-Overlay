@@ -50,13 +50,14 @@ echo ============================================
 echo   Fertig!
 echo ============================================
 echo.
-echo Nur noch EIN Schritt von Hand noetig:
-echo   1. Oeffne die Datei  overlay\.env  in einem Texteditor
-echo   2. Trage bei STEAM_API_KEY deinen Key ein
-echo      (kostenlos hier: https://steamcommunity.com/dev/apikey)
-echo   3. Trage bei SESSION_SECRET einen beliebigen langen Zufallstext ein
+echo Jetzt einfach start.bat doppelklicken.
 echo.
-echo Danach einfach start.bat doppelklicken, um die App zu starten.
+echo Beim ersten Start fragt die App selbst nach dem Steam-Schluessel und
+echo legt ihn ab - von Hand ist nichts mehr einzutragen.
+echo (Kostenlos hier: https://steamcommunity.com/dev/apikey)
+echo.
+echo Es bleibt kein Fenster offen: Die App laeuft als Symbol in der
+echo Taskleiste. Beendet wird sie dort per Rechtsklick auf "Beenden".
 echo.
 pause
 exit /b 0

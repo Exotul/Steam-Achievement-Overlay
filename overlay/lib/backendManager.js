@@ -66,6 +66,13 @@ async function ensureBackendRunning(baseUrl, env) {
     cwd: path.dirname(entry),
     env: { ...process.env, ...zusatz },
     silent: false,
+    // Unter Windows darf der Kindprozess unter keinen Umstaenden ein eigenes
+    // Konsolenfenster aufmachen. Normalerweise erbt er die Konsole des
+    // Elternprozesses - hat der keine (die App ist ein Fensterprogramm),
+    // legt Windows sonst je nach gestarteter Datei eine neue an. Ein
+    // schwarzes Fenster, das mitten im Spiel aufploppt, ist das Letzte, was
+    // ein Overlay tun sollte.
+    windowsHide: true,
   });
 
   child.on('exit', (code) => {

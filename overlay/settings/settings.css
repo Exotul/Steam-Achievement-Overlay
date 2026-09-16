@@ -132,6 +132,18 @@ body {
   line-height: 1.45;
 }
 
+/* Steht ausnahmsweise VOR den Zeilen - als Vorwarnung, dass der ganze
+   Abschnitt nur im Fehlerfall gebraucht wird. */
+.fussnote--oben {
+  margin: -4px 0 14px;
+}
+
+/* Eine laufende Aufzeichnung muss man sehen, sonst laeuft sie ewig weiter. */
+.knopf--laeuft {
+  border-color: var(--warn, #e8a33d);
+  color: var(--warn, #e8a33d);
+}
+
 /* ---------- Auswahlfelder ---------- */
 
 .feld {
@@ -297,7 +309,7 @@ body {
   color: #12151c;
 }
 
-.knopf--haupt:hover {
+.knopf--haupt:hover:not(:disabled) {
   background: #9aa1e8;
 }
 
@@ -307,9 +319,21 @@ body {
   color: var(--ink-dim);
 }
 
-.knopf--leise:hover {
+.knopf--leise:hover:not(:disabled) {
   border-color: var(--ink-faint);
   color: var(--ink);
+}
+
+/*
+ * Bis hierher konnte in diesem Fenster kein Knopf gesperrt sein - deshalb gab
+ * es dafuer auch keinen Stil. Mit "Abmelden" (nur bei bestehender Anmeldung)
+ * und "Nach Updates suchen" (nur in der installierten Fassung) gibt es das
+ * jetzt. Ohne sichtbaren Unterschied waere ein gesperrter Knopf einer, der
+ * klickbar aussieht und nichts tut - schlimmer als gar keiner.
+ */
+.knopf:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 /* ---------- Fussleiste ---------- */

@@ -846,13 +846,22 @@ function updateTrayStatus(statusLine) {
   buildTrayMenu(statusLine);
 }
 
+/**
+ * Das Tray-Menue enthaelt nur noch, was man im Vorbeigehen anklickt.
+ *
+ * Es war auf siebzehn Eintraege angewachsen und mischte dabei zwei ganz
+ * verschiedene Dinge: das Taegliche (Dashboard, Uebersicht) und Werkzeuge,
+ * die man ein- oder zweimal im Leben braucht (Dateiaenderungen aufzeichnen,
+ * Autostart, Protokollordner). Ein Menue, in dem man suchen muss, ist kein
+ * Menue mehr.
+ *
+ * Geblieben ist deshalb nur, was waehrend des Spielens gebraucht wird. Alles
+ * Seltene - Abmelden, Autostart, Updates, die gesamte Diagnose und die
+ * Testmeldungen - steht jetzt im Einstellungsfenster, wo Platz fuer eine
+ * Erklaerung daneben ist. Im Tray war dafuer nie welcher.
+ */
 function buildTrayMenu(statusLine) {
   const loggedIn = !!currentUser;
-  // Das Menue war auf siebzehn Eintraege angewachsen und mischte alles
-  // durcheinander: Taegliches neben Werkzeugen, die man einmal im Leben
-  // braucht. Hier stehen jetzt nur noch die Dinge, die man wirklich im
-  // Vorbeigehen anklickt - der Rest liegt in den Einstellungen oder unter
-  // "Diagnose".
   const menu = Menu.buildFromTemplate([
     {
       label: loggedIn ? `Angemeldet als ${currentUser.displayName}` : 'Nicht angemeldet',
@@ -863,45 +872,18 @@ function buildTrayMenu(statusLine) {
       ? { label: '⚠ Steam nicht erreichbar – eingeschränkter Betrieb', enabled: false }
       : null,
     { type: 'separator' },
+    // Anmelden bleibt hier: Ohne das geht gar nichts, und wer nicht
+    // angemeldet ist, soll es nicht erst in den Einstellungen suchen muessen.
     !loggedIn && { label: 'Mit Steam anmelden', click: handleLogin },
-    loggedIn && { label: 'Abmelden', click: handleLogout },
-    { label: 'Dashboard öffnen', click: () => shell.openExternal(BASE_URL) },
-    { label: 'Einstellungen…', click: zeigeEinstellungen },
-    { type: 'separator' },
     {
       label: 'Achievements des Spiels…',
       enabled: trackedAppId !== null,
       click: () => zeigePanel(true),
     },
     { label: 'Merkliste bearbeiten…', click: zeigeMerkliste },
-    { label: 'Test-Achievement anzeigen', click: handleTestAchievement },
-    autostart.isAvailable()
-      ? {
-          label: 'Automatisch mit Windows starten',
-          type: 'checkbox',
-          checked: autostart.isEnabled(),
-          click: handleAutostartToggle,
-        }
-      : null,
-    {
-      // Alles, was der Fehlersuche dient. Zusammengefasst, weil es genau
-      // dann gebraucht wird, wenn etwas klemmt - und sonst nie.
-      label: 'Diagnose',
-      submenu: [
-        { label: 'Lokale Erkennung prüfen…', click: handleDiagnose },
-        { label: 'Steam-API-Schlüssel prüfen…', click: handleKeycheck },
-        { type: 'separator' },
-        { label: 'Protokoll öffnen', click: () => shell.openPath(logger.logFile) },
-        { label: 'Protokollordner öffnen', click: () => shell.openPath(logger.logDir) },
-        { type: 'separator' },
-        recorder
-          ? { label: 'Aufzeichnung beenden und speichern', click: stopRecording }
-          : { label: 'Dateiänderungen aufzeichnen…', click: startRecording },
-      ],
-    },
+    { label: 'Dashboard öffnen', click: () => shell.openExternal(BASE_URL) },
     { type: 'separator' },
-    { label: `Version ${app.getVersion()}`, enabled: false },
-    { label: 'Nach Updates suchen…', click: () => updater.jetztPruefen() },
+    { label: 'Einstellungen…', click: zeigeEinstellungen },
     { label: 'Beenden', click: () => app.quit() },
   ].filter(Boolean));
   tray.setContextMenu(menu);
@@ -1127,8 +1109,15 @@ function handleLogout() {
 
 let recorder = null;
 
-function handleAutostartToggle(menuItem) {
-  const gewuenscht = menuItem.checked;
+/**
+ * Schaltet den Autostart ein oder aus.
+ *
+ * @param {boolean} gewuenscht
+ * @returns {boolean} der Stand, der danach wirklich gilt - nicht der
+ *   gewuenschte. Der Schalter im Einstellungsfenster springt damit zurueck,
+ *   wenn es nicht geklappt hat, statt eine Luege anzuzeigen.
+ */
+function setzeAutostart(gewuenscht) {
   const ok = autostart.setEnabled(gewuenscht);
 
   if (!ok) {
@@ -1138,8 +1127,7 @@ function handleAutostartToggle(menuItem) {
       message: 'Die Einstellung konnte nicht gespeichert werden.',
       buttons: ['OK'],
     });
-    buildTrayMenu();
-    return;
+    return autostart.isEnabled();
   }
 
   if (gewuenscht && autostart.isDevelopmentBuild()) {
@@ -1161,7 +1149,7 @@ function handleAutostartToggle(menuItem) {
     });
   }
 
-  buildTrayMenu();
+  return autostart.isEnabled();
 }
 
 async function startRecording() {
@@ -1185,8 +1173,8 @@ async function startRecording() {
     detail:
       `${count} Dateien werden beobachtet.\n\n` +
       'Spiel jetzt weiter und hol dir ein Achievement. Sobald Steam die\n' +
-      'Meldung zeigt, im Tray-Menü auf "Aufzeichnung beenden und speichern"\n' +
-      'klicken.\n\n' +
+      'Meldung zeigt, in den Einstellungen unter "Diagnose" auf\n' +
+      '"Aufzeichnung beenden und speichern" klicken.\n\n' +
       'Es werden nur Dateipfade, Größen und Zeitpunkte erfasst - keine Inhalte.',
     buttons: ['OK'],
   });
@@ -1251,6 +1239,22 @@ function handleTestAchievement() {
     },
     true // nurTest: XP-Stand bleibt unveraendert
   );
+}
+
+/**
+ * Spielt die Diamant-Feier zur Ansicht ab.
+ *
+ * Die echte gibt es pro Spiel genau einmal im Leben - wer sie einstellen oder
+ * auch nur einmal sehen will, haette sonst keine Moeglichkeit dazu. Am Stand
+ * aendert das nichts: Die Feier ist reine Anzeige, `diamondCelebrated` wird
+ * nicht angefasst.
+ */
+function handleTestDiamant() {
+  const echtesSymbol = [...achievementIndex.values()].find((a) => a.icon)?.icon;
+  sendDiamondToOverlay({
+    gameName: trackedGameName || 'Beispielspiel',
+    icon: echtesSymbol || '../assets/app-icon.png',
+  });
 }
 
 async function handleKeycheck() {
@@ -1623,6 +1627,23 @@ function merkGeaendert(appId) {
 let settingsWindow = null;
 
 /**
+ * Der Teil des Zustands, den das Einstellungsfenster anzeigt, aber nicht
+ * selbst kennt. Bewusst an einer Stelle: Jede Aktion dort gibt das hier
+ * zurueck, damit das Fenster nach einem Klick nie einen veralteten Stand
+ * zeigt - etwa "Angemeldet als ..." nach dem Abmelden.
+ */
+function programmStand() {
+  return {
+    version: app.getVersion(),
+    angemeldetAls: currentUser ? currentUser.displayName : null,
+    autostartVerfuegbar: autostart.isAvailable(),
+    autostartAn: autostart.isAvailable() ? autostart.isEnabled() : false,
+    zeichnetAuf: !!recorder,
+    updatesMoeglich: app.isPackaged,
+  };
+}
+
+/**
  * Einstellungsfenster.
  *
  * Warum ueberhaupt: Das Tray-Menue war auf siebzehn Eintraege angewachsen,
@@ -1676,7 +1697,56 @@ function zeigeEinstellungen() {
         istHaupt: d.id === screen.getPrimaryDisplay().id,
       })),
       schluesselVorhanden: !schluesselFehlt(),
+      programm: programmStand(),
     }),
+
+    // Alles ab hier ist aus dem Tray-Menue hierher gezogen. Es wird selten
+    // gebraucht und braucht dann eine Erklaerung daneben - genau das, wofuer
+    // in einem Kontextmenue kein Platz ist.
+    'einst:programm': () => programmStand(),
+
+    'einst:autostart': (_e, an) => setzeAutostart(!!an),
+
+    'einst:abmelden': () => {
+      handleLogout();
+      return programmStand();
+    },
+
+    'einst:updates': () => {
+      updater.jetztPruefen();
+      return true;
+    },
+
+    'einst:beenden': () => {
+      app.quit();
+      return true;
+    },
+
+    'einst:test-diamant': () => {
+      handleTestDiamant();
+      return true;
+    },
+
+    'einst:diagnose': async () => {
+      await handleDiagnose();
+      return true;
+    },
+
+    'einst:keycheck': async () => {
+      await handleKeycheck();
+      return true;
+    },
+
+    'einst:protokoll': (_e, ordner) => {
+      shell.openPath(ordner ? logger.logDir : logger.logFile);
+      return true;
+    },
+
+    'einst:aufzeichnung': async () => {
+      if (recorder) stopRecording();
+      else await startRecording();
+      return programmStand();
+    },
 
     'einst:speichern': (_e, roh) => uebernehmen(roh),
 
