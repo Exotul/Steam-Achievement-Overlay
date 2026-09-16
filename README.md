@@ -19,9 +19,8 @@ Dort unter *Assets* die Datei `Trophaeenschrank-Setup-<version>.exe` laden und
 ausführen. Danach meldet sich die App von selbst, wenn es etwas Neueres gibt -
 herunterladen musst du sie also genau einmal von Hand.
 
-Ist die Seite leer oder gibt es dort noch kein Release, wurde bisher keine
-Fassung veröffentlicht. Wie das geht, steht in `github-anleitung.md`
-(Schritt 8 und 9).
+Veröffentlicht wird nicht mehr von Hand, sondern von GitHub selbst, sobald ein
+Versions-Tag gepusht wird - siehe `github-anleitung.md`, Schritt 8.
 
 ---
 
