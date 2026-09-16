@@ -206,67 +206,62 @@ mehr tun; nur falls du das Repo je umbenennst, muss diese Stelle mit.
 
 ---
 
-## Schritt 8: Zugangsschlüssel für das Veröffentlichen
+## Schritt 8: Veröffentlichen — ein einziger Befehl
 
-Damit dein PC Releases erstellen darf, braucht er einen Zugangsschlüssel
-(Token). Das ist nicht dein Passwort, sondern ein eigener Schlüssel, den du
-jederzeit zurückziehen kannst.
+**Du brauchst dafür keinen Zugangsschlüssel mehr.** Das Bauen und
+Veröffentlichen läuft auf GitHubs eigenen Rechnern; die bekommen ihren
+Schlüssel automatisch gestellt (`.github/workflows/release.yml`).
 
-1. Auf https://github.com/settings/tokens gehen
-2. **Generate new token** → **Generate new token (classic)**
-3. **Note**: `Trophaeenschrank Releases` (nur eine Notiz für dich)
-4. **Expiration**: `No expiration` (sonst musst du ihn regelmäßig erneuern)
-5. Bei den Häkchen nur **`repo`** anhaken – das reicht völlig
-6. Ganz unten **Generate token**
-7. **Jetzt sofort kopieren.** Der Schlüssel wird nur ein einziges Mal
-   angezeigt. Geht er verloren, musst du einen neuen erstellen.
+So gibst du eine Fassung heraus:
 
-Diesen Schlüssel gibst du beim Veröffentlichen als Umgebungsvariable mit –
-er gehört **nicht** in eine Datei im Projekt.
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
 
----
+Das war alles. GitHub baut daraufhin den Installer auf einem frischen Windows,
+hängt ihn samt `latest.yml` an ein neues Release und veröffentlicht es. Dauert
+etwa fünf bis zehn Minuten; zusehen kannst du unter
+[Actions](https://github.com/Exotul/Steam-Achievement-Overlay/actions).
 
-## Schritt 9: Erste Fassung veröffentlichen
+**Warum das besser ist als der Weg über den eigenen Rechner:** Der ist dreimal
+an Kleinigkeiten gescheitert — an PowerShells `set`, an einem Symlink im
+Signier-Paket, und zuletzt daran, dass zwar ein Release entstand, aber ohne
+eine einzige Datei daran. Auf einem frischen Windows gibt es diese
+Kleinigkeiten nicht, und der Ablauf prüft am Ende selbst nach.
 
-In **PowerShell** (die Standard-Konsole in VS Code), im `overlay`-Ordner:
+**Stimmt etwas nicht, bricht es ab, bevor etwas veröffentlicht wird:**
+
+- Die Versionsnummer im Tag muss zu `overlay/package.json` passen. Bei
+  gleicher Nummer erkennt die App kein Update — deshalb wird das erzwungen.
+- Die Tests müssen durchlaufen.
+- `latest.yml` muss entstanden sein (ohne sie gibt es keine Updates).
+- Es darf keine `.env` im Paket liegen.
+
+### Nur bauen, ohne zu veröffentlichen
+
+Unter *Actions → Release → Run workflow*. Der Installer hängt danach als
+Artefakt am Durchlauf und lässt sich herunterladen, ohne dass ein Release
+entsteht.
+
+### Von Hand auf dem eigenen Rechner
+
+Geht weiterhin, braucht aber einen Zugangsschlüssel von
+[github.com/settings/tokens](https://github.com/settings/tokens) (nur das
+Häkchen bei `repo`):
 
 ```powershell
 cd E:\Steam_achievement_app\steam-achievements-app\overlay
-$env:GH_TOKEN = "hier_dein_kopierter_schluessel"
+$env:GH_TOKEN = "dein_token"
+$env:GH_TOKEN.Length      # muss eine Zahl um die 40 zeigen, nicht 0
 npm.cmd run release
 ```
 
-Das baut den Installer und lädt ihn als Release hoch. Dauert einige Minuten.
-
-**Vorher prüfen, ob der Schlüssel wirklich angekommen ist:**
-
-```powershell
-$env:GH_TOKEN.Length
-```
-
-Kommt eine Zahl um die 40, passt es. Kommt `0`, ist die Variable leer - dann
-bricht das Veröffentlichen mit "GitHub Personal Access Token is not set" ab.
-
-**Die häufigste Falle:** In der Eingabeaufforderung (`cmd.exe`) setzt man
-Umgebungsvariablen mit `set GH_TOKEN=...`. In PowerShell bedeutet `set` etwas
-völlig anderes - es ist dort ein Kurzname für `Set-Variable` und legt eine
-gewöhnliche PowerShell-Variable an, die buchstäblich `GH_TOKEN=dein_token`
-heißt. Das passiert **ohne jede Fehlermeldung**, und die Umgebungsvariable
-bleibt leer. Deshalb hier immer `$env:GH_TOKEN = "..."` mit Anführungszeichen.
-
-**Der Schlüssel gilt nur in diesem einen Fenster.** Machst du es zu, musst du
-ihn beim nächsten Mal erneut setzen. Das ist gewollt - so liegt er nirgends
-dauerhaft herum. Schreib ihn deshalb auch nie in eine Datei im Projekt.
-
-Danach auf `https://github.com/Exotul/Steam-Achievement-Overlay/releases` nachsehen:
-Dort sollte **v1.0.0** stehen, mit der `.exe` als Anhang.
-
-Steht das Release auf **Draft** (Entwurf), musst du es einmal von Hand
-öffnen und auf **Publish release** klicken – Entwürfe sieht die App nicht.
+Zur `set`-Falle in PowerShell siehe unten unter "Wenn etwas klemmt".
 
 ---
 
-## Schritt 10: Ein Update herausgeben
+## Schritt 9: Ein Update herausgeben
 
 Sobald wir etwas ändern:
 
@@ -276,12 +271,12 @@ Sobald wir etwas ändern:
 2. Änderung in `CHANGELOG.md` notieren (für dich und deine Freunde)
 3. Hochladen und veröffentlichen:
 
-```
+```powershell
 git add .
 git commit -m "Kurze Beschreibung der Änderung"
 git push
-$env:GH_TOKEN = "dein_schluessel"
-npm.cmd run release
+git tag v1.0.1          # dieselbe Nummer wie in overlay/package.json
+git push origin v1.0.1
 ```
 
 Installierte Fassungen finden das Update beim nächsten Start von selbst –
@@ -376,5 +371,5 @@ git commit -m "Was ich geändert habe"
 git push
 ```
 
-Und fürs Veröffentlichen zusätzlich Versionsnummer erhöhen und
-`$env:GH_TOKEN = "..."` und `npm.cmd run release`.
+Und fürs Veröffentlichen: Versionsnummer in `overlay/package.json` erhöhen,
+dann `git tag vX.Y.Z` und `git push origin vX.Y.Z`.

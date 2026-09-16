@@ -1,0 +1,112 @@
+# Baut den Installer und veröffentlicht ihn, sobald ein Versions-Tag gepusht wird.
+#
+# WARUM ES DAS GIBT: Bisher lief das Veröffentlichen von Hand auf dem eigenen
+# Rechner und brauchte dafür einen persönlichen GitHub-Zugangsschlüssel. Das
+# ist dreimal an Kleinigkeiten gescheitert - an PowerShells `set`, an einem
+# Symlink im Signier-Paket, und zuletzt daran, dass ein Release zwar angelegt,
+# aber ohne Dateien geblieben ist.
+#
+# GitHub Actions bekommt seinen Zugangsschlüssel automatisch gestellt
+# (`GITHUB_TOKEN`). Es wird also nie wieder einer gebraucht, und der Build
+# läuft immer auf demselben, sauberen Windows - unabhängig davon, was auf dem
+# Rechner gerade installiert ist.
+#
+# VERÖFFENTLICHEN:
+#     git tag v1.0.1 && git push origin v1.0.1
+#
+# Die Versionsnummer im Tag muss zu `overlay/package.json` passen; der Schritt
+# "Versionsnummer prüfen" bricht sonst ab, bevor irgendetwas gebaut wird.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  # Von Hand auslösbar, um den Build zu prüfen, ohne zu veröffentlichen.
+  workflow_dispatch:
+
+permissions:
+  # electron-builder legt das Release an und hängt die Dateien daran.
+  contents: write
+
+jobs:
+  windows-installer:
+    # Muss Windows sein: Das Signieren der Programmdatei braucht
+    # Windows-eigene Werkzeuge.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Versionsnummer prüfen
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PKG=$(node -p "require('./overlay/package.json').version")
+          echo "Tag: $TAG   package.json: $PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG passt nicht zur Version $PKG in overlay/package.json."
+            echo "Bei gleicher Nummer erkennt die App kein Update - deshalb bricht das hier ab."
+            exit 1
+          fi
+
+      - name: Tests
+        shell: bash
+        # Läuft ohne npm install, deshalb vor allem anderen.
+        run: npm test
+
+      - name: Abhängigkeiten - Backend
+        # Wird als extraResources mitgepackt, braucht also seine node_modules.
+        run: npm ci
+        working-directory: backend
+
+      - name: Dashboard bauen
+        # Das Backend liefert frontend/dist aus; die Quellen allein genügen nicht.
+        run: npm ci && npm run build
+        working-directory: frontend
+
+      - name: Abhängigkeiten - Overlay
+        run: npm ci
+        working-directory: overlay
+
+      - name: Installer bauen und veröffentlichen
+        working-directory: overlay
+        env:
+          # Von GitHub gestellt - kein persönlicher Schlüssel nötig.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+
+      - name: Ergebnis prüfen
+        shell: bash
+        run: |
+          echo "Gebaute Dateien:"
+          ls -la overlay/dist/*.exe overlay/dist/*.yml 2>/dev/null
+
+          # latest.yml ist die Datei, aus der die installierte App erfährt,
+          # dass es etwas Neues gibt. Ohne sie funktionieren keine Updates -
+          # genau das war beim ersten, von Hand angelegten Release der Fall.
+          test -f overlay/dist/latest.yml \
+            || { echo "::error::latest.yml fehlt - Updates würden nicht funktionieren."; exit 1; }
+
+          # Der Steam-Schlüssel darf niemals im Installer landen.
+          if find overlay/dist/win-unpacked -name '.env' | grep -q .; then
+            echo "::error::Es liegt eine .env im Paket."
+            exit 1
+          fi
+          echo "In Ordnung: Installer vorhanden, latest.yml vorhanden, keine .env im Paket."
+
+      - name: Installer auch als Artefakt ablegen
+        # Damit ein Probelauf ohne Tag trotzdem etwas zum Ansehen hinterlässt.
+        uses: actions/upload-artifact@v4
+        with:
+          name: Trophaeenschrank-Setup
+          path: |
+            overlay/dist/*.exe
+            overlay/dist/latest.yml
+          retention-days: 14

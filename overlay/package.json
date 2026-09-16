@@ -59,7 +59,8 @@
       {
         "provider": "github",
         "owner": "Exotul",
-        "repo": "Steam-Achievement-Overlay"
+        "repo": "Steam-Achievement-Overlay",
+        "releaseType": "release"
       }
     ],
     "artifactName": "Trophaeenschrank-Setup-${version}.${ext}"
