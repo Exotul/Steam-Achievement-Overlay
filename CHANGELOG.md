@@ -2,6 +2,52 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Der Zwischenspeicher konnte sich selbst zerstören
+
+Gesucht war ein Geschwindigkeitsproblem — gefunden wurde ein Datenverlust.
+`cache.json` lag mit dem richtigen Namen und plausibler Größe da, war aber ab
+der Mitte mit NUL-Bytes gefüllt und damit unlesbar. Die App hat das fünf Tage
+lang stillschweigend hingenommen und bei jedem Start leer angefangen. Nach
+außen sah das nur so aus, als sei sie langsam geworden.
+
+**Die Ursache:** `writeFileSync` kehrt zurück, sobald die Daten im Puffer des
+Betriebssystems liegen — nicht, wenn sie auf der Platte stehen. Das
+anschließende Umbenennen machte also eine Datei offiziell, deren Inhalt noch
+gar nicht geschrieben war. Endet der Prozess vorher, bleibt der Rest als
+NUL-Bytes stehen. Dieselbe Ursache hatte 502 NUL-Bytes in der Protokolldatei
+hinterlassen.
+
+Das Schreiben tut jetzt fünf Dinge, jedes davon aus einem konkreten Schaden:
+
+1. Eine **eigene Nebendatei je Schreibvorgang** — zwei Prozesse können sich
+   nicht mehr in dieselbe drängen.
+2. **fsync**, bevor die Datei offiziell wird.
+3. **Gegenlesen** — was nicht zurückkommt, wird nicht übernommen.
+4. Die vorherige Fassung bleibt als **`.bak`** liegen; eine beschädigte Datei
+   wird daraus wiederhergestellt statt leer zu starten.
+5. **Umbenennen mit Wiederholung.** Unter Windows scheitert das mit `EPERM`,
+   solange ein Virenscanner die Datei offen hält — im Protokoll standen dafür
+   drei Fehler zu `sessions.json`, und die Anmeldung war danach jedes Mal weg.
+
+Eine beschädigte Datei wird außerdem als `.kaputt` aufgehoben statt
+überschrieben, und der Vorfall steht laut im Protokoll.
+
+### Der Zwischenspeicher liegt jetzt in mehreren Dateien
+
+Bisher alles in einer `cache.json` — 19 MB, bei jedem Start vollständig
+geparst und bei **jeder** Änderung vollständig neu geschrieben. Beim Öffnen
+des Dashboards passierte Letzteres mehrfach hintereinander.
+
+Jetzt liegt jede Art in ihrer eigenen Datei unter `cache/`. Eine Änderung an
+den weltweiten Prozentsätzen schreibt nur noch diese eine Datei, und gelesen
+wird eine Art erst, wenn sie gebraucht wird — der Start wartet also nicht mehr
+auf zehn Megabyte Schema-Daten.
+
+Der wichtigste Gewinn ist aber ein anderer: **Eine beschädigte Datei kostet
+nicht mehr alles**, sondern nur ihre eigene Art. Eine vorhandene alte
+`cache.json` wird dabei übernommen statt weggeworfen.
+
+
 ### Neuer Reiter: Verlauf
 
 Das Overlay schreibt seit jeher jede Freischaltung mit — Spiel, Stufe,

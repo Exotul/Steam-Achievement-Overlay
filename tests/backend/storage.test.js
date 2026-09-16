@@ -141,3 +141,116 @@ test('Tagesübersicht fasst Anzahl, XP und Stufen zusammen', () => {
   assert.ok(heute.xp > 0);
   assert.ok(heute.stufen.Platin >= 1, 'Stufen müssen einzeln gezählt werden');
 });
+
+// --- Was passiert, wenn eine Datei kaputt ist --------------------------------
+
+/**
+ * Am 11. September ist genau das passiert: `cache.json` lag mit dem richtigen
+ * Namen und der richtigen Größe da, aber halb gefüllt mit NUL-Bytes. Grund war
+ * ein fehlendes fsync - `writeFileSync` kehrt zurück, sobald die Daten im
+ * Puffer des Betriebssystems liegen, und das anschließende Umbenennen machte
+ * eine Datei offiziell, deren Inhalt noch gar nicht geschrieben war.
+ *
+ * Die App hat das fünf Tage lang stillschweigend hingenommen und bei jedem
+ * Start leer angefangen. Nach außen sah das nur so aus, als sei sie langsam
+ * geworden. Diese Tests halten fest, dass beides nicht mehr passiert.
+ */
+
+function frischerAblageordner(name) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `trophaenschrank-ablage-${name}-`));
+  process.env.DATA_DIR = dir;
+  delete require.cache[require.resolve('../../backend/services/storage')];
+  return { dir, storage: require('../../backend/services/storage') };
+}
+
+test('Nach dem Schreiben bleibt keine Nebendatei liegen', () => {
+  const { dir, storage } = frischerAblageordner('nebendatei');
+  storage.speichereSnapshot('probe', { a: 1 });
+
+  const reste = fs.readdirSync(dir).filter((f) => f.endsWith('.tmp'));
+  assert.deepStrictEqual(reste, [], `übrig geblieben: ${reste.join(', ')}`);
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Die vorherige Fassung wird als Sicherung aufgehoben', () => {
+  const { dir, storage } = frischerAblageordner('sicherung');
+  storage.speichereSnapshot('probe', { stand: 'alt' });
+  storage.speichereSnapshot('probe', { stand: 'neu' });
+
+  const bak = JSON.parse(fs.readFileSync(path.join(dir, 'probe.json.bak'), 'utf8'));
+  assert.strictEqual(bak.stand, 'alt', 'die Sicherung muss die VORHERIGE Fassung enthalten');
+  assert.strictEqual(storage.ladeSnapshot('probe').stand, 'neu');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Eine beschädigte Datei wird aus der Sicherung wiederhergestellt', () => {
+  const { dir, storage } = frischerAblageordner('wiederherstellen');
+  storage.speichereSnapshot('probe', { wichtig: 'behalten' });
+  storage.speichereSnapshot('probe', { wichtig: 'auch das' });
+
+  // Genau der beobachtete Schaden: halber Inhalt, Rest NUL-Bytes.
+  const datei = path.join(dir, 'probe.json');
+  fs.writeFileSync(datei, '{"wichtig":"auch d\u0000\u0000\u0000\u0000', 'utf8');
+
+  assert.strictEqual(
+    storage.ladeSnapshot('probe').wichtig,
+    'behalten',
+    'statt leer zu starten muss die letzte gute Fassung greifen'
+  );
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Die beschädigte Datei wird zur Seite gelegt, nicht überschrieben', () => {
+  // Sie ist der einzige Beleg dafür, WAS schiefging - beim nächsten
+  // Schreibvorgang wäre sie sonst weg.
+  const { dir, storage } = frischerAblageordner('beweis');
+  storage.speichereSnapshot('probe', { a: 1 });
+  fs.writeFileSync(path.join(dir, 'probe.json'), '{kaputt', 'utf8');
+
+  storage.ladeSnapshot('probe');
+
+  assert.ok(
+    fs.existsSync(path.join(dir, 'probe.json.kaputt')),
+    'die beschädigte Fassung muss erhalten bleiben'
+  );
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Ohne Sicherung führt eine beschädigte Datei zu leeren Werten, nicht zum Absturz', () => {
+  const { dir, storage } = frischerAblageordner('ohne-sicherung');
+  fs.writeFileSync(path.join(dir, 'probe.json'), 'weder JSON noch sonst was', 'utf8');
+
+  assert.deepStrictEqual(storage.ladeSnapshot('probe'), {});
+  assert.deepStrictEqual(storage.ladeSnapshot('probe', { standard: true }), { standard: true });
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Eine fehlende Datei ist kein Schaden und hinterlässt keine .kaputt', () => {
+  const { dir, storage } = frischerAblageordner('fehlend');
+  assert.deepStrictEqual(storage.ladeSnapshot('gibtesnicht'), {});
+  assert.ok(!fs.existsSync(path.join(dir, 'gibtesnicht.json.kaputt')));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Auch große Inhalte kommen vollständig zurück', () => {
+  // Der Schaden trat bei einer 19 MB großen Datei auf; bei kleinen Dateien
+  // schreibt das Betriebssystem oft schnell genug, dass nichts auffällt.
+  const { dir, storage } = frischerAblageordner('gross');
+  const gross = {};
+  for (let i = 0; i < 4000; i++) {
+    gross[`schluessel-${i}`] = { text: 'x'.repeat(200), nummer: i };
+  }
+
+  assert.strictEqual(storage.speichereSnapshot('gross', gross), true);
+  const zurueck = storage.ladeSnapshot('gross');
+
+  assert.strictEqual(Object.keys(zurueck).length, 4000);
+  assert.strictEqual(zurueck['schluessel-3999'].nummer, 3999);
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});

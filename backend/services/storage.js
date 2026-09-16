@@ -18,9 +18,20 @@ const logger = require('./logger');
  * Diese Ablage erreicht die eigentlichen Ziele ohne nativen Code:
  *
  *  - **Momentaufnahmen** (Zwischenspeicher, Sitzungen): werden erst in eine
- *    Nebendatei geschrieben und dann umbenannt. Ein Umbenennen ist auf allen
- *    gängigen Dateisystemen unteilbar - ein Absturz mitten im Schreiben
- *    hinterlässt daher nie eine halbe Datei.
+ *    Nebendatei geschrieben, geprüft, auf die Platte gezwungen und dann
+ *    umbenannt. Ein Umbenennen ist auf allen gängigen Dateisystemen
+ *    unteilbar - ein Absturz mitten im Schreiben hinterlässt daher nie eine
+ *    halbe Datei.
+ *
+ *    DAS ALLEIN REICHT NICHT, und das wurde teuer gelernt: `writeFileSync`
+ *    kehrt zurück, sobald die Daten im Puffer des Betriebssystems liegen -
+ *    nicht, wenn sie auf der Platte stehen. Das anschließende Umbenennen
+ *    macht dann eine Datei offiziell, deren Inhalt noch gar nicht
+ *    geschrieben ist. Endet der Prozess vorher, bleibt der Rest als
+ *    NUL-Bytes stehen: Die Datei hat den richtigen Namen, die richtige
+ *    Größe, und ist unlesbar. Genau so ist einmal ein 19 MB großer
+ *    Zwischenspeicher verlorengegangen. Deshalb wird jetzt vor dem
+ *    Umbenennen `fsync` gerufen.
  *
  *  - **Verlauf** (freigeschaltete Achievements, XP-Verlauf): wird angehängt,
  *    eine Zeile je Ereignis. Anhängen schreibt die bestehende Datei nicht neu,
@@ -44,15 +55,45 @@ function sicherstellen(datei) {
 // --- Momentaufnahmen ---------------------------------------------------------
 
 /** Liest eine Momentaufnahme. Bei beschädigter Datei: leeres Ergebnis. */
+/**
+ * Liest eine Momentaufnahme.
+ *
+ * Ist die Datei beschaedigt, wird die letzte gute Fassung (.bak) genommen
+ * und die kaputte zur Seite gelegt statt ueberschrieben - sonst ist die
+ * Ursache beim naechsten Schreibvorgang unwiederbringlich weg.
+ *
+ * Frueher wurde in diesem Fall stillschweigend leer gestartet. Das ist
+ * technisch harmlos (alles laesst sich neu holen), aber es verschweigt den
+ * Vorfall: Ein Zwischenspeicher war fuenf Tage lang kaputt, und nach aussen
+ * sah es nur so aus, als sei die App langsam geworden.
+ */
 function ladeSnapshot(name, standard = {}) {
   const datei = pfad(`${name}.json`);
+
   try {
     return JSON.parse(fs.readFileSync(datei, 'utf8'));
   } catch (err) {
-    if (err.code !== 'ENOENT') {
-      logger.warn(`Ablage: ${name}.json nicht lesbar (${err.message}) - starte leer`);
+    if (err.code === 'ENOENT') return standard;
+
+    logger.error(`Ablage: ${name}.json ist beschädigt (${err.message})`);
+
+    // Die kaputte Fassung aufheben - sie ist der einzige Beleg dafuer, WAS
+    // schiefging, und beim naechsten Schreiben waere sie weg.
+    try {
+      fs.renameSync(datei, `${datei}.kaputt`);
+      logger.warn(`Ablage: beschädigte Datei gesichert als ${name}.json.kaputt`);
+    } catch (e) {
+      /* nicht kritisch */
     }
-    return standard;
+
+    try {
+      const aus = JSON.parse(fs.readFileSync(`${datei}.bak`, 'utf8'));
+      logger.info(`Ablage: ${name}.json aus der letzten guten Fassung wiederhergestellt`);
+      return aus;
+    } catch (e) {
+      logger.warn(`Ablage: keine brauchbare Sicherung für ${name}.json - starte leer`);
+      return standard;
+    }
   }
 }
 
@@ -60,13 +101,85 @@ function ladeSnapshot(name, standard = {}) {
  * Schreibt eine Momentaufnahme unteilbar: erst in eine Nebendatei, dann
  * umbenennen. Ein Absturz mittendrin lässt die alte Datei unversehrt.
  */
+// Fortlaufend, damit zwei Schreibvorgaenge im selben Prozess sich nicht in
+// dieselbe Nebendatei draengen.
+let schreibZaehler = 0;
+
+/**
+ * Benennt um und wiederholt es bei den Windows-typischen Sperren.
+ *
+ * Unter Windows scheitert `rename` mit EPERM oder EBUSY, solange ein anderer
+ * Prozess die Zieldatei offen haelt - ein Virenscanner, die Indizierung, ein
+ * Sicherungsprogramm. Das dauert Millisekunden. Frueher ging der Schreibvorgang
+ * in diesem Fall schlicht verloren; im Protokoll standen dafuer drei
+ * Fehlermeldungen zu `sessions.json`, und die Anmeldung war danach weg.
+ */
+function benenneUm(von, nach, versuche = 5) {
+  for (let i = 0; ; i++) {
+    try {
+      fs.renameSync(von, nach);
+      return;
+    } catch (err) {
+      const sperre = err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES';
+      if (!sperre || i >= versuche) throw err;
+      // Kurz warten, ohne den Ablauf zu verlassen - das hier ist ein
+      // Schreibvorgang, der abgeschlossen sein muss, bevor es weitergeht.
+      const bis = Date.now() + 40 * (i + 1);
+      while (Date.now() < bis) {
+        /* absichtlich blockierend */
+      }
+    }
+  }
+}
+
+/**
+ * Schreibt eine Momentaufnahme.
+ *
+ * Fuenf Schritte, jeder davon aus einem konkreten Schaden entstanden:
+ *   1. In eine EIGENE Nebendatei je Schreibvorgang - ein zweiter Prozess
+ *      (oder ein zweiter Aufruf) darf nicht in dieselbe schreiben.
+ *   2. Auf die Platte zwingen (fsync), bevor sie offiziell wird.
+ *   3. Gegenlesen: Was nicht wieder einlesbar ist, wird nicht uebernommen.
+ *   4. Die bisherige Fassung als .bak behalten - eine einzelne kaputte Datei
+ *      kostet dann nicht alles.
+ *   5. Umbenennen mit Wiederholung, siehe benenneUm().
+ */
 function speichereSnapshot(name, daten) {
   const datei = pfad(`${name}.json`);
-  const tmp = `${datei}.tmp`;
+  const tmp = `${datei}.${process.pid}.${schreibZaehler++}.tmp`;
+
   try {
     sicherstellen(datei);
-    fs.writeFileSync(tmp, JSON.stringify(daten), 'utf8');
-    fs.renameSync(tmp, datei);
+    const inhalt = JSON.stringify(daten);
+
+    // Schreiben und auf die Platte zwingen.
+    const fd = fs.openSync(tmp, 'w');
+    try {
+      fs.writeFileSync(fd, inhalt, 'utf8');
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+
+    // Gegenlesen. Ein stiller Schreibfehler ist schlimmer als ein lauter:
+    // Er faellt erst Tage spaeter auf, wenn die Datei gebraucht wird.
+    const zurueck = fs.readFileSync(tmp, 'utf8');
+    if (zurueck.length !== inhalt.length) {
+      throw new Error(
+        `Gegenlesen fehlgeschlagen: ${zurueck.length} statt ${inhalt.length} Zeichen`
+      );
+    }
+
+    // Die bisherige Fassung aufheben, bevor sie ersetzt wird.
+    if (fs.existsSync(datei)) {
+      try {
+        fs.copyFileSync(datei, `${datei}.bak`);
+      } catch (e) {
+        /* ohne Sicherung weitermachen ist besser als gar nicht zu schreiben */
+      }
+    }
+
+    benenneUm(tmp, datei);
     return true;
   } catch (err) {
     logger.error(`Ablage: ${name}.json konnte nicht geschrieben werden - ${err.message}`);
@@ -153,11 +266,28 @@ function kuerzeEreignisse(name, behalten) {
   return rest.length;
 }
 
+/**
+ * Benennt eine Momentaufnahme um - für einmalige Umstellungen des Formats.
+ *
+ * Die alte Datei wird dabei nicht gelöscht, sondern beiseitegelegt: Geht bei
+ * der Übernahme etwas schief, ist sie noch da.
+ */
+function benenneSnapshotUm(von, nach) {
+  try {
+    benenneUm(pfad(`${von}.json`), pfad(`${nach}.json`));
+    return true;
+  } catch (err) {
+    logger.warn(`Ablage: ${von}.json konnte nicht umbenannt werden - ${err.message}`);
+    return false;
+  }
+}
+
 module.exports = {
   BASIS,
   pfad,
   ladeSnapshot,
   speichereSnapshot,
+  benenneSnapshotUm,
   schreibeEreignis,
   leseEreignisse,
   kuerzeEreignisse,
