@@ -26,6 +26,7 @@
       "lib/**/*",
       "overlay/**/*",
       "panel/**/*",
+      "login/**/*",
       "setup/**/*",
       "settings/**/*",
       "merkliste/**/*",

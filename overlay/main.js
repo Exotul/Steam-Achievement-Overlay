@@ -272,6 +272,7 @@ function createOverlayWindow() {
     // einblenden - da laufen ohnehin schon genug Programme hoch, und die
     // Meldung ist als Bestaetigung beim manuellen Start gedacht.
     if (!autostart.wasAutoStarted()) {
+      begruessungSeit = Date.now();
       overlayWindow.webContents.send('show-welcome');
     }
   });
@@ -948,7 +949,9 @@ function buildTrayMenu(statusLine) {
     { type: 'separator' },
     // Anmelden bleibt hier: Ohne das geht gar nichts, und wer nicht
     // angemeldet ist, soll es nicht erst in den Einstellungen suchen muessen.
-    !loggedIn && { label: 'Mit Steam anmelden', click: handleLogin },
+    // Ohne die Huelle bekaeme handleLogin das MenuItem als ersten Parameter -
+    // und das ist jetzt `stillerFehler`. Die Fehlermeldung bliebe aus.
+    !loggedIn && { label: 'Mit Steam anmelden', click: () => handleLogin() },
     {
       label: 'Achievements des Spiels…',
       enabled: trackedAppId !== null,
@@ -1110,12 +1113,22 @@ function sendToOverlay(kanal, nutzlast) {
   overlayWindow.webContents.send(kanal, nutzlast);
 }
 
-async function handleLogin() {
+/**
+ * Meldet bei Steam an.
+ *
+ * @param {boolean} [stillerFehler] - true, wenn der Aufrufer die Fehlermeldung
+ *   selbst anzeigt (das Anmeldefenster tut das in der Karte). Ohne das kaeme
+ *   zusaetzlich ein Systemdialog hoch, und der Anwender muesste zweimal
+ *   dasselbe wegklicken.
+ * @returns {Promise<{ok: boolean, name?: string, grund?: string}>}
+ */
+async function handleLogin(stillerFehler = false) {
   try {
     currentUser = await steamClient.login();
     updateTrayStatus('Eingeloggt · aktuell kein Spiel offen');
     startPolling();
     ladeXpStand();
+    return { ok: true, name: currentUser.displayName };
   } catch (err) {
     console.error('Login abgebrochen:', err.message);
     buildTrayMenu('Login abgebrochen');
@@ -1123,20 +1136,25 @@ async function handleLogin() {
     // Haeufigste Ursache fuer einen fehlgeschlagenen Login ist ein Problem
     // mit dem API-Schluessel - das gleich mitpruefen, statt den Nutzer mit
     // einer nackten Fehlermeldung von Steam alleinzulassen.
+    let grund = 'Die Anmeldung wurde abgebrochen. Du kannst es gleich noch einmal versuchen.';
     try {
       const pruefung = await steamClient.keycheck();
       if (!pruefung.ok) {
-        dialog.showMessageBox({
-          type: 'warning',
-          title: 'Anmeldung fehlgeschlagen',
-          message: 'Vermutliche Ursache: der Steam-API-Schlüssel.',
-          detail: `${pruefung.grund}\n\nZu prüfen in:\n${BENUTZER_CONFIG}\nZeile STEAM_API_KEY=...`,
-          buttons: ['OK'],
-        });
+        grund = `Vermutliche Ursache: der Steam-API-Schlüssel. ${pruefung.grund}`;
+        if (!stillerFehler) {
+          dialog.showMessageBox({
+            type: 'warning',
+            title: 'Anmeldung fehlgeschlagen',
+            message: 'Vermutliche Ursache: der Steam-API-Schlüssel.',
+            detail: `${pruefung.grund}\n\nZu prüfen in:\n${BENUTZER_CONFIG}\nZeile STEAM_API_KEY=...`,
+            buttons: ['OK'],
+          });
+        }
       }
     } catch (e) {
       /* nicht kritisch */
     }
+    return { ok: false, grund };
   }
 }
 
@@ -1614,6 +1632,90 @@ function wendeEinstellungenAn(vorher) {
   }
 }
 
+let loginWindow = null;
+
+/**
+ * Anmeldefenster.
+ *
+ * WARUM ES DAS GIBT: Ohne angemeldetes Steam-Konto kann die App gar nichts -
+ * keine Bibliothek, keine Achievements, keine XP. Bisher stand das nur als
+ * Zeile im Tray-Menue ("Bereit - bitte ueber das Tray-Menue mit Steam
+ * anmelden"). Wer das nicht las, hatte ein Programm, das schweigend nichts
+ * tat. Beim allerersten Start ist das der denkbar schlechteste Eindruck.
+ *
+ * Es geht direkt nach der Begruessung auf - und nur dann, wenn wirklich
+ * niemand angemeldet ist.
+ *
+ * @returns {Promise<void>} erfuellt, sobald das Fenster geschlossen ist
+ */
+function zeigeAnmeldung() {
+  return new Promise((fertig) => {
+    if (loginWindow && !loginWindow.isDestroyed()) {
+      loginWindow.focus();
+      fertig();
+      return;
+    }
+
+    loginWindow = new BrowserWindow({
+      width: 620,
+      // Nachgemessen: Die Karte ist 501 px hoch, dazu die Titelleiste. Bei
+      // 620 blieb unten ein Streifen leer, und ein Fenster mit Luft am Ende
+      // sieht aus, als fehle dort etwas.
+      height: 540,
+      resizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      title: 'Mit Steam anmelden',
+      backgroundColor: '#171b23',
+      // Erst zeigen, wenn fertig gezeichnet - sonst blitzt ein weisses
+      // Fenster auf, und das ist hier das Erste, was man von der App sieht.
+      show: false,
+      autoHideMenuBar: true,
+      icon: path.join(__dirname, 'assets', 'app-icon.png'),
+      webPreferences: {
+        preload: path.join(__dirname, 'login', 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    loginWindow.loadFile(path.join(__dirname, 'login', 'login.html'));
+    loginWindow.once('ready-to-show', () => loginWindow.show());
+
+    const behandler = {
+      'anmeldung:pfad': () => BENUTZER_CONFIG,
+
+      'anmeldung:starten': async () => {
+        // stillerFehler: Das Fenster zeigt den Grund selbst in seiner Karte.
+        const ergebnis = await handleLogin(true);
+        if (ergebnis.ok) {
+          // Kurz stehen lassen, damit die Bestaetigung lesbar ist.
+          setTimeout(() => {
+            if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
+          }, 1800);
+        }
+        return ergebnis;
+      },
+
+      'anmeldung:spaeter': () => {
+        if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
+        return true;
+      },
+    };
+
+    Object.entries(behandler).forEach(([kanal, fn]) => ipcMain.handle(kanal, fn));
+
+    loginWindow.on('closed', () => {
+      Object.keys(behandler).forEach((kanal) => ipcMain.removeHandler(kanal));
+      loginWindow = null;
+      if (!currentUser) {
+        updateTrayStatus('Nicht angemeldet - über das Symbol in der Taskleiste nachholbar');
+      }
+      fertig();
+    });
+  });
+}
+
 let merkWindow = null;
 
 /**
@@ -1972,7 +2074,52 @@ ipcMain.handle('panel:schliessen', () => {
   return true;
 });
 
+/**
+ * Nur EINE Instanz zulassen.
+ *
+ * Warum das hier fehlte, faellt mit dem Autostart zusammen: Faehrt der Rechner
+ * hoch, startet die App - und wer sie danach von Hand noch einmal startet,
+ * haette zwei Overlays, zwei Symbole in der Taskleiste und zwei Versuche, das
+ * Backend auf demselben Port zu starten. Von aussen sieht das aus, als sei
+ * die App kaputt.
+ *
+ * Der zweite Start beendet sich sofort wieder und meldet dem ersten Bescheid.
+ */
+const istEinzigeInstanz = app.requestSingleInstanceLock();
+if (!istEinzigeInstanz) app.quit();
+
+app.on('second-instance', () => {
+  logger.info('Zweiter Start erkannt - es läuft bereits eine Instanz');
+  // Es gibt kein Hauptfenster, das man nach vorn holen koennte. Wer die App
+  // erneut startet, sucht sie meist - und wenn etwas offen ist, dann das
+  // Anmeldefenster, weil ohne Konto ohnehin nichts geht.
+  if (!currentUser) zeigeAnmeldung();
+  else updateTrayStatus(trackedGameName ? `Verfolge: ${trackedGameName}` : 'Läuft bereits');
+});
+
+/**
+ * Wie lange die Begruessung noch laeuft.
+ *
+ * Sie beginnt, sobald das Overlay geladen ist, und dauert 5,8 s (siehe
+ * showWelcomeToast in overlay/overlay.js). Bis das Backend steht und Steam
+ * geantwortet hat, ist davon meist schon einiges vorbei - gewartet wird
+ * deshalb nur der Rest, nicht noch einmal die volle Zeit.
+ */
+const BEGRUESSUNG_MS = 5800;
+
+function restDerBegruessung() {
+  // Beim Start durchs Hochfahren gibt es gar keine Begruessung.
+  if (autostart.wasAutoStarted() || !begruessungSeit) return 400;
+  return Math.max(400, BEGRUESSUNG_MS - (Date.now() - begruessungSeit));
+}
+
+let begruessungSeit = null;
+
 app.whenReady().then(async () => {
+  // Beim zweiten Start ist app.quit() schon angestossen - hier nichts mehr
+  // aufbauen, sonst blitzen Fenster auf, die gleich wieder verschwinden.
+  if (!istEinzigeInstanz) return;
+
   createOverlayWindow();
   createPanelWindow();
   createTray();
@@ -2009,7 +2156,9 @@ app.whenReady().then(async () => {
     return;
   }
 
-  steamClient = new SteamClient(BASE_URL);
+  // Das Symbol bekommt es mit, weil dasselbe Fenster beim Anmelden sichtbar
+  // geschaltet wird - ohne stuende dort Electrons Standardsymbol.
+  steamClient = new SteamClient(BASE_URL, path.join(__dirname, 'assets', 'app-icon.png'));
 
   // Updates einrichten. Die Prüfung läuft still im Hintergrund; gefragt wird
   // erst, wenn etwas bereitliegt - und nie mitten im Spiel.
@@ -2023,18 +2172,33 @@ app.whenReady().then(async () => {
     setInterval(() => updater.jetztPruefen({ stillWennAktuell: true }), 6 * 60 * 60 * 1000);
   }
 
+  // Einen bereits bestehenden Autostart-Eintrag in die heutige Form bringen.
+  // Wer ihn eingeschaltet hat, als er noch auf blankes Electron zeigte,
+  // bekaeme sonst weiter beim Hochfahren ein leeres Electron-Fenster.
+  if (autostart.pflegeEintrag()) {
+    logger.info('Autostart-Eintrag in der aktuellen Form neu geschrieben');
+  }
+
+  let angemeldet = false;
   try {
     const existingUser = await steamClient.me();
     if (existingUser) {
       currentUser = existingUser;
+      angemeldet = true;
       updateTrayStatus('Eingeloggt · aktuell kein Spiel offen');
       startPolling();
       ladeXpStand();
-    } else {
-      updateTrayStatus('Bereit - bitte über das Tray-Menü mit Steam anmelden');
     }
   } catch (err) {
-    updateTrayStatus('Bereit - bitte über das Tray-Menü mit Steam anmelden');
+    /* Kein Konto erkannt - unten wird danach gefragt. */
+  }
+
+  if (!angemeldet) {
+    updateTrayStatus('Nicht angemeldet');
+    // Erst die Begruessung zu Ende laufen lassen. Zwei Dinge, die
+    // gleichzeitig um Aufmerksamkeit bitten, sind eines zu viel - und die
+    // Begruessung ist genau dann am Bildschirm, wenn dieses Fenster aufginge.
+    setTimeout(zeigeAnmeldung, restDerBegruessung());
   }
 });
 

@@ -2,6 +2,72 @@
 
 ## Noch nicht veröffentlicht
 
+### Anmeldefenster beim Start
+
+Ohne angemeldetes Steam-Konto kann die App gar nichts — keine Bibliothek,
+keine Achievements, keine XP. Bisher stand das nur als Zeile im Tray-Menü.
+Wer die nicht las, hatte ein Programm, das schweigend nichts tat.
+
+Jetzt geht direkt nach der Begrüßung ein Fenster auf, das erklärt, wozu die
+Anmeldung gebraucht wird — aber nur, wenn wirklich niemand angemeldet ist.
+Es wartet, bis die Begrüßung durchgelaufen ist, und zwar genau den Rest ihrer
+Laufzeit: Bis Backend und Steam geantwortet haben, ist meist schon einiges
+davon vorbei.
+
+Das Logo darin zeichnet sich Strich für Strich auf wie in der Begrüßung —
+aus zwei Fenstern wird so ein Ablauf statt zweier Auftritte.
+
+### Behoben: Der Autostart startete das falsche Programm
+
+In der Registrierung stand:
+
+```
+electron.app.Electron
+    ...\overlay
+ode_modules\electron\dist\electron.exe --hidden
+```
+
+Also blankes Electron **ohne die App, die es laden soll**. Beim Hochfahren
+ging deshalb Electrons eigenes Standardfenster auf statt des Overlays — genau
+das leere Fenster, das so unprofessionell aussah. Der Autostart funktionierte,
+nur eben für das falsche Programm.
+
+**Und der Schalter zeigte immer „aus“.** `setEnabled` schrieb mit
+`args: ['--hidden']`, `isEnabled` las **ohne** `args` — Electron vergleicht die
+Argumente aber mit. Nachgemessen:
+
+| Abfrage | Ergebnis |
+|---|---|
+| nur `path` (so las der alte Code) | `openAtLogin = false` |
+| `path` + `args: ['--hidden']` | `openAtLogin = true` |
+
+Zwei Stellen, zwei Wahrheiten. Es gibt jetzt eine Stelle, die beschreibt, wie
+der Eintrag aussieht; Schreiben und Lesen benutzen dieselbe.
+
+Weiter gemessen: Steht der Pfad zur App als Positionsargument im Befehl (nur
+in der Entwicklungsfassung nötig), meldet **keine** Lesevariante `true` —
+Electron vergleicht nur Schalter. Dort wird deshalb `executableWillLaunchAtLogin`
+ausgewertet.
+
+Der Eintrag heißt jetzt **Trophäenschrank** statt `electron.app.Electron` — so
+steht er auch im Autostart-Verzeichnis von Windows. Ein vorhandener Eintrag in
+der alten Form wird beim nächsten Start automatisch umgeschrieben.
+
+### Das Steam-Anmeldefenster sieht nicht mehr nach Entwicklerwerkzeug aus
+
+Dasselbe unsichtbare Fenster, über das alle Anfragen laufen, wird beim
+Anmelden sichtbar geschaltet — und war nur mit `show: false` angelegt. Es ging
+mit Electrons Standardsymbol, dem Titel der geladenen Seite und einer
+Menüleiste auf. Jetzt mit eigenem Titel („Bei Steam anmelden“), dem App-Symbol,
+ohne Menüleiste und ohne weißes Aufblitzen.
+
+### Nur noch eine Instanz
+
+Fällt mit dem Autostart zusammen: Startet die App beim Hochfahren und man
+startet sie danach von Hand noch einmal, gab es zwei Overlays, zwei Symbole in
+der Taskleiste und zwei Versuche, das Backend auf demselben Port zu starten.
+Der zweite Start beendet sich jetzt sofort wieder.
+
 ### Behoben: Das Spiel minimierte sich, sobald die Maus über die Liste fuhr
 
 Shift+Tab drücken, mit dem Zeiger über die Achievement-Übersicht fahren —

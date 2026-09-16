@@ -9,21 +9,44 @@ const { BrowserWindow } = require('electron');
  * teilen.
  */
 class SteamClient {
-  constructor(baseUrl) {
+  /**
+   * @param {string} baseUrl
+   * @param {string} [iconPfad] - Symbol fuer das sichtbare Anmeldefenster.
+   */
+  constructor(baseUrl, iconPfad) {
     this.baseUrl = baseUrl;
-    this.window = new BrowserWindow({
+    this.iconPfad = iconPfad;
+    this.window = this._neuesFenster();
+    this.ready = this.window.loadURL(baseUrl);
+  }
+
+  /**
+   * Das Fenster ist die meiste Zeit unsichtbar und dient nur als Traeger fuer
+   * die Anfragen. Beim Anmelden wird genau dieses Fenster sichtbar geschaltet
+   * - und dann sieht man alles, was hier fehlt.
+   *
+   * Vorher stand hier nur `show: false`. Beim Anmelden ging deshalb ein
+   * Fenster mit Electrons Standardsymbol, dem Titel der geladenen Seite und
+   * einer Menueleiste (Datei / Bearbeiten / Ansicht) auf. Das sah aus wie ein
+   * vergessenes Entwicklerfenster, nicht wie ein Teil des Programms.
+   */
+  _neuesFenster() {
+    return new BrowserWindow({
       show: false,
+      width: 980,
+      height: 760,
+      title: 'Bei Steam anmelden',
+      // Sonst blitzt beim Sichtbarwerden kurz eine weisse Flaeche auf.
+      backgroundColor: '#171b23',
+      autoHideMenuBar: true,
+      icon: this.iconPfad || undefined,
       webPreferences: { contextIsolation: true, nodeIntegration: false },
     });
-    this.ready = this.window.loadURL(baseUrl);
   }
 
   _ensureWindow() {
     if (this.window.isDestroyed()) {
-      this.window = new BrowserWindow({
-        show: false,
-        webPreferences: { contextIsolation: true, nodeIntegration: false },
-      });
+      this.window = this._neuesFenster();
       this.ready = this.window.loadURL(this.baseUrl);
     }
   }
@@ -104,6 +127,11 @@ class SteamClient {
   /** Zeigt den Login sichtbar an; löst auf, sobald die Session steht. */
   async login() {
     this._ensureWindow();
+    // Steams Seite setzt ihren eigenen Titel. Ohne das hier stuende in der
+    // Fensterleiste die jeweilige Seitenueberschrift statt eines Satzes, der
+    // erklaert, warum dieses Fenster gerade offen ist.
+    this.window.setTitle('Bei Steam anmelden');
+    this.window.webContents.on('page-title-updated', (e) => e.preventDefault());
     this.window.show();
     return new Promise((resolve, reject) => {
       const check = setInterval(async () => {
