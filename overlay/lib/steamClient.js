@@ -81,6 +81,11 @@ class SteamClient {
     return this._fetch('/api/presence');
   }
 
+  /** Was zuletzt in diesem Spiel passiert ist - rein lokal, ohne Steam. */
+  rueckblick(appId) {
+    return this._fetch(`/api/games/${appId}/rueckblick`);
+  }
+
   completionTime(appId) {
     return this._fetch(`/api/games/${appId}/completion-time`);
   }

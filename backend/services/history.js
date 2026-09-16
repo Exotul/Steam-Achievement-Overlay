@@ -65,6 +65,46 @@ function verlauf({ seit = 0, limit = 200, appId = null } = {}) {
   return ereignisse.slice(-limit).reverse();
 }
 
+/**
+ * Was zuletzt in DIESEM Spiel passiert ist.
+ *
+ * Für die Spielstart-Meldung: Wer nach Wochen zurückkommt, weiß nicht mehr,
+ * wo er stand. Die Meldung zeigt bisher nur den Fortschritt ("12 von 45") -
+ * das sagt nichts darüber, ob das von gestern oder von vorletztem Jahr ist.
+ *
+ * Bewusst nur aus dem eigenen Verlauf, ohne eine einzige Steam-Abfrage: Der
+ * Spielstart ist der Moment, in dem die App am wenigsten bremsen darf.
+ *
+ * ACHTUNG BEI DER DEUTUNG: Der Verlauf kennt nur, was seit der Einrichtung
+ * der App freigeschaltet wurde. "Zuletzt" heißt deshalb "zuletzt eine Trophäe
+ * geholt", nicht "zuletzt gespielt" - und für ein Spiel ohne Einträge gibt es
+ * null statt einer Behauptung.
+ *
+ * @returns {{ts: number, name: string, category: string, anzahl: number}|null}
+ */
+function rueckblick({ appId, steamId = null } = {}) {
+  if (appId === null || appId === undefined) return null;
+
+  const eigene = storage
+    .leseEreignisse('achievements')
+    .filter((e) => String(e.appId) === String(appId))
+    .filter((e) => !steamId || String(e.steamId) === String(steamId));
+
+  if (eigene.length === 0) return null;
+
+  // Angehängt wird chronologisch, aber darauf verlassen wir uns nicht: Eine
+  // gekürzte oder von Hand bearbeitete Datei soll hier nichts durcheinander
+  // bringen.
+  const letztes = eigene.reduce((a, b) => (b.ts > a.ts ? b : a));
+
+  return {
+    ts: letztes.ts,
+    name: letztes.name,
+    category: letztes.category,
+    anzahl: eigene.length,
+  };
+}
+
 /** Zusammenfassung je Tag - Grundlage für eine spätere Verlaufsansicht. */
 function proTag({ tage = 30 } = {}) {
   const seit = Date.now() - tage * 24 * 60 * 60 * 1000;
@@ -83,4 +123,4 @@ function proTag({ tage = 30 } = {}) {
   return [...nachTag.values()].sort((a, b) => a.tag.localeCompare(b.tag));
 }
 
-module.exports = { achievementFreigeschaltet, xpStand, verlauf, proTag };
+module.exports = { achievementFreigeschaltet, xpStand, verlauf, proTag, rueckblick };

@@ -73,6 +73,12 @@ function standard() {
     panelTaste: 'Control+Shift+A',
     // Zusätzlich automatisch aufgehen, wenn Steams Overlay erkannt wird.
     panelBeiSteamOverlay: true,
+
+    // --- Bilanz am Ende einer Spielsitzung ---
+    // Erscheint nur, wenn in der Sitzung wirklich etwas erreicht wurde. Wer
+    // beim Beenden eines Spiels trotzdem lieber gar nichts sehen will,
+    // schaltet es hier ab.
+    sitzungsbilanz: true,
   };
 }
 
@@ -128,6 +134,7 @@ function bereinige(roh) {
     panelTaste: typeof e.panelTaste === 'string' ? e.panelTaste.trim() : s.panelTaste,
     panelBeiSteamOverlay:
       e.panelBeiSteamOverlay === undefined ? s.panelBeiSteamOverlay : !!e.panelBeiSteamOverlay,
+    sitzungsbilanz: e.sitzungsbilanz === undefined ? s.sitzungsbilanz : !!e.sitzungsbilanz,
   };
 }
 

@@ -13,6 +13,7 @@ const els = {};
  'statusAbzeichen', 'position', 'ton-name', 'ton-waehlen', 'ton-entfernen',
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
+ 'sitzungsbilanz',
  // aus dem Tray-Menue hierher gezogen
  'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
  'updates', 'beenden', 'diagnose', 'keycheck', 'protokoll', 'protokollordner', 'aufzeichnung',
@@ -30,7 +31,7 @@ const REGLER = {
 };
 
 // Einstellungen, die nur an oder aus kennen.
-const SCHALTER = ['merklisteAktiv', 'panelBeiSteamOverlay'];
+const SCHALTER = ['merklisteAktiv', 'panelBeiSteamOverlay', 'sitzungsbilanz'];
 
 let werte = null;
 let bestaetigungTimer = null;

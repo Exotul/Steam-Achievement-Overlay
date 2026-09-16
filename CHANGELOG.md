@@ -2,6 +2,54 @@
 
 ## Noch nicht veröffentlicht
 
+### Bilanz am Ende einer Spielsitzung
+
+Beim Beenden eines Spiels passierte bisher nichts Sichtbares — eine Zeile ins
+Protokoll, das war alles. Dabei ist das der Moment, in dem sich zeigt, ob die
+letzten zwei Stunden etwas gebracht haben.
+
+Jetzt erscheint in der Bildschirmmitte eine kurze Übersicht: Spielzeit,
+Trophäen, XP, und der Levelaufstieg hervorgehoben, wenn es einen gab. Darunter
+die Aufschlüsselung nach Stufen („1× Gold, 2× Silber“).
+
+Mitgeschrieben wird während der Sitzung, nicht hinterher aus dem Verlauf
+gelesen: Der Verlauf kennt keine Sitzungsgrenzen — wer ein Spiel zweimal am
+Tag startet, bekäme beide Male dieselben Zahlen.
+
+**Wann sie nicht erscheint:** ohne eine einzige Trophäe (eine Karte mit „0
+Achievements“ liest sich wie ein Vorwurf), unter einer Minute Spielzeit, oder
+wenn sie in den Einstellungen abgeschaltet ist. Der Klang ist absteigend statt
+aufsteigend — ein Schluss, keine Ankündigung — und bewusst ruhiger als die
+Diamant-Feier.
+
+### „Zuletzt vor 3 Wochen“ in der Spielstart-Meldung
+
+Die Meldung zeigte Titel, Fortschritt und Tastenkürzel. „12 von 45“ sagt aber
+nichts darüber, ob das von gestern ist oder von vorletztem Jahr — und genau
+das ist die Frage, wenn man nach einer Pause zurückkommt.
+
+Jetzt steht eine Zeile darunter: **Zuletzt vor 3 Wochen · Silber »Rette die
+Crew«**. Kostet keine einzige Steam-Abfrage, die Angabe kommt aus dem eigenen
+Verlauf auf dieser Platte.
+
+Ehrlich bleibt sie dadurch, dass sie wegfällt, wenn nichts da ist: Der Verlauf
+kennt nur, was seit der Einrichtung freigeschaltet wurde. Ein Zeitstempel, der
+sich nicht deuten lässt, ergibt `null` statt „vor 56 Jahren“ — dafür gibt es
+zwölf Tests, inklusive der Stellen, an denen solche Funktionen üblicherweise
+auffallen („vor 1 Tagen“, „vor 1 Wochen“).
+
+### Nebenbei behoben: Die Spielstart-Meldung spielte den falschen Klang
+
+Sie rief `playWelcomeChime()` mit — und der ist seit dem Umbau der Begrüßung
+auf die vier Kanten des Logos getaktet: vier Töne zu vier Strichen. Die
+Spielstart-Meldung zeichnet aber kein Logo, sie zeigt es fertig. Vier Töne
+ohne die zugehörige Bewegung sind nur lang. Sie hat jetzt wieder den kurzen
+Zweiklang.
+
+Damit hat jeder Moment seinen eigenen Klang: Begrüßung (vierteilig,
+aufsteigend), Spielstart (Zweiklang), Sitzungsende (absteigend), Diamant
+(Fanfare, nur für 100 %).
+
 ### Anmeldefenster beim Start
 
 Ohne angemeldetes Steam-Konto kann die App gar nichts — keine Bibliothek,

@@ -344,6 +344,24 @@ function playWelcomeChime() {
 }
 
 /**
+ * Zweiklang beim Spielstart.
+ *
+ * Bis eben lief hier der Begruessungs-Jingle mit. Der ist seit dem Umbau auf
+ * die vier Kanten des Logos getaktet - vier Toene zu vier Strichen. Die
+ * Spielstart-Meldung zeichnet aber gar kein Logo, sie zeigt es fertig. Vier
+ * Toene ohne die zugehoerige Bewegung sind nur lang.
+ *
+ * Deshalb hier wieder der kurze Zweiklang, den die Begruessung vorher hatte:
+ * hoerbar verwandt, aber klar kuerzer - "ich habe das Spiel erkannt", nicht
+ * "das Programm ist gestartet".
+ */
+function playSpielStartChime() {
+  const ctx = getAudioCtx();
+  tone(ctx, { freq: 587.33, start: 0, dur: 0.24, gainPeak: 0.16 });
+  tone(ctx, { freq: 880, start: 0.15, dur: 0.45, gainPeak: 0.16 });
+}
+
+/**
  * Das Logo als vier einzelne Kanten.
  *
  * Ein geschlossener Pfad liesse sich zwar auch "ziehen", aber nur als eine
@@ -407,6 +425,96 @@ function showWelcomeToast() {
   }, 1150);
 
   setTimeout(() => el.remove(), 5800);
+}
+
+/*
+ * Bilanz am Ende einer Spielsitzung.
+ *
+ * Das Gegenstueck zur Begruessung: Die eine sagt "es geht los", diese sagt
+ * "das war es". Beim Spielende passierte bisher gar nichts Sichtbares.
+ *
+ * Bewusst ruhiger als die Diamant-Feier - kein Fanfarenklang, keine
+ * Funkenwolke. Das Spiel ist zu Ende, man sitzt vor dem Desktop; hier soll
+ * etwas stehen, das man liest und dann zufrieden wegklickt, nicht etwas, das
+ * einen anspringt.
+ */
+function playBilanzChime() {
+  const ctx = getAudioCtx();
+  // Absteigend statt aufsteigend - ein Schluss, keine Ankuendigung.
+  tone(ctx, { freq: 659.25, start: 0, dur: 0.4, gainPeak: 0.11, type: 'triangle' });
+  tone(ctx, { freq: 523.25, start: 0.16, dur: 0.6, gainPeak: 0.11, type: 'triangle' });
+  tone(ctx, { freq: 392.0, start: 0.32, dur: 1.1, gainPeak: 0.09, type: 'triangle' });
+}
+
+/**
+ * Die eigene Spielzeit - auf die Minute genau.
+ *
+ * Nicht formatDauer(): Die rundet auf halbe Stunden und ist fuer die
+ * Komplettierungszeit ANDERER Spieler gedacht, wo "etwa 12 Std" genau richtig
+ * ist. Die eigene Sitzung von eben kennt man aber; "2 Std" fuer 1 Std 47 wirkt
+ * dort schlicht falsch.
+ */
+function sitzungsDauer(minuten) {
+  if (minuten < 60) return `${minuten} Min`;
+  const stunden = Math.floor(minuten / 60);
+  const rest = minuten % 60;
+  return rest === 0 ? `${stunden} Std` : `${stunden} Std ${rest} Min`;
+}
+
+/** "1x Gold, 2x Silber" - in der Reihenfolge der Wertigkeit, nicht zufaellig. */
+function stufenZeile(nachStufe) {
+  return ['Platin', 'Gold', 'Silber', 'Kupfer']
+    .filter((name) => nachStufe[name] > 0)
+    .map((name) => {
+      const farbe = stufeVon(name).color;
+      return `<span class="bilanz__stufe" style="--tier-color:${farbe}">
+                <span class="bilanz__stufe-zahl">${nachStufe[name]}\u00d7</span> ${name}
+              </span>`;
+    })
+    .join('');
+}
+
+function showSitzungsbilanz({ gameName, minuten, anzahl, nachStufe, xp, levelVorher, levelNachher }) {
+  const aufstieg = Number.isFinite(levelVorher) && Number.isFinite(levelNachher)
+    && levelNachher > levelVorher;
+
+  const el = document.createElement('div');
+  el.className = 'bilanz';
+  el.innerHTML = `
+    <p class="bilanz__augenbraue">Sitzung beendet</p>
+    <h2 class="bilanz__spiel">${escapeHtml(gameName)}</h2>
+    <p class="bilanz__dauer">${escapeHtml(sitzungsDauer(minuten))} gespielt</p>
+
+    <div class="bilanz__zahlen">
+      <div class="bilanz__kachel">
+        <span class="bilanz__wert">${anzahl}</span>
+        <span class="bilanz__label">${anzahl === 1 ? 'Trophäe' : 'Trophäen'}</span>
+      </div>
+      <div class="bilanz__kachel">
+        <span class="bilanz__wert">+${xp}</span>
+        <span class="bilanz__label">XP</span>
+      </div>
+      ${
+        aufstieg
+          ? `<div class="bilanz__kachel bilanz__kachel--aufstieg">
+               <span class="bilanz__wert">${levelVorher} \u2192 ${levelNachher}</span>
+               <span class="bilanz__label">Level</span>
+             </div>`
+          : Number.isFinite(levelNachher)
+            ? `<div class="bilanz__kachel">
+                 <span class="bilanz__wert">${levelNachher}</span>
+                 <span class="bilanz__label">Level</span>
+               </div>`
+            : ''
+      }
+    </div>
+
+    <div class="bilanz__stufen">${stufenZeile(nachStufe || {})}</div>
+  `;
+  mitteLayer.appendChild(el);
+
+  playBilanzChime();
+  setTimeout(() => el.remove(), 9000);
 }
 
 // --- Warteschlange -----------------------------------------------------------
@@ -517,6 +625,29 @@ function showCompletionTime({ sampleSize, medianMinutes }) {
   ziel.insertBefore(el, ziel.firstChild);
 }
 
+/**
+ * "Zuletzt vor 3 Wochen · Silber »Kapitel 5«"
+ *
+ * Kommt nur, wenn im eigenen Verlauf wirklich etwas zu diesem Spiel steht.
+ * Der Verlauf kennt nur, was seit der Einrichtung der App freigeschaltet
+ * wurde - fuer ein Spiel ohne Eintraege bleibt die Zeile weg, statt etwas zu
+ * behaupten.
+ */
+function rueckblickZeile(r) {
+  if (!r || !r.wann) return '';
+
+  const stufe = stufeVon(r.category);
+  const trophaee = r.name
+    ? `<span class="toast__rueckblick-stufe" style="--tier-color:${stufe.color}">${escapeHtml(
+        r.category
+      )}</span> ${escapeHtml(r.name)}`
+    : '';
+
+  return `<p class="toast__rueckblick">Zuletzt ${escapeHtml(r.wann)}${
+    trophaee ? ` \u00b7 ${trophaee}` : ''
+  }</p>`;
+}
+
 function showGameStartedToast({
   gameName,
   unlockedCount,
@@ -524,6 +655,7 @@ function showGameStartedToast({
   isDiamond,
   difficulty,
   displaySeconds,
+  rueckblick,
 }) {
   // Standzeit: deutlich laenger als bei Achievement-Meldungen, weil beim
   // Spielstart oft noch Ladezeiten und Menues folgen.
@@ -554,6 +686,7 @@ function showGameStartedToast({
       <p class="toast__name">${escapeHtml(gameName)}</p>
       <p class="toast__meta">${escapeHtml(statusLine)}</p>
       ${hasCounts ? `<div class="toast__progress"><div class="toast__progress-fill" style="width:${pct}%"></div></div>` : ''}
+      ${rueckblickZeile(rueckblick)}
     </div>
     <div class="toast__side">
       ${
@@ -572,7 +705,7 @@ function showGameStartedToast({
 
   stack.appendChild(el);
   letzteSpielMeldung = el;
-  playWelcomeChime();
+  playSpielStartChime();
   setTimeout(() => el.remove(), dauer * 1000 + 200);
 }
 
@@ -823,6 +956,7 @@ function zeichneMerkliste() {
 
 window.overlayAPI.onAchievement(enqueueAchievement);
 window.overlayAPI.onGameDiamond(showDiamondCelebration);
+window.overlayAPI.onBilanz(showSitzungsbilanz);
 window.overlayAPI.onWelcome(showWelcomeToast);
 window.overlayAPI.onEinstellungen((werte) => {
   wendeEinstellungenAn(werte);

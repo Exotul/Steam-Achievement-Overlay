@@ -823,7 +823,164 @@ body.pos-unten-links #stack {
   }
 }
 
+/* ==========================================================================
+   Bilanz am Ende einer Spielsitzung
+   ==========================================================================
+   Das Gegenstueck zur Begruessung, in derselben Bildschirmmitte. Bewusst
+   ruhiger als die Diamant-Feier: kein drehender Farbrahmen, keine Funken.
+   Man sitzt in diesem Moment vor dem Desktop, nicht mehr im Spiel.
+   ========================================================================== */
+
+.bilanz {
+  position: relative;
+  min-width: 400px;
+  padding: 32px 44px 28px;
+  border-radius: 18px;
+  text-align: center;
+  background: rgba(15, 18, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 26px 64px -18px rgba(0, 0, 0, 0.8),
+    0 0 46px -14px rgba(139, 147, 224, 0.3);
+  animation:
+    bilanz-auf 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) forwards,
+    bilanz-zu 0.5s ease forwards 8.4s;
+  opacity: 0;
+}
+
+@keyframes bilanz-auf {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bilanz-zu {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+.bilanz__augenbraue {
+  margin: 0 0 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #767d8c;
+}
+
+.bilanz__spiel {
+  margin: 0;
+  font-family: 'Oswald', 'Segoe UI', sans-serif;
+  font-size: 1.62rem;
+  font-weight: 600;
+  color: #e8eaf0;
+}
+
+.bilanz__dauer {
+  margin: 3px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.84rem;
+  color: #9aa1b0;
+}
+
+/* Die drei Zahlen nebeneinander - das ist der Kern der Karte. */
+.bilanz__zahlen {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 22px 0 0;
+}
+
+.bilanz__kachel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 96px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.bilanz__wert {
+  font-family: 'Oswald', 'Segoe UI', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #e8eaf0;
+  line-height: 1.1;
+}
+
+.bilanz__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #767d8c;
+}
+
+/* Ein Levelaufstieg ist das Einzige auf dieser Karte, was hervorsticht. */
+.bilanz__kachel--aufstieg {
+  background: rgba(139, 147, 224, 0.13);
+  border-color: rgba(139, 147, 224, 0.32);
+}
+
+.bilanz__kachel--aufstieg .bilanz__wert {
+  color: #b9a8ff;
+}
+
+.bilanz__stufen {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  color: #9aa1b0;
+}
+
+.bilanz__stufe {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+/* Nur die Zahl traegt die Farbe der Stufe - stuende der ganze Eintrag in
+   Kupferbraun, waere die Zeile schwer zu lesen. */
+.bilanz__stufe-zahl {
+  color: var(--tier-color, #8b93e0);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bilanz {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* ---------- Spielstart-Meldung ---------- */
+
+/* Der Rueckblick ist Nebeninformation - er soll den Spielnamen und den Stand
+   nicht bedraengen. Deshalb kleiner, blasser und mit Abstand darunter. */
+.toast__rueckblick {
+  margin: 7px 0 0;
+  font-size: 0.74rem;
+  color: #767d8c;
+  line-height: 1.35;
+}
+
+.toast__rueckblick-stufe {
+  color: var(--tier-color, #8b93e0);
+  font-weight: 600;
+}
 
 .toast__progress {
   margin-top: 8px;

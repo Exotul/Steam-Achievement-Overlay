@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   onGameDiamond: (callback) => {
     ipcRenderer.on('game-diamond-unlocked', (_event, payload) => callback(payload));
   },
+  /** Bilanz am Ende einer Spielsitzung. */
+  onBilanz: (callback) => {
+    ipcRenderer.on('sitzungsbilanz', (_event, payload) => callback(payload));
+  },
   onGameStarted: (callback) => {
     ipcRenderer.on('game-started', (_event, payload) => callback(payload));
   },

@@ -129,6 +129,26 @@ router.post('/history/achievement', express.json(), (req, res) => {
   }
 });
 
+/**
+ * Rückblick auf ein einzelnes Spiel - für die Meldung beim Spielstart.
+ *
+ * Eigener Zugang statt /history?appId=...: Der würde nebenbei die
+ * Tagesübersicht der letzten 30 Tage mitberechnen, und die wird hier nicht
+ * gebraucht. Beim Spielstart zählt jede Millisekunde.
+ */
+router.get('/games/:appId/rueckblick', (req, res) => {
+  try {
+    res.json(
+      history.rueckblick({ appId: req.params.appId, steamId: req.user.steamId }) || null
+    );
+  } catch (err) {
+    // Ein fehlender Rückblick ist kein Fehler, der jemanden interessiert -
+    // die Meldung erscheint dann eben ohne die Zeile.
+    logger.warn('Rückblick konnte nicht gelesen werden: ' + err.message);
+    res.json(null);
+  }
+});
+
 router.get('/history', (req, res) => {
   res.json({
     verlauf: history.verlauf({

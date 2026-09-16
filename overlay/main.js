@@ -11,6 +11,7 @@ const { LocalWatcher, findSteamPath } = require('./lib/localWatcher');
 const ChangeRecorder = require('./lib/changeRecorder');
 const updater = require('./lib/updater');
 const autostart = require('./lib/autostart');
+const { lesbareSpanne } = require('./lib/zeitspanne');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -103,6 +104,18 @@ let unlockedBaseline = null;
 // Spiele, für die die Diamant-Feier in dieser Sitzung schon gezeigt wurde
 // (verhindert Wiederholung bei jedem weiteren Poll).
 const diamondCelebrated = new Set();
+
+/**
+ * Was in dieser Spielsitzung passiert ist.
+ *
+ * Wird beim Spielstart angelegt und beim Spielende zur Bilanz. Bewusst hier
+ * mitgeschrieben und nicht hinterher aus dem Verlauf gelesen: Der Verlauf
+ * kennt keine Sitzungsgrenzen - wer ein Spiel zweimal am Tag startet, bekaeme
+ * beide Male dieselben Zahlen.
+ *
+ * null heisst: gerade laeuft keine Sitzung.
+ */
+let sitzung = null;
 
 // Nachschlagewerk apiName -> angereichertes Achievement des aktuellen Spiels,
 // damit der Schnell-Modus (der nur apiNames kennt) sofort ein vollstaendiges
@@ -386,6 +399,15 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
   // nichts umstellen, was gar nicht erreicht wurde.
   if (!nurTest) sendToPanel('achievement-erreicht', achievement.apiName);
 
+  // Fuer die Bilanz am Ende der Sitzung mitschreiben. Tests zaehlen nicht -
+  // sonst stuende am Abend eine Trophaee in der Bilanz, die es nie gab.
+  if (!nurTest && sitzung) {
+    sitzung.erreicht.push({
+      category: achievement.category,
+      xp: xpInfo ? xpInfo.zuwachs : 0,
+    });
+  }
+
   // Im Verlauf festhalten - aber nur echte Freischaltungen, keine Tests.
   if (!nurTest) {
     steamClient
@@ -402,6 +424,88 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
         level: xpInfo ? xpInfo.level : null,
       })
       .catch(() => {});
+  }
+}
+
+/**
+ * "Zuletzt vor 3 Wochen - Silber »Kapitel 5«"
+ *
+ * Wer nach Wochen in ein Spiel zurueckkommt, weiss nicht mehr, wo er stand.
+ * Die Meldung zeigte bisher nur "12 von 45" - das sagt nichts darueber, ob
+ * das von gestern ist oder von vorletztem Jahr.
+ *
+ * Kostet keine Steam-Abfrage: Der Rueckblick kommt aus dem eigenen Verlauf,
+ * einer Datei auf dieser Platte. Schlaegt er fehl, faellt die Zeile weg -
+ * eine Spielstart-Meldung darf daran nicht haengen.
+ */
+async function holeRueckblick(appId) {
+  try {
+    const roh = await steamClient.rueckblick(appId);
+    if (!roh || !roh.ts) return null;
+
+    const wann = lesbareSpanne(roh.ts);
+    // Ohne brauchbaren Zeitpunkt lieber gar nichts. Eine erfundene Angabe
+    // waere schlimmer als keine - man richtet sich danach ein.
+    if (!wann) return null;
+
+    return { wann, name: roh.name, category: roh.category, anzahl: roh.anzahl };
+  } catch (err) {
+    return null;
+  }
+}
+
+const BILANZ_MINDESTDAUER_MS = 60 * 1000;
+
+/**
+ * Bilanz am Ende einer Spielsitzung.
+ *
+ * Beim Spielende passierte bisher nichts Sichtbares - eine Zeile im Protokoll,
+ * das war alles. Dabei ist genau das der Moment, in dem sich zeigt, ob die
+ * letzten zwei Stunden etwas gebracht haben.
+ *
+ * WANN SIE NICHT ERSCHEINT:
+ *
+ *  - Ohne eine einzige Trophaee. Eine Karte, die "0 Achievements" meldet,
+ *    liest sich wie ein Vorwurf. Wer nichts geholt hat, weiss das selbst.
+ *  - Unter einer Minute Spielzeit. Ein Fehlstart oder ein kurzes Hineinschauen
+ *    ist keine Sitzung.
+ *  - Wenn sie in den Einstellungen abgeschaltet ist.
+ */
+function zeigeSitzungsbilanz() {
+  const s = sitzung;
+  sitzung = null;
+  if (!s) return;
+
+  if (einstellungen.sitzungsbilanz === false) return;
+  if (s.erreicht.length === 0) return;
+
+  const dauerMs = Date.now() - s.beginn;
+  if (dauerMs < BILANZ_MINDESTDAUER_MS) return;
+
+  const nachStufe = {};
+  s.erreicht.forEach((e) => {
+    nachStufe[e.category] = (nachStufe[e.category] || 0) + 1;
+  });
+
+  const xpSumme = s.erreicht.reduce((summe, e) => summe + (e.xp || 0), 0);
+
+  const nutzlast = {
+    gameName: s.gameName,
+    minuten: Math.round(dauerMs / 60000),
+    anzahl: s.erreicht.length,
+    nachStufe,
+    xp: xpSumme,
+    levelVorher: s.levelVorher,
+    levelNachher: xpStand ? xpStand.level : s.levelVorher,
+  };
+
+  logger.info(
+    `Sitzungsbilanz ${s.gameName}: ${nutzlast.anzahl} Achievements, ` +
+      `+${xpSumme} XP, ${nutzlast.minuten} Min`
+  );
+
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('sitzungsbilanz', nutzlast);
   }
 }
 
@@ -449,6 +553,9 @@ async function checkPresence() {
     if (!presence.inGame) {
       if (trackedAppId !== null) {
         logger.info(`Spiel beendet: ${trackedGameName || trackedAppId}`);
+        // VOR dem Aufräumen: stopAchievementTracking() wirft trackedGameName
+        // und den Achievement-Index weg, und beides steckt in der Bilanz.
+        zeigeSitzungsbilanz();
         stopAchievementTracking();
       }
       updateTrayStatus('Eingeloggt · aktuell kein Spiel offen');
@@ -493,6 +600,16 @@ async function startAchievementTracking(appId, gameName) {
     unlockedBaseline = null;
   }
 
+  sitzung = {
+    appId,
+    gameName: gameName || `App ${appId}`,
+    beginn: Date.now(),
+    erreicht: [],
+    // Der Stand VOR der Sitzung - daraus wird spaeter "Level 15 -> 16".
+    levelVorher: xpStand ? xpStand.level : null,
+    xpVorher: xpStand ? xpStand.totalXp : null,
+  };
+
   updateTrayStatus(`Verfolge: ${gameName || appId}`);
 
   // Sichtbare Bestaetigung im Overlay: Das Spiel wurde erkannt und wird ab
@@ -506,6 +623,7 @@ async function startAchievementTracking(appId, gameName) {
       isDiamond: result.isDiamond,
       difficulty: result.difficulty ?? null,
       displaySeconds: einstellungen.spielStartDauerSek,
+      rueckblick: await holeRueckblick(appId),
     });
 
     // Die Komplettierungszeit liest nur bereits berechnete Freundesprofile
@@ -798,6 +916,12 @@ function stopLocalWatcher() {
 }
 
 function stopAchievementTracking() {
+  // Keine Verfolgung, keine Sitzung. zeigeSitzungsbilanz() raeumt selbst auf
+  // und wird VOR dieser Funktion gerufen - hier steht es noch einmal, damit
+  // die Regel nicht an der Aufrufreihenfolge haengt. Ueber stopPolling()
+  // landet man naemlich auch hier, und dann gibt es keine Bilanz.
+  sitzung = null;
+
   if (achievementTimer) clearInterval(achievementTimer);
   achievementTimer = null;
   if (panelOffen()) zeigePanel(false);
@@ -1159,6 +1283,9 @@ async function handleLogin(stillerFehler = false) {
 }
 
 function handleLogout() {
+  // Keine Bilanz beim Abmelden: Das Spiel laeuft dann ja noch, die Sitzung
+  // ist nicht zu Ende - nur wir schauen nicht mehr hin.
+  sitzung = null;
   stopPolling();
   steamClient.logout();
   currentUser = null;
