@@ -988,3 +988,329 @@
   padding: 11px 40px;
   text-align: center;
 }
+
+/* ==========================================================================
+   Verlauf
+   ==========================================================================
+   Die Farbrampe des Jahresrasters ist NACHGEMESSEN, nicht ausgesucht:
+   ein Farbton, streng monoton steigende Helligkeit (OKLab L 0,570 → 0,647 →
+   0,733 → 0,815) und jede Stufe über 3:1 Kontrast zur Fläche. Eine Heatmap
+   zeigt eine Größenordnung, und dafür ist genau das die richtige Form -
+   Regenbogenfarben würden eine Rangfolge behaupten, die es nicht gibt.
+
+   Jedes Kästchen nennt im Tooltip seinen genauen Wert, und darunter steht
+   dieselbe Information als Liste. Die Farbe muss die Zahl also nie allein
+   tragen.
+   ========================================================================== */
+
+.verlauf {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.verlauf__hinweis,
+.verlauf__leer {
+  padding: 28px 4px;
+  color: var(--ink-dim);
+}
+
+.verlauf__leer-titel {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- Zeitraumwahl ---------- */
+/* Die Steuerung steht in einer Zeile ÜBER den Zahlen, nicht dazwischen. */
+
+.verlauf__zeitraum {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-m);
+  background: var(--bg-inset);
+  flex-shrink: 0;
+}
+
+.verlauf__zeitraum-knopf {
+  padding: 6px 15px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.verlauf__zeitraum-knopf:hover {
+  color: var(--ink);
+}
+
+.verlauf__zeitraum-knopf--aktiv {
+  background: rgba(139, 147, 224, 0.2);
+  color: #b9beef;
+}
+
+/* ---------- Kennzahlen ---------- */
+/* Einzelne Werte gehören in Kacheln, nicht in ein Diagramm mit einem Balken. */
+
+.kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.kachel {
+  padding: 16px 18px;
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  border: 1px solid var(--hairline);
+}
+
+.kachel__wert {
+  margin: 0;
+  font-family: var(--font-num);
+  font-size: 1.9rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.kachel__label {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.kachel__zusatz {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+}
+
+/* ---------- Stufenanteile ---------- */
+/* Teil eines Ganzen: ein liegender Balken. Zwischen den Abschnitten liegen
+   2 px Fläche, damit ähnliche Töne nicht ineinanderlaufen. */
+
+.stufen__balken {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+
+.stufen__teil {
+  display: block;
+  min-width: 3px;
+}
+
+.stufen__legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+}
+
+.stufen__eintrag {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.stufen__eintrag strong {
+  color: var(--ink);
+  font-family: var(--font-num);
+}
+
+.stufen__punkt {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+/* ---------- Jahresraster ---------- */
+
+.raster {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  align-items: start;
+}
+
+.raster__tage {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  font-size: 0.66rem;
+  color: var(--ink-faint);
+}
+
+.raster__tag-name {
+  height: 13px;
+  line-height: 13px;
+}
+
+/* Waagerecht scrollbar statt gestaucht: Ein Jahr sind 53 Spalten, und wenn
+   die auf einem schmalen Fenster zusammengedrückt werden, ist kein Muster
+   mehr zu erkennen. */
+.raster__gitter {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.raster__woche {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.raster__zelle {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--bg-inset);
+}
+
+/* Die vier Datenstufen. Ein Farbton, Helligkeit steigend. */
+.raster__zelle--s0 {
+  background: rgba(255, 255, 255, 0.055);
+}
+.raster__zelle--s1 {
+  background: #636ec4;
+}
+.raster__zelle--s2 {
+  background: #7d86d6;
+}
+.raster__zelle--s3 {
+  background: #9aa2e8;
+}
+.raster__zelle--s4 {
+  background: #b8bef4;
+}
+
+/* Tage, die noch kommen: leer, aber erkennbar kein "nichts geschafft". */
+.raster__zelle--sx {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.raster__legende {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+.raster__legende > span:first-child {
+  margin-right: 3px;
+}
+
+.raster__legende > span:last-child {
+  margin-left: 3px;
+}
+
+/* ---------- Einzelne Freischaltungen ---------- */
+/* Zugleich die lesbare Fassung des Rasters: hier steht jede Trophäe mit
+   Namen, Spiel und Stufe - nicht nur als eingefärbtes Kästchen. */
+
+.verlauf__tage {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.verlauf-tag__kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.verlauf-tag__datum {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.verlauf-tag__summe {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.verlauf-tag__liste {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verlauf-eintrag {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) minmax(0, 0.7fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 4px;
+  font-size: 0.85rem;
+}
+
+.verlauf-eintrag:hover {
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: var(--radius-s);
+}
+
+.verlauf-eintrag__punkt {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.verlauf-eintrag__name {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verlauf-eintrag__spiel,
+.verlauf-eintrag__stufe {
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verlauf-eintrag__xp {
+  font-family: var(--font-num);
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .verlauf-eintrag {
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+  }
+  .verlauf-eintrag__spiel,
+  .verlauf-eintrag__stufe {
+    display: none;
+  }
+}

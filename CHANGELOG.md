@@ -2,6 +2,34 @@
 
 ## Noch nicht veröffentlicht
 
+### Neuer Reiter: Verlauf
+
+Das Overlay schreibt seit jeher jede Freischaltung mit — Spiel, Stufe,
+Prozentsatz, XP, Level, Zeitpunkt. Gezeigt wurde davon bisher nichts; der
+Endpunkt `GET /api/history` war fertig und wurde von niemandem aufgerufen.
+Jetzt gibt es die Ansicht dazu.
+
+- **Überblick** über 7, 30, 90 Tage oder ein Jahr: Anzahl, XP, bester Tag,
+  aktuelle Serie. Darunter die Verteilung auf die Trophäenstufen.
+- **Jahresraster** — ein Kästchen je Tag, eingefärbt nach Ausbeute.
+- **Zuletzt errungen** — jede Trophäe einzeln, nach Tagen gruppiert, mit
+  Spiel, Stufe und XP.
+
+Zur Gestaltung: Die Farbrampe des Rasters ist nachgemessen, nicht ausgesucht.
+Ein Farbton, streng monoton steigende Helligkeit (OKLab L 0,570 → 0,647 →
+0,733 → 0,815), jede Stufe über 3:1 Kontrast zur Fläche. Die Schwellen richten
+sich nach dem eigenen Höchstwert — wer an guten Tagen drei Trophäen holt,
+sieht dieselbe Spanne wie jemand mit dreißig.
+
+Jedes Kästchen nennt seinen Wert auch als Text für Vorlesewerkzeuge, und
+dieselben Zahlen stehen darunter als Liste. Die Farbe trägt nie allein eine
+Aussage.
+
+Die Datumsrechnungen liegen abhängigkeitsfrei in `frontend/src/lib/verlauf.js`
+und sind mit 28 Tests abgedeckt — Zeitzonen, Monatsgrenzen, Schaltjahre und
+Wochen über den Jahreswechsel fallen beim Draufschauen nicht auf.
+
+
 ### Merkliste: Nachsehen und Pflegen sind jetzt getrennt
 
 Die Übersicht im Spiel nahm den Fokus, sobald man hineinklickte — und damit

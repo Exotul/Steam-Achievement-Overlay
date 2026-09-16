@@ -11,6 +11,7 @@ import GameGrid from './components/GameGrid';
 import GameDetailModal from './components/GameDetailModal';
 import FriendsPanel from './components/FriendsPanel';
 import FriendProfileView from './components/FriendProfileView';
+import VerlaufPanel from './components/VerlaufPanel';
 import { useFriendProfiles } from './lib/useFriendProfiles';
 
 export default function App() {
@@ -20,7 +21,7 @@ export default function App() {
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedGameOwner, setSelectedGameOwner] = useState(null); // null = eigenes Profil
-  const [tab, setTab] = useState('profil'); // profil | freunde
+  const [tab, setTab] = useState('profil'); // profil | freunde | verlauf
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [friendsRefresh, setFriendsRefresh] = useState(0);
   const [steamErreichbar, setSteamErreichbar] = useState(true);
@@ -174,6 +175,15 @@ export default function App() {
         >
           Freunde{friends.length > 0 ? ` (${friends.length})` : ''}
         </button>
+        <button
+          className={`tab${tab === 'verlauf' ? ' tab--active' : ''}`}
+          onClick={() => {
+            setTab('verlauf');
+            setSelectedFriend(null);
+          }}
+        >
+          Verlauf
+        </button>
       </nav>
 
       <main className="app__main">
@@ -222,6 +232,8 @@ export default function App() {
               </>
             )}
           </>
+        ) : tab === 'verlauf' ? (
+          <VerlaufPanel />
         ) : selectedFriend ? (
           <FriendProfileView
             friend={friendsWithLevel.find((f) => f.steamId === selectedFriend) || {}}

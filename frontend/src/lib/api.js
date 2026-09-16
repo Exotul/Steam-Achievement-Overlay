@@ -29,6 +29,14 @@ export const api = {
   friendAchievements: (steamId, appId) =>
     request(`/api/friends/${steamId}/games/${appId}/achievements`),
   releaseDates: (appIds) => request(`/api/release-dates?appIds=${appIds.join(',')}`),
+  /**
+   * Trophaeenverlauf. Das Overlay schreibt ihn seit jeher mit; hier wird er
+   * gelesen. `tage` steuert nur die Tagesuebersicht, `limit` die Liste der
+   * einzelnen Freischaltungen.
+   */
+  history: ({ tage = 366, limit = 400 } = {}) =>
+    request(`/api/history?tage=${tage}&limit=${limit}`),
+
   friendProfile: (steamId, refresh = false) =>
     request(`/api/friends/${steamId}/profile${refresh ? '?refresh=1' : ''}`),
 };
