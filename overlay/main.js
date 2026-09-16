@@ -178,7 +178,7 @@ function merkeSpielname(appId, name) {
 }
 // Steht die Uebersicht gerade offen? Davon haengt ab, ob das Overlay-Fenster
 // Mausklicks annimmt.
-let panelOffen = false;
+let panelWindow = null;
 
 // Lokale Achievement-Datei, deren Parser sich gegen den von Steam
 // bestaetigten Stand als korrekt erwiesen hat. Nur dann wird sie genutzt.
@@ -243,7 +243,12 @@ function createOverlayWindow() {
   // Ebene (z. B. andere Overlays).
   overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1);
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  // EINMAL und nie wieder. Jeder spaetere Aufruf von setIgnoreMouseEvents
+  // wuerde diesem transparenten Fenster WS_EX_LAYERED wegnehmen und damit ein
+  // Vollbildspiel minimieren - die Messung dazu steht in overlay/panel/panel.html.
+  // `forward` braucht es nicht mehr: Seit die Uebersicht ein eigenes Fenster
+  // hat, verfolgt hier niemand mehr den Mauszeiger.
+  overlayWindow.setIgnoreMouseEvents(true);
   overlayWindow.loadFile(path.join(__dirname, 'overlay', 'overlay.html'));
 
   // Manche Spiele reissen beim Start in den Vollbildmodus den
@@ -270,6 +275,69 @@ function createOverlayWindow() {
       overlayWindow.webContents.send('show-welcome');
     }
   });
+}
+
+/**
+ * Fenster fuer die Achievement-Uebersicht.
+ *
+ * WARUM EIGENES FENSTER: Die Uebersicht war ein Kasten im Overlay-Fenster.
+ * Damit man sie bedienen konnte, musste dieses bildschirmfuellende,
+ * transparente Fenster Klicks annehmen - und genau das minimierte das Spiel.
+ * Die Messung steht in overlay/panel/panel.html.
+ *
+ * Dieses Fenster nimmt die Maus von Anfang an an und aendert seine
+ * Fensterstile deshalb nie. Es wird einmal beim Start angelegt und danach nur
+ * noch ein- und ausgeblendet - ein Fenster, das es schon gibt, stoert weniger
+ * als eines, das mitten im Spiel neu entsteht.
+ */
+function createPanelWindow() {
+  const anzeige = gewaehlterBildschirm();
+  const { breite, hoehe, x, y } = panelMasse(anzeige);
+
+  panelWindow = new BrowserWindow({
+    width: breite,
+    height: hoehe,
+    x,
+    y,
+    show: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    movable: false,
+    // Wie das Overlay: nicht fokussierbar. Ein Fenster, in das man tippt,
+    // gehoert nicht ueber ein laufendes Spiel. Klicks kommen trotzdem an.
+    focusable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'panel', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  panelWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+  panelWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  panelWindow.loadFile(path.join(__dirname, 'panel', 'panel.html'));
+}
+
+/** Groesse und Lage der Uebersicht - mittig auf dem gewaehlten Bildschirm. */
+function panelMasse(anzeige) {
+  const b = anzeige.bounds;
+  const breite = Math.round(Math.min(760, b.width * 0.82));
+  const hoehe = Math.round(b.height * 0.78);
+  return {
+    breite,
+    hoehe,
+    x: Math.round(b.x + (b.width - breite) / 2),
+    y: Math.round(b.y + (b.height - hoehe) / 2),
+  };
+}
+
+function sendToPanel(kanal, nutzlast) {
+  if (!panelWindow || panelWindow.isDestroyed()) return;
+  panelWindow.webContents.send(kanal, nutzlast);
 }
 
 /**
@@ -310,6 +378,12 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
       (xpInfo ? ` +${xpInfo.zuwachs} XP, Level ${xpInfo.level}${xpInfo.levelUp ? ' AUFSTIEG' : ''}` : '')
   );
   overlayWindow.webContents.send('achievement-unlocked', { ...achievement, xp: xpInfo, nurTest });
+
+  // Die Uebersicht ist ein eigenes Fenster und haelt eine eigene Kopie. Sie
+  // bekommt nur den Namen - mehr braucht sie nicht, um den Eintrag sofort von
+  // "offen" auf "erreicht" zu drehen. Tests bleiben aussen vor: Sie sollen
+  // nichts umstellen, was gar nicht erreicht wurde.
+  if (!nurTest) sendToPanel('achievement-erreicht', achievement.apiName);
 
   // Im Verlauf festhalten - aber nur echte Freischaltungen, keine Tests.
   if (!nurTest) {
@@ -655,7 +729,7 @@ async function starteStatusAbzeichen() {
       // Uebersicht bedienbar.
       if (!einstellungen.panelBeiSteamOverlay) return;
       if (offen) zeigePanel(true);
-      else if (panelOffen) zeigePanel(false);
+      else if (panelOffen()) zeigePanel(false);
     },
   });
 
@@ -725,7 +799,7 @@ function stopLocalWatcher() {
 function stopAchievementTracking() {
   if (achievementTimer) clearInterval(achievementTimer);
   achievementTimer = null;
-  if (panelOffen) zeigePanel(false);
+  if (panelOffen()) zeigePanel(false);
   stopLocalWatcher();
   stoppeWiederholtePruefung();
   stoppeStatusAbzeichen();
@@ -986,82 +1060,49 @@ function einstellungenFuerOverlay() {
  * fragen nie selbst bei Steam nach.
  */
 function sendeSpielDaten() {
-  sendToOverlay('spiel-daten', {
+  const daten = {
     appId: trackedAppId,
     gameName: trackedGameName,
     achievements: [...achievementIndex.values()],
     merkliste: todoModul.fuerSpiel(merklisten, trackedAppId),
-  });
+  };
+  // Beide Fenster bekommen dasselbe. Sie halten je eine eigene Kopie, statt
+  // sich gegenseitig Zustand zuzuschieben - das waere die Art Kopplung, die
+  // spaeter niemand mehr durchschaut.
+  sendToOverlay('spiel-daten', daten);
+  sendToPanel('spiel-daten', daten);
+}
+
+/** Ist die Uebersicht gerade zu sehen? */
+function panelOffen() {
+  return !!panelWindow && !panelWindow.isDestroyed() && panelWindow.isVisible();
 }
 
 /**
  * Uebersicht ein- oder ausblenden.
  *
- * Der Mausfang haengt daran: Das Overlay-Fenster ignoriert Klicks sonst
- * vollstaendig, weil es ueber dem Spiel liegt. Nur solange die Uebersicht
- * offen ist, nimmt es welche an.
+ * Nur noch show/hide - kein Umschalten von Fensterstilen mehr, weder hier
+ * noch am Overlay. Genau das war der Grund, warum sich das Spiel minimierte.
  */
 function zeigePanel(sichtbar) {
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  const zeigen = sichtbar === undefined ? !panelOffen : !!sichtbar;
-  if (zeigen && achievementIndex.size === 0) {
+  if (!panelWindow || panelWindow.isDestroyed()) return;
+  const zeigen = sichtbar === undefined ? !panelOffen() : !!sichtbar;
+
+  if (!zeigen) {
+    panelWindow.hide();
+    return;
+  }
+
+  if (achievementIndex.size === 0) {
     logger.info('Übersicht angefordert, aber kein Spiel mit Achievements verfolgt');
     return;
   }
-  if (zeigen) sendeSpielDaten();
-  sendToOverlay('panel', zeigen);
-}
 
-/**
- * Wird vom Overlay gemeldet, sobald sich der Zustand tatsaechlich geaendert hat.
- *
- * WAS HIER NICHT MEHR PASSIERT - und warum:
- *
- * Frueher wurde bei offener Uebersicht der Mausfang fuer das GANZE Fenster
- * eingeschaltet. Das Fenster ist bildschirmfuellend und unsichtbar; es hat
- * damit jeden Klick geschluckt, auch die fuer Steams Overlay und das Spiel.
- * Von aussen sah das aus, als haenge der Rechner - alles reagierte noch,
- * aber nichts bekam die Klicks. Der Mausfang wird jetzt punktgenau
- * geschaltet: Nur waehrend der Zeiger ueber der Uebersicht steht, siehe
- * setzeMausdurchlass().
- *
- * Ebenso wurde hier focus() gerufen. Das nimmt Steams Overlay im selben
- * Moment den Fokus weg, in dem es aufgeht. Jetzt wird das Fenster nur noch
- * fokussierBAR gemacht - den Fokus holt es sich erst, wenn jemand
- * ausdruecklich hineinklickt, und das ist eine bewusste Handlung.
- */
-function setzePanelZustand(offen) {
-  panelOffen = !!offen;
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-
-  // Grundzustand ist IMMER durchlaessig.
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-
-  // Und das Fenster ist NIE fokussierbar - auch nicht bei offener Uebersicht.
-  //
-  // Das war der eigentliche Konstruktionsfehler: Sobald dieses Fenster den
-  // Fokus bekommen kann, holt Windows ihn sich beim ersten Klick, und damit
-  // ist man aus dem Spiel heraus. Alles fuehlt sich danach an, als haenge es.
-  // Wegprogrammieren laesst sich das nicht - ein Fenster, in das man tippt,
-  // gehoert schlicht nicht ueber ein laufendes Spiel.
-  //
-  // Folge: In der Uebersicht laesst sich klicken (Haken, Filter, +1), aber
-  // nicht tippen. Ein nicht fokussierbares Fenster bekommt unter Windows
-  // weiterhin Mausklicks, nur eben keine Tastatur. Alles, wofuer man tippen
-  // muss, liegt deshalb im eigenen Merklisten-Fenster (Tray-Menue).
-  overlayWindow.setFocusable(false);
-}
-
-/**
- * Schaltet den Mausfang punktgenau.
- *
- * Das Overlay meldet beim Bewegen des Zeigers, ob er gerade ueber einem
- * bedienbaren Bereich steht. Nur dann nimmt das Fenster Klicks an - sonst
- * gehen sie hindurch an das, was darunter liegt.
- */
-function setzeMausdurchlass(ueberBedienbar) {
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  overlayWindow.setIgnoreMouseEvents(!ueberBedienbar, { forward: true });
+  sendeSpielDaten();
+  // showInactive statt show: show() wuerde den Fokus anfordern und damit
+  // Steams Overlay im selben Moment stoeren, in dem es aufgeht.
+  panelWindow.showInactive();
+  panelWindow.setAlwaysOnTop(true, 'screen-saver', 1);
 }
 
 function sendToOverlay(kanal, nutzlast) {
@@ -1553,6 +1594,13 @@ function wendeEinstellungenAn(vorher) {
       // Nach dem Umsetzen die Ebene neu behaupten, sonst rutscht das Overlay
       // auf manchen Systemen hinter andere Fenster.
       overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+
+      // Die Uebersicht ist ein eigenes Fenster und muss mit umziehen.
+      if (panelWindow && !panelWindow.isDestroyed()) {
+        const m = panelMasse(gewaehlterBildschirm());
+        panelWindow.setBounds({ x: m.x, y: m.y, width: m.breite, height: m.hoehe });
+        panelWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+      }
     }
     sendToOverlay('einstellungen', einstellungenFuerOverlay());
   }
@@ -1919,18 +1967,14 @@ ipcMain.handle('merkliste:notiz-aendern', (_e, id, aenderung) => {
   return merklisteAntwort(ergebnis.grund);
 });
 
-ipcMain.handle('panel:zustand', (_e, offen) => {
-  setzePanelZustand(offen);
-  return true;
-});
-
-ipcMain.handle('panel:maus', (_e, ueberBedienbar) => {
-  setzeMausdurchlass(ueberBedienbar);
+ipcMain.handle('panel:schliessen', () => {
+  zeigePanel(false);
   return true;
 });
 
 app.whenReady().then(async () => {
   createOverlayWindow();
+  createPanelWindow();
   createTray();
   setzeTastenkuerzel();
   // Der Schluessel wird VOR dem Backend gebraucht: Es bekommt ihn beim

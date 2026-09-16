@@ -42,9 +42,24 @@ function init({ istInstalliert, spielLaeuftPruefung }) {
     return false;
   }
 
-  // Herunterladen ja, installieren nein - das entscheidet der Nutzer.
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = false;
+
+  /*
+   * Einspielen beim naechsten Beenden.
+   *
+   * Vorher stand hier `false`. Gedacht war das als Schutz davor, dass sich
+   * die App mitten im Spiel neu startet - der Schutz ist richtig, nur greift
+   * er hier gar nicht: Diese Einstellung installiert erst, wenn die App
+   * ohnehin beendet wird. Waehrend eines Spiels passiert das nicht.
+   *
+   * Mit `false` gab es dagegen einen echten Fall, in dem nie aktualisiert
+   * wurde: Wer den Hinweis einmal auf "Spaeter" schiebt, bekommt ihn in
+   * derselben Sitzung nicht wieder - und beim naechsten Start liegt das
+   * Update zwar fertig heruntergeladen da, wird aber nicht eingespielt.
+   * Die Nachfrage unten bleibt; sie ist nur nicht mehr die einzige
+   * Gelegenheit.
+   */
+  autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = {
     info: (m) => logger.info('Updates: ' + m),
     warn: (m) => logger.warn('Updates: ' + m),

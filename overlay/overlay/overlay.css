@@ -349,7 +349,7 @@ body.pos-unten-links #stack {
    also wirklich die Bildschirmmitte. Die gewoehnlichen Meldungen bleiben in
    ihrer eingestellten Ecke - der Diamant ist der eine Moment, der den Blick
    vom Spiel wegholen darf. */
-#diamond-layer {
+#mitte-layer {
   position: fixed;
   inset: 0;
   display: flex;
@@ -680,6 +680,147 @@ body.pos-unten-links #stack {
   opacity: 0;
   animation: sparkle-fly var(--dur, 1.1s) ease-out forwards;
   animation-delay: var(--delay, 0s);
+}
+
+/* ==========================================================================
+   Begruessung beim Start
+   ==========================================================================
+   Stand frueher als gewoehnliche Meldung in der eingestellten Ecke. Sie ist
+   aber das Erste, was man von der App sieht - und das gehoert in die Mitte,
+   nicht an den Rand.
+
+   Das Logo baut sich Strich fuer Strich auf, und zu jedem Strich erklingt
+   ein Ton. Die vier Kanten sind deshalb vier einzelne Pfade statt eines
+   geschlossenen Umrisses: Nur so laesst sich jede fuer sich zeichnen.
+   ========================================================================== */
+
+.willkommen {
+  position: relative;
+  padding: 44px 56px 38px;
+  border-radius: 20px;
+  text-align: center;
+  background: rgba(13, 16, 22, 0.94);
+  box-shadow:
+    0 28px 70px -18px rgba(0, 0, 0, 0.8),
+    0 0 60px -14px rgba(95, 211, 232, 0.42);
+  animation:
+    willkommen-auf 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) forwards,
+    willkommen-zu 0.6s ease forwards 5.1s;
+  opacity: 0;
+}
+
+@keyframes willkommen-auf {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes willkommen-zu {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.willkommen__marke {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  margin: 0 auto 22px;
+}
+
+.willkommen__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 12px rgba(95, 211, 232, 0.5));
+}
+
+/*
+ * Jede Kante ist genau 62.2 Einheiten lang (die Raute hat 88 Einheiten
+ * Diagonale, also sqrt(44^2 + 44^2) je Seite). Mit dieser Laenge als
+ * Strichmuster laesst sich der Strich von 0 auf voll "ziehen".
+ */
+.willkommen__kante {
+  stroke-dasharray: 63;
+  stroke-dashoffset: 63;
+  animation: kante-ziehen 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Diese vier Zeitpunkte stehen auch in overlay.js (KANTEN_TAKT) - dort
+   sitzen die Toene darauf. Aendert sich einer, muss der andere mit. */
+.willkommen__kante:nth-child(1) { animation-delay: 0.25s; }
+.willkommen__kante:nth-child(2) { animation-delay: 0.43s; }
+.willkommen__kante:nth-child(3) { animation-delay: 0.61s; }
+.willkommen__kante:nth-child(4) { animation-delay: 0.79s; }
+
+@keyframes kante-ziehen {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Die Flaeche kommt erst, wenn der Umriss geschlossen ist. */
+.willkommen__flaeche {
+  opacity: 0;
+  animation: flaeche-ein 0.7s ease-out 1.1s forwards;
+}
+
+@keyframes flaeche-ein {
+  to {
+    opacity: 1;
+  }
+}
+
+.willkommen__titel {
+  margin: 0 0 6px;
+  font-family: 'Oswald', 'Segoe UI', sans-serif;
+  font-size: 1.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: linear-gradient(90deg, #7fe3f5, #b9a8ff, #7fe3f5);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0;
+  animation:
+    shimmer-text 3.2s linear infinite,
+    willkommen-text-ein 0.5s ease-out 1.15s forwards;
+}
+
+.willkommen__unter {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 0.85rem;
+  color: #9aa1b0;
+  opacity: 0;
+  animation: willkommen-text-ein 0.5s ease-out 1.35s forwards;
+}
+
+@keyframes willkommen-text-ein {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .willkommen__kante {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .willkommen__flaeche,
+  .willkommen__titel,
+  .willkommen__unter {
+    opacity: 1;
+    animation: none;
+  }
 }
 
 /* ---------- Spielstart-Meldung ---------- */
@@ -1361,502 +1502,8 @@ body.pos-unten-links #stack {
   transition: width 0.4s ease-out;
 }
 
-/* ==========================================================================
-   Uebersicht aller Achievements
-   ==========================================================================
-   Das einzige Fenster im Overlay, das Mausklicks annimmt. Der Hauptprozess
-   schaltet den Mausfang nur ein, solange es offen ist - sonst waere das
-   ganze Overlay fuer das Spiel darunter im Weg.
-   ========================================================================== */
-
-.panel {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(760px, 82vw);
-  max-height: 78vh;
-  display: flex;
-  flex-direction: column;
-  border-radius: 16px;
-  background: rgba(17, 20, 27, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.9);
-  font-family: 'Inter', 'Segoe UI', sans-serif;
-  color: #e8eaf0;
-  pointer-events: auto;
-  animation: panel-auf 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes panel-auf {
-  from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-
-.panel__kopf {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 22px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.panel__spiel {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-
-.panel__stand {
-  margin: 3px 0 0;
-  font-size: 0.85rem;
-  color: #9aa1b0;
-}
-
-.panel__zu {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #9aa1b0;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.panel__zu:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #e8eaf0;
-}
-
-.panel__werkzeuge {
-  display: flex;
-  gap: 10px;
-  padding: 14px 22px;
-}
-
-.panel__suche {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e8eaf0;
-  font-family: inherit;
-  font-size: 0.85rem;
-}
-
-.panel__suche:focus {
-  outline: none;
-  border-color: #8b93e0;
-}
-
-.panel__filter {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.panel__filter-knopf {
-  padding: 5px 12px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #9aa1b0;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.panel__filter-knopf:hover {
-  color: #e8eaf0;
-}
-
-.panel__filter-knopf[aria-pressed='true'] {
-  background: rgba(139, 147, 224, 0.2);
-  color: #b9beef;
-}
-
-.panel__liste {
-  margin: 0;
-  padding: 0 12px 6px;
-  list-style: none;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.panel__liste::-webkit-scrollbar {
-  width: 9px;
-}
-
-.panel__liste::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 5px;
-}
-
-.panel-eintrag {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 10px;
-  border-radius: 10px;
-}
-
-.panel-eintrag:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.panel-eintrag--erreicht .panel-eintrag__name {
-  color: #9aa1b0;
-}
-
-.panel-eintrag__icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 7px;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-.panel-eintrag--offen .panel-eintrag__icon {
-  filter: grayscale(0.6) brightness(0.8);
-}
-
-.panel-eintrag__text {
-  flex: 1;
-  min-width: 0;
-}
-
-.panel-eintrag__name {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.panel-eintrag__desc {
-  margin: 2px 0 0;
-  font-size: 0.76rem;
-  color: #767d8c;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.panel-eintrag__meta {
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 0.72rem;
-  color: #767d8c;
-}
-
-.panel-eintrag__stufe {
-  display: block;
-  font-weight: 700;
-  color: var(--tier-color, #9aa1b0);
-}
-
-/* Der Haken fuer die Merkliste. Bewusst gross genug, um ihn auch mit einem
-   Controller-Mauszeiger zu treffen. */
-.panel-eintrag__haken {
-  width: 26px;
-  height: 26px;
-  flex-shrink: 0;
-  border-radius: 7px;
-  border: 1.5px solid rgba(255, 255, 255, 0.16);
-  background: transparent;
-  color: transparent;
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
-}
-
-.panel-eintrag__haken:hover {
-  border-color: #8b93e0;
-}
-
-.panel-eintrag__haken[aria-pressed='true'] {
-  background: #8b93e0;
-  border-color: #8b93e0;
-  color: #12151c;
-}
-
-.panel-eintrag--erreicht .panel-eintrag__haken {
-  visibility: hidden;
-}
-
-/* ---------- Eigene Eintraege im Panel ---------- */
-
-.panel__notizen {
-  margin: 0 22px 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(107, 211, 154, 0.06);
-  border: 1px solid rgba(107, 211, 154, 0.18);
-}
-
-.panel__notizen-titel {
-  margin: 0 0 7px;
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 1.1px;
-  text-transform: uppercase;
-  color: #6bd39a;
-}
-
-.panel-notiz {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 4px 0;
-  font-size: 0.84rem;
-}
-
-.panel-notiz--abschnitt .panel-notiz__text {
-  padding: 3px 9px;
-  border-radius: 5px;
-  background: rgba(107, 211, 154, 0.16);
-  border-left: 3px solid #6bd39a;
-  color: #a8e8c6;
-  font-weight: 700;
-  font-size: 0.76rem;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  flex: 0 1 auto;
-}
-
-.panel-notiz__zahl {
-  flex-shrink: 0;
-  font-family: 'Space Mono', 'Consolas', monospace;
-  font-size: 0.8rem;
-  color: #9aa1b0;
-}
-
-.panel-notiz__plus,
-.panel-notiz__bearbeiten {
-  width: 26px;
-  height: 22px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  background: transparent;
-  color: #9aa1b0;
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.panel-notiz__plus:hover,
-.panel-notiz__bearbeiten:hover {
-  border-color: #6bd39a;
-  color: #6bd39a;
-}
-
-.panel-notiz__punkt {
-  width: 7px;
-  height: 7px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1.5px solid #6bd39a;
-}
-
-.panel-notiz__text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.panel-notiz__weg {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #767d8c;
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.panel-notiz__weg:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e07a7a;
-}
-
-.panel__fuss {
-  padding: 11px 22px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: 0.76rem;
-  color: #767d8c;
-  min-height: 18px;
-}
-
-/* Der Knopf, der das Eingabefeld erst hervorholt. Es dauerhaft anzuzeigen
-   waere Platzverschwendung fuer etwas, das man selten braucht. */
-.panel__notiz-auf {
-  padding: 7px 14px;
-  margin-bottom: 9px;
-  border: 1px dashed rgba(107, 211, 154, 0.35);
-  border-radius: 8px;
-  background: transparent;
-  color: #6bd39a;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.panel__notiz-auf:hover {
-  background: rgba(107, 211, 154, 0.1);
-  border-style: solid;
-}
-
-.panel__notiz {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 9px;
-}
-
-.panel__notiz-zeile {
-  display: flex;
-  gap: 8px;
-}
-
-/* Die Artenwahl steht ueber dem Feld, nicht daneben: Sie aendert, was in das
-   Feld gehoert - das soll man vorher sehen, nicht daneben suchen. */
-.panel__arten {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  align-self: flex-start;
-}
-
-.panel__art-knopf {
-  padding: 4px 12px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #767d8c;
-  font-family: inherit;
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.panel__art-knopf:hover {
-  color: #e8eaf0;
-}
-
-.panel__art-knopf[aria-pressed='true'] {
-  background: rgba(107, 211, 154, 0.18);
-  color: #6bd39a;
-}
-
-.panel__notiz-zahlen {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
-
-.panel__notiz-stand,
-.panel__notiz-ziel {
-  width: 62px;
-  padding: 8px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e8eaf0;
-  font-family: 'Space Mono', 'Consolas', monospace;
-  font-size: 0.82rem;
-  text-align: center;
-}
-
-.panel__notiz-stand:focus,
-.panel__notiz-ziel:focus {
-  outline: none;
-  border-color: #6bd39a;
-}
-
-.panel__notiz-trenner {
-  color: #767d8c;
-}
-
-.panel__notiz-ab {
-  width: 34px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
-  background: transparent;
-  color: #767d8c;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.panel__notiz-ab:hover {
-  color: #e07a7a;
-  border-color: rgba(224, 122, 122, 0.4);
-}
-
-.panel__notiz-feld {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e8eaf0;
-  font-family: inherit;
-  font-size: 0.84rem;
-}
-
-.panel__notiz-feld::placeholder {
-  color: #545b69;
-}
-
-.panel__notiz-feld:focus {
-  outline: none;
-  border-color: #6bd39a;
-}
-
-.panel__notiz-knopf {
-  padding: 8px 15px;
-  border: 1px solid rgba(107, 211, 154, 0.35);
-  border-radius: 8px;
-  background: rgba(107, 211, 154, 0.12);
-  color: #6bd39a;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.panel__notiz-knopf:hover {
-  background: rgba(107, 211, 154, 0.22);
-}
-
-.panel__leer {
-  padding: 34px 12px;
-  text-align: center;
-  color: #767d8c;
-  font-size: 0.85rem;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .merkliste,
-  .panel,
   .merkliste__eintrag--erledigt {
     animation: none;
   }

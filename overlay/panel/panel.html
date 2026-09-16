@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Trophäenschrank – Übersicht</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <!--
+      Eigenes Fenster, nicht mehr ein Kasten im Overlay.
+
+      WARUM (nachgemessen, nicht vermutet): Das Overlay-Fenster ist
+      bildschirmfüllend und transparent. Damit man die Liste bedienen konnte,
+      wurde beim Betreten mit der Maus `setIgnoreMouseEvents(false)` gerufen.
+      Das nimmt einem transparenten Fenster unter Windows die Eigenschaft
+      WS_EX_LAYERED — nachgemessen an den Fensterstilen:
+
+          ruhend :  0x08080028  TRANSPARENT | LAYERED | NOACTIVATE | TOPMOST
+          Maus   :  0x08000008                         NOACTIVATE | TOPMOST
+
+      LAYERED ist das, was das Fenster überhaupt erst vom Desktop-Compositor
+      mischen lässt. Sie zu entfernen zwingt ihn, die Fensterfläche neu
+      aufzubauen — und das wirft ein Spiel aus dem exklusiven Vollbild, was
+      Windows durch Minimieren auflöst. Genau das war zu beobachten.
+
+      Dieses Fenster nimmt die Maus von Anfang an an und ändert seine Stile
+      deshalb nie. Das Overlay-Fenster daneben ist jetzt dauerhaft
+      durchlässig und rührt sie ebenfalls nie mehr an.
+    -->
+    <div id="panel" class="panel">
+      <header class="panel__kopf">
+        <div>
+          <h1 class="panel__spiel"></h1>
+          <p class="panel__stand"></p>
+        </div>
+        <button class="panel__zu" type="button" title="Schließen">✕</button>
+      </header>
+      <div class="panel__werkzeuge">
+        <div class="panel__filter" role="group">
+          <button class="panel__filter-knopf" data-filter="offen">Offen</button>
+          <button class="panel__filter-knopf" data-filter="erreicht">Erreicht</button>
+          <button class="panel__filter-knopf" data-filter="alle">Alle</button>
+        </div>
+      </div>
+      <ul class="panel__liste"></ul>
+      <footer class="panel__fuss">
+        <span class="panel__hinweis"></span>
+      </footer>
+    </div>
+    <script src="panel.js"></script>
+  </body>
+</html>

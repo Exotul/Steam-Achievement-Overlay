@@ -14,7 +14,10 @@
   </head>
   <body>
     <div id="stack"></div>
-    <div id="diamond-layer"></div>
+    <!-- Bildschirmmitte. Teilen sich die Begruessung beim Start und die
+         Diamant-Feier - beide sind Momente, die den Blick holen duerfen,
+         und sie koennen nie gleichzeitig auftreten. -->
+    <div id="mitte-layer"></div>
 
     <!-- Merkliste, dauerhaft oben links angedockt. -->
     <div id="merkliste" class="merkliste" hidden>
@@ -22,27 +25,6 @@
       <ul class="merkliste__liste"></ul>
     </div>
 
-    <!-- Übersicht aller Achievements des laufenden Spiels. -->
-    <div id="panel" class="panel" hidden>
-      <header class="panel__kopf">
-        <div>
-          <h1 class="panel__spiel"></h1>
-          <p class="panel__stand"></p>
-        </div>
-        <button class="panel__zu" type="button" title="Schließen">✕</button>
-      </header>
-      <div class="panel__werkzeuge">
-        <div class="panel__filter" role="group">
-          <button class="panel__filter-knopf" data-filter="offen">Offen</button>
-          <button class="panel__filter-knopf" data-filter="erreicht">Erreicht</button>
-          <button class="panel__filter-knopf" data-filter="alle">Alle</button>
-        </div>
-      </div>
-      <ul class="panel__liste"></ul>
-      <footer class="panel__fuss">
-        <span class="panel__hinweis"></span>
-      </footer>
-    </div>
     <div id="status-badge" class="status-badge status-badge--hidden">
       <img class="status-badge__logo" src="../assets/app-icon.png" alt="" />
       <div class="status-badge__text">

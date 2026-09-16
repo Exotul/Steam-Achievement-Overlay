@@ -25,6 +25,7 @@
       "main.js",
       "lib/**/*",
       "overlay/**/*",
+      "panel/**/*",
       "setup/**/*",
       "settings/**/*",
       "merkliste/**/*",

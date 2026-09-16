@@ -6,7 +6,7 @@ const TIERS = {
 };
 
 const stack = document.getElementById('stack');
-const diamondLayer = document.getElementById('diamond-layer');
+const mitteLayer = document.getElementById('mitte-layer');
 let audioCtx = null;
 
 /**
@@ -275,7 +275,7 @@ function showDiamondCelebration({ gameName, icon }) {
       <span>${escapeHtml(gameName || 'Spiel abgeschlossen')}</span>
     </p>
   `;
-  diamondLayer.appendChild(el);
+  mitteLayer.appendChild(el);
 
   playDiamondFanfare();
 
@@ -311,40 +311,102 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Sanfter Begrüßungs-Zweiklang - bewusst ruhiger als die Erfolgs-Sounds,
-// damit klar ist "Overlay ist bereit", nicht "du hast etwas erreicht".
+/*
+ * Begruessungs-Jingle.
+ *
+ * AUSDRUECKLICH NICHT die Diamant-Fanfare: Die gehoert dem einen Moment, in
+ * dem ein Spiel zu hundert Prozent steht, und verliert ihre Wirkung, wenn man
+ * sie bei jedem Start hoert.
+ *
+ * Stattdessen ein A-Dur-Dreiklang, aufwaerts - ein Ton je gezeichneter Kante
+ * des Logos, im selben Takt wie die Animation. Dass Bild und Ton denselben
+ * Puls haben, ist das, was daraus mehr macht als Bild plus Ton. Zum Schluss
+ * liegen alle drei Toene zusammen, leiser und laenger: Der Dreiklang loest
+ * sich auf, statt einfach aufzuhoeren.
+ */
+const KANTEN_TAKT = [0.25, 0.43, 0.61, 0.79];
+
 function playWelcomeChime() {
   const ctx = getAudioCtx();
-  tone(ctx, { freq: 587.33, start: 0, dur: 0.24, gainPeak: 0.16 });
-  tone(ctx, { freq: 880, start: 0.15, dur: 0.45, gainPeak: 0.16 });
+  const stufen = [440, 554.37, 659.25, 880]; // A - Cis - E - A
+
+  KANTEN_TAKT.forEach((start, i) => {
+    tone(ctx, { freq: stufen[i], start, dur: 0.5, gainPeak: 0.13, type: 'triangle' });
+    // Eine leise Oktave darueber gibt dem Ton etwas Glaesernes, ohne ihn
+    // lauter zu machen.
+    tone(ctx, { freq: stufen[i] * 2, start, dur: 0.3, gainPeak: 0.035 });
+  });
+
+  const schluss = KANTEN_TAKT[3] + 0.34;
+  [440, 554.37, 659.25].forEach((freq) => {
+    tone(ctx, { freq, start: schluss, dur: 1.5, gainPeak: 0.075, type: 'triangle' });
+  });
+}
+
+/**
+ * Das Logo als vier einzelne Kanten.
+ *
+ * Ein geschlossener Pfad liesse sich zwar auch "ziehen", aber nur als eine
+ * durchgehende Linie. Vier Pfade heisst vier Striche, jeder mit eigenem
+ * Einsatz - und genau darauf sitzen die vier Toene.
+ */
+function willkommenMarke() {
+  const ecken = [
+    [50, 6],
+    [94, 50],
+    [50, 94],
+    [6, 50],
+  ];
+  const kanten = ecken
+    .map((von, i) => {
+      const nach = ecken[(i + 1) % 4];
+      return `<path class="willkommen__kante" d="M ${von[0]} ${von[1]} L ${nach[0]} ${nach[1]}"
+                    fill="none" stroke="#7fe3f5" stroke-width="7" stroke-linecap="round" />`;
+    })
+    .join('\n        ');
+
+  return `
+    <div class="willkommen__marke">
+      <svg class="willkommen__svg" viewBox="0 0 100 100" aria-hidden="true">
+        <path class="willkommen__flaeche" d="M 50 6 L 94 50 L 50 94 L 6 50 Z"
+              fill="#1b2029" stroke="none" />
+        <!-- Eigene Gruppe: Die Kanten muessen Kind 1 bis 4 sein, sonst
+             greifen die gestaffelten Verzoegerungen im CSS daneben. -->
+        <g class="willkommen__kanten">
+        ${kanten}
+        </g>
+      </svg>
+    </div>`;
 }
 
 function showWelcomeToast() {
   const el = document.createElement('div');
-  el.className = 'toast toast--shine toast--glow';
-  el.style.setProperty('--tier-color', '#5fd3e8');
-  el.style.setProperty('--tier-glow', '#5fd3e855');
-
+  el.className = 'willkommen';
   el.innerHTML = `
-    <div class="toast__logo">${logoSvg('#5fd3e8', '#5fd3e855')}</div>
-    <div class="toast__text">
-      <p class="toast__eyebrow">Trophäenschrank</p>
-      <p class="toast__name">Happy Trophy Hunting!</p>
-      <p class="toast__meta">Overlay ist bereit</p>
-    </div>
-    <div class="toast__tier-badge">
-      <span class="toast__tier-label">Bereit</span>
-    </div>
+    ${willkommenMarke()}
+    <h2 class="willkommen__titel">Happy Trophy Hunting!</h2>
+    <p class="willkommen__unter">Trophäenschrank ist bereit</p>
   `;
-  stack.appendChild(el);
+  mitteLayer.appendChild(el);
 
   playWelcomeChime();
-  spawnSparkles(el.querySelector('.toast__logo'), {
-    count: 6,
-    colors: ['#5fd3e8', '#9a8cf2', '#ffffff'],
-  });
 
-  setTimeout(() => el.remove(), 8600);
+  // Funken erst, wenn der Umriss geschlossen ist - vorher waeren sie nur
+  // Unruhe neben einer Linie, die sich noch zeichnet.
+  const marke = el.querySelector('.willkommen__marke');
+  setTimeout(() => {
+    if (marke.isConnected) {
+      spawnSparkles(marke, {
+        count: 10,
+        colors: ['#7fe3f5', '#b9a8ff', '#ffffff'],
+        size: [3, 6],
+        distance: [45, 80],
+        duration: [0.7, 1.2],
+      });
+    }
+  }, 1150);
+
+  setTimeout(() => el.remove(), 5800);
 }
 
 // --- Warteschlange -----------------------------------------------------------
@@ -658,7 +720,6 @@ function setzeSpiel(daten) {
     },
   };
   zeichneMerkliste();
-  if (!panelEl.hidden) zeichnePanel();
 }
 
 /** Einzelnes Achievement als erreicht markieren, ohne alles neu zu laden. */
@@ -680,7 +741,6 @@ function markiereErreicht(apiName) {
       zeichneMerkliste();
     }
   }
-  if (!panelEl.hidden) zeichnePanel();
 }
 
 /** Fuer Attributselektoren: Steam-API-Namen sind zwar zahm, aber nicht garantiert. */
@@ -742,219 +802,24 @@ function zeichneMerkliste() {
 
 /* ==========================================================================
    Uebersicht
+   ==========================================================================
+   Liegt seit dem Minimier-Fehler in einem EIGENEN Fenster (overlay/panel/).
+
+   Das hier ist ein transparentes, bildschirmfuellendes Fenster. Damit man
+   die Liste bedienen konnte, musste es beim Betreten mit der Maus Klicks
+   annehmen - und `setIgnoreMouseEvents(false)` nimmt einem transparenten
+   Fenster unter Windows die Eigenschaft WS_EX_LAYERED. Nachgemessen:
+
+       ruhend :  0x08080028  TRANSPARENT | LAYERED | NOACTIVATE | TOPMOST
+       Maus   :  0x08000008                         NOACTIVATE | TOPMOST
+
+   Ohne LAYERED muss der Desktop-Compositor die Fensterflaeche neu aufbauen.
+   Das wirft ein Spiel aus dem exklusiven Vollbild, und Windows loest das
+   durch Minimieren auf.
+
+   Dieses Fenster nimmt jetzt NIE Klicks an und aendert seine Fensterstile
+   deshalb nie mehr. Alles Bedienbare liegt in eigenen Fenstern.
    ========================================================================== */
-
-const panelEl = document.getElementById('panel');
-let panelFilter = 'offen';
-
-function zeichnePanel() {
-  const alle = spiel.achievements;
-  const erreicht = alle.filter((a) => a.unlocked).length;
-
-  panelEl.querySelector('.panel__spiel').textContent = spiel.name || 'Kein Spiel erkannt';
-  panelEl.querySelector('.panel__stand').textContent = alle.length
-    ? `${erreicht} von ${alle.length} erreicht \u00b7 ${alle.length - erreicht} offen`
-    : 'Keine Achievements bekannt';
-
-  panelEl.querySelectorAll('.panel__filter-knopf').forEach((k) => {
-    k.setAttribute('aria-pressed', String(k.dataset.filter === panelFilter));
-  });
-
-  const gefiltert = alle
-    .filter((a) => {
-      if (panelFilter === 'offen' && a.unlocked) return false;
-      if (panelFilter === 'erreicht' && !a.unlocked) return false;
-      return true;
-    })
-    // Seltenes zuerst: Das ist das, was am ehesten eine Planung wert ist.
-    .sort((a, b) => a.globalPercent - b.globalPercent);
-
-  const liste = panelEl.querySelector('.panel__liste');
-  liste.innerHTML = '';
-
-  if (gefiltert.length === 0) {
-    const leer = document.createElement('li');
-    leer.className = 'panel__leer';
-    leer.textContent =
-      panelFilter === 'offen' ? 'Alles erreicht. Nichts mehr offen.' : 'Noch nichts erreicht.';
-    liste.appendChild(leer);
-  } else {
-    gefiltert.forEach((a) => liste.appendChild(panelEintrag(a)));
-  }
-
-  zeichneNotizen();
-
-  const gemerkt = merkEintraege().length;
-  panelEl.querySelector('.panel__hinweis').textContent =
-    (gemerkt ? `${gemerkt} auf der Merkliste \u00b7 ` : '') +
-    'Eigene Einträge im Tray-Menü unter „Merkliste bearbeiten…“';
-}
-
-/**
- * Eigene Eintraege stehen ueber der Achievement-Liste - sie sind wenige und
- * sollen nicht zwischen hunderten Achievements untergehen.
- */
-function zeichneNotizen() {
-  const alt = panelEl.querySelector('.panel__notizen');
-  if (alt) alt.remove();
-
-  const notizen = spiel.merkliste.notizen || [];
-  if (notizen.length === 0) return;
-
-  const kasten = document.createElement('div');
-  kasten.className = 'panel__notizen';
-  kasten.innerHTML = '<p class="panel__notizen-titel">Eigene Einträge</p>';
-
-  notizen.forEach((n) => {
-    const zeile = document.createElement('div');
-    zeile.className = `panel-notiz panel-notiz--${n.art}`;
-
-    const mitte =
-      n.art === 'tracker'
-        ? `<span class="panel-notiz__text">${escapeHtml(n.text)}</span>
-           <span class="panel-notiz__zahl">${n.stand} / ${n.ziel}</span>`
-        : `<span class="panel-notiz__text">${escapeHtml(n.text)}</span>`;
-
-    // Hier gibt es bewusst nur Knoepfe, kein Textfeld: Dieses Fenster darf
-    // den Fokus nicht nehmen, sonst ist man aus dem Spiel heraus. Ein
-    // Zaehler laesst sich damit hoch- und runterzaehlen - alles Weitere
-    // (Text aendern, anlegen, loeschen) im Merklisten-Fenster.
-    zeile.innerHTML = `
-      ${n.art === 'abschnitt' ? '' : '<span class="panel-notiz__punkt"></span>'}
-      ${mitte}
-      ${
-        n.art === 'tracker'
-          ? `<button class="panel-notiz__minus" type="button" title="Einen zurück"
-                     ${n.stand <= 0 ? 'disabled' : ''}>\u2212</button>
-             <button class="panel-notiz__plus" type="button" title="Einen hochzählen"
-                     ${n.stand >= n.ziel ? 'disabled' : ''}>+</button>`
-          : ''
-      }
-    `;
-
-    // Hoch- und runterzaehlen ist der einzige Griff, der im Spiel wirklich
-    // gebraucht wird - "ich habe gerade eine gefunden".
-    zeile.querySelector('.panel-notiz__plus')?.addEventListener('click', async () => {
-      uebernimmAntwort(await window.overlayAPI.notizAendern(n.id, { stand: n.stand + 1 }));
-    });
-    zeile.querySelector('.panel-notiz__minus')?.addEventListener('click', async () => {
-      uebernimmAntwort(await window.overlayAPI.notizAendern(n.id, { stand: n.stand - 1 }));
-    });
-    kasten.appendChild(zeile);
-  });
-
-  panelEl.querySelector('.panel__liste').before(kasten);
-}
-
-/** Antwort des Hauptprozesses uebernehmen - er kennt den gueltigen Stand. */
-function uebernimmAntwort(antwort) {
-  if (!antwort) return;
-  if (antwort.merkliste && typeof antwort.merkliste === 'object') {
-    spiel.merkliste = {
-      achievements: antwort.merkliste.achievements || [],
-      notizen: antwort.merkliste.notizen || [],
-    };
-    zeichneMerkliste();
-    zeichnePanel();
-  }
-  if (antwort.grund) panelEl.querySelector('.panel__hinweis').textContent = antwort.grund;
-}
-
-function panelEintrag(a) {
-  const stufe = stufeVon(a.category);
-  const gemerkt = (spiel.merkliste.achievements || []).includes(a.apiName);
-
-  const li = document.createElement('li');
-  li.className = `panel-eintrag ${a.unlocked ? 'panel-eintrag--erreicht' : 'panel-eintrag--offen'}`;
-  li.style.setProperty('--tier-color', stufe.color);
-  li.innerHTML = `
-    <img class="panel-eintrag__icon" src="${a.icon || '../assets/app-icon.png'}" alt=""
-         onerror="this.style.visibility='hidden'" />
-    <div class="panel-eintrag__text">
-      <p class="panel-eintrag__name">${escapeHtml(a.name)}</p>
-      ${a.description ? `<p class="panel-eintrag__desc">${escapeHtml(a.description)}</p>` : ''}
-    </div>
-    <div class="panel-eintrag__meta">
-      <span class="panel-eintrag__stufe">${a.category}</span>
-      ${a.globalPercent.toFixed(1)}%
-    </div>
-    <button class="panel-eintrag__haken" type="button"
-            aria-pressed="${gemerkt}"
-            title="${gemerkt ? 'Von der Merkliste nehmen' : 'Auf die Merkliste setzen'}">\u2713</button>
-  `;
-
-  li.querySelector('.panel-eintrag__haken').addEventListener('click', async () => {
-    uebernimmAntwort(await window.overlayAPI.merklisteSetzen(a.apiName, !gemerkt));
-  });
-
-  return li;
-}
-
-function zeigePanel(sichtbar) {
-  const zeigen = sichtbar === undefined ? panelEl.hidden : sichtbar;
-  if (zeigen) {
-    zeichnePanel();
-    panelEl.hidden = false;
-    // BEWUSST KEIN automatischer Fokus: Das Fenster geht auf, waehrend
-    // Steams Overlay erscheint - ihm in diesem Moment den Fokus wegzunehmen
-    // legt dessen Bedienung lahm. Wer tippen will, klickt hinein.
-  } else {
-    panelEl.hidden = true;
-    gibMausFrei();
-  }
-  // Der Hauptprozess schaltet den Mausfang - ohne das waere entweder das
-  // Panel nicht bedienbar oder das ganze Overlay dauerhaft im Weg.
-  window.overlayAPI.panelZustand(!panelEl.hidden);
-}
-
-/*
- * Mausdurchlass.
- *
- * Das Overlay-Fenster ist bildschirmfuellend und unsichtbar. Nimmt es
- * Klicks an, schluckt es ALLE - auch die fuer Steams Overlay und das Spiel;
- * von aussen sieht das aus, als haenge der Rechner. Es laesst deshalb
- * grundsaetzlich alles hindurch und nimmt nur dann etwas an, wenn der Zeiger
- * tatsaechlich ueber der Uebersicht steht.
- *
- * Die Bewegungsmeldungen kommen auch im durchlaessigen Zustand an (das
- * Fenster wird mit `forward: true` ignoriert), deshalb funktioniert die
- * Erkennung ueberhaupt.
- */
-let zeigerDrin = false;
-
-function pruefeZeiger(e) {
-  const drin = !panelEl.hidden && panelEl.contains(document.elementFromPoint(e.clientX, e.clientY));
-  if (drin === zeigerDrin) return;
-  zeigerDrin = drin;
-  window.overlayAPI.mausUeberBedienbar(drin);
-}
-
-document.addEventListener('mousemove', pruefeZeiger);
-
-/** Beim Schliessen den Durchlass wieder freigeben - sonst bleibt er haengen. */
-function gibMausFrei() {
-  if (!zeigerDrin) return;
-  zeigerDrin = false;
-  window.overlayAPI.mausUeberBedienbar(false);
-}
-
-panelEl.querySelector('.panel__zu').addEventListener('click', () => zeigePanel(false));
-panelEl.querySelectorAll('.panel__filter-knopf').forEach((k) => {
-  k.addEventListener('click', () => {
-    panelFilter = k.dataset.filter;
-    zeichnePanel();
-  });
-});
-// Escape kann dieses Fenster nicht erreichen - es nimmt bewusst keinen
-// Fokus. Geschlossen wird ueber das Kreuz oder dasselbe Tastenkuerzel, mit
-// dem es aufgegangen ist; das ist ein globales Kuerzel und braucht keinen
-// Fokus.
-
-// Ein "Klick daneben schliesst" gibt es bewusst NICHT mehr: Klicks neben der
-// Uebersicht erreichen dieses Fenster gar nicht, sie gehen an Steams Overlay
-// und das Spiel. Das ist der ganze Zweck des Durchlasses - man soll waehrend
-// der geoeffneten Uebersicht weiterhin alles andere bedienen koennen.
-// Geschlossen wird ueber das Kreuz, Escape oder das Tastenkuerzel.
 
 window.overlayAPI.onAchievement(enqueueAchievement);
 window.overlayAPI.onGameDiamond(showDiamondCelebration);
@@ -964,7 +829,6 @@ window.overlayAPI.onEinstellungen((werte) => {
   zeichneMerkliste();
 });
 window.overlayAPI.onSpielDaten(setzeSpiel);
-window.overlayAPI.onPanel(zeigePanel);
 // --- Ladebalken beim Start ---------------------------------------------------
 // Der XP-Gesamtstand wird EINMAL beim Start ermittelt (danach nur noch
 // fortgeschrieben). Das dauert bei grossen Bibliotheken einen Moment -

@@ -2,6 +2,76 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Das Spiel minimierte sich, sobald die Maus über die Liste fuhr
+
+Shift+Tab drücken, mit dem Zeiger über die Achievement-Übersicht fahren —
+und das Spiel sprang aus dem Vollbild. Reproduzierbar, jedes Mal.
+
+**Die Ursache, nachgemessen an den Fensterstilen** (nicht vermutet — die
+erste Vermutung, das Fenster werde wieder fokussierbar, war nachweislich
+falsch):
+
+| Zustand | Ex-Style | Flaggen |
+|---|---|---|
+| ruhend | `0x08080028` | TRANSPARENT \| **LAYERED** \| NOACTIVATE \| TOPMOST |
+| Zeiger auf der Liste | `0x08000008` | NOACTIVATE \| TOPMOST |
+
+Das Overlay ist ein bildschirmfüllendes, transparentes Fenster. Damit man die
+Liste darin bedienen konnte, musste es beim Betreten mit der Maus Klicks
+annehmen — und `setIgnoreMouseEvents(false)` nimmt einem transparenten
+Fenster unter Windows `WS_EX_LAYERED` weg. Das ist die Eigenschaft, die es
+überhaupt erst vom Desktop-Compositor mischen lässt. Ohne sie muss er die
+Fensterfläche neu aufbauen, und das wirft ein Spiel aus dem exklusiven
+Vollbild — was Windows durch Minimieren auflöst.
+
+Die Flagge lässt sich mit `setOpacity(1)` zurückholen (auch das gemessen),
+aber `setOpacity` benutzt unter Windows `SetLayeredWindowAttributes` und
+schaltet damit die **pixelgenaue** Transparenz ab. Statt des Overlays hätte
+im schlimmsten Fall ein schwarzes Rechteck über dem Spiel gelegen. Dieser Weg
+wurde deshalb verworfen.
+
+**Die Lösung:** Die Übersicht hat jetzt ein **eigenes Fenster**
+(`overlay/panel/`). Es nimmt die Maus von Anfang an an und ändert seine
+Fensterstile deshalb nie. Das Overlay-Fenster ist im Gegenzug dauerhaft
+durchlässig und rührt sie ebenfalls nie mehr an — aus einem Umschalten bei
+jeder Mausbewegung ist gar kein Umschalten mehr geworden.
+
+Beide Fenster halten ihre eigene Kopie der Spieldaten; der Hauptprozess
+schickt beiden dasselbe. Zwei Fenster, die sich gegenseitig Zustand
+zuschieben, wären genau die Art Kopplung, die später niemand mehr
+durchschaut.
+
+### Die Begrüßung steht in der Bildschirmmitte
+
+„Happy Trophy Hunting“ war eine gewöhnliche Meldung in der eingestellten
+Ecke. Dabei ist sie das Erste, was man von der App sieht.
+
+Jetzt in der Mitte — und das Logo baut sich **Strich für Strich** auf: vier
+Kanten, eine nach der anderen. Die vier Kanten sind deshalb vier einzelne
+Pfade statt eines geschlossenen Umrisses; nur so lässt sich jede für sich
+zeichnen. Zu jeder erklingt ein Ton (A-Dur aufwärts), zum Schluss liegen alle
+drei zusammen und klingen aus. Bild und Ton haben denselben Puls — das ist
+das, was daraus mehr macht als Bild plus Ton.
+
+**Ausdrücklich nicht die Diamant-Fanfare.** Die gehört dem einen Moment, in
+dem ein Spiel zu hundert Prozent steht, und verliert ihre Wirkung, wenn man
+sie bei jedem Start hört.
+
+### Updates werden jetzt auch wirklich eingespielt
+
+Geprüft wurde die ganze Kette: `electron-updater` liegt als echte
+Abhängigkeit im Paket, `app-update.yml` zeigt auf das richtige Repository,
+und `latest.yml` ist unter der Adresse erreichbar, die die App abfragt. Die
+App prüft 20 Sekunden nach dem Start und danach alle sechs Stunden, lädt im
+Hintergrund und fragt vor dem Einspielen — nie während eines Spiels.
+
+Eine Lücke war dabei: `autoInstallOnAppQuit` stand auf `false`. Wer den
+Hinweis einmal auf „Später“ schob, bekam ihn in derselben Sitzung nicht
+wieder — und beim nächsten Start lag das Update zwar fertig geladen da, wurde
+aber nicht eingespielt. Steht jetzt auf `true`: eingespielt wird beim nächsten
+Beenden, also nie mitten im Spiel. Die Nachfrage bleibt, sie ist nur nicht
+mehr die einzige Gelegenheit.
+
 ### Kein Konsolenfenster mehr
 
 `start.bat` rief `npm start` auf und endete mit `pause`. Dadurch stand die
