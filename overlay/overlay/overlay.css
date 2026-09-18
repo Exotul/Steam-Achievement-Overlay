@@ -321,6 +321,38 @@ body.pos-oben-links .xp-toast {
   }
 }
 
+/* ==========================================================================
+   DIAGNOSE - voruebergehend, wird nach der Auswertung wieder entfernt.
+   ==========================================================================
+   Vier Testvarianten (Strg+Alt+Umschalt+T im Spiel), jede mit genau EINER
+   Aenderung gegenueber der aktuellen Meldung. Alle Testmeldungen sind Gold.
+   ========================================================================== */
+
+/* 2: Nur der Grund zu 96 % statt voll deckend - wie vor dem 19.09. */
+.toast--metall.toast--diag-halb {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0, rgba(255, 255, 255, 0) 2px),
+    linear-gradient(112deg, rgba(255, 255, 255, 0) 18%, var(--glanz, rgba(255, 255, 255, 0.045)) 42%, rgba(255, 255, 255, 0) 64%),
+    linear-gradient(112deg, rgba(255, 255, 255, 0) 57%, var(--glanz-2, rgba(255, 255, 255, 0)) 62%, rgba(255, 255, 255, 0) 67%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='180'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.1 0 0 0 -0.03'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(55, 43, 15, 0.96), rgba(35, 27, 8, 0.96));
+  background-size: auto, auto, auto, 100% 100%, auto;
+  background-repeat: no-repeat;
+}
+
+/* 3: Nur 40 px Abstand zur Bildschirmecke - wie vor dem 19.09. */
+body.pos-unten-rechts .toast--diag-abstand { margin: 0 40px 40px 0; }
+body.pos-unten-links .toast--diag-abstand { margin: 0 0 40px 40px; }
+body.pos-oben-rechts .toast--diag-abstand { margin: 40px 40px 0 0; }
+body.pos-oben-links .toast--diag-abstand { margin: 40px 0 0 40px; }
+
+/* 4: Die Meldung wie am 18.09. - 96 % Grund, alle Ecken rund, kein Metall
+      (dazu der Abstand aus Variante 3). */
+body[class] .toast.toast--diag-alt {
+  background: rgba(21, 25, 32, 0.96);
+  border-radius: 18px;
+}
+
 /* diagonaler Lichtstreif, läuft einmal über die Karte - ab Silber aufwärts */
 .toast--shine::before {
   content: '';

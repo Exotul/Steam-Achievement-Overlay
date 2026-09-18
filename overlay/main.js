@@ -403,6 +403,19 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
   // nichts umstellen, was gar nicht erreicht wurde.
   if (!nurTest) sendToPanel('achievement-erreicht', achievement.apiName);
 
+  // Fuer die Fehlersuche: Passt das Overlay-Fenster noch zum Bildschirm? Kostet
+  // nichts und haette die Frage "warum sah ich nichts?" sofort beantwortet.
+  if (!nurTest && overlayWindow && !overlayWindow.isDestroyed()) {
+    const f = overlayWindow.getBounds();
+    const b = gewaehlterBildschirm().bounds;
+    const passt = f.width === b.width && f.height === b.height && f.x === b.x && f.y === b.y;
+    logger.info(
+      `  Overlay ${f.width}x${f.height} auf Bildschirm ${b.width}x${b.height}` +
+        (passt ? '' : '  <- PASST NICHT') +
+        `, sichtbar: ${overlayWindow.isVisible()}, oben: ${overlayWindow.isAlwaysOnTop()}`
+    );
+  }
+
   // Fuer die Bilanz am Ende der Sitzung mitschreiben. Tests zaehlen nicht -
   // sonst stuende am Abend eine Trophaee in der Bilanz, die es nie gab.
   if (!nurTest && sitzung) {
@@ -1850,22 +1863,46 @@ async function handleSchluesselEintragen() {
  * Bildschirm tatsaechlich geaendert hat - ein Fenster umzusetzen laesst es
  * kurz flackern, und das bei jedem Zug am Lautstaerkeregler waere unschoen.
  */
+/**
+ * Overlay und Uebersicht auf die aktuelle Groesse des gewaehlten Bildschirms
+ * setzen.
+ *
+ * Gebraucht beim Wechsel des Bildschirms in den Einstellungen - und, das fehlte
+ * bis hierher ganz, wenn sich der Bildschirm SELBST aendert: andere Aufloesung,
+ * Monitor ab- oder angesteckt, Skalierung geaendert. Das Overlay blieb dann in
+ * der alten Groesse stehen. Alles, was an seiner unteren rechten Ecke haengt
+ * (die Meldungen!), lag danach womoeglich ausserhalb des sichtbaren Bereichs.
+ *
+ * @returns {boolean} true, wenn sich tatsaechlich etwas geaendert hat
+ */
+function passeFensterAnBildschirmAn() {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return false;
+  const soll = gewaehlterBildschirm().bounds;
+  const ist = overlayWindow.getBounds();
+  const gleich =
+    ist.x === soll.x && ist.y === soll.y && ist.width === soll.width && ist.height === soll.height;
+  if (gleich) return false;
+
+  overlayWindow.setBounds({ x: soll.x, y: soll.y, width: soll.width, height: soll.height });
+  // Nach dem Umsetzen die Ebene neu behaupten, sonst rutscht das Overlay auf
+  // manchen Systemen hinter andere Fenster.
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+
+  // Die Uebersicht ist ein eigenes Fenster und muss mit umziehen.
+  if (panelWindow && !panelWindow.isDestroyed()) {
+    const m = panelMasse(gewaehlterBildschirm());
+    panelWindow.setBounds({ x: m.x, y: m.y, width: m.breite, height: m.hoehe });
+    panelWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+  }
+  logger.info(
+    `Overlay an den Bildschirm angepasst: ${ist.width}x${ist.height} -> ${soll.width}x${soll.height}`
+  );
+  return true;
+}
+
 function wendeEinstellungenAn(vorher) {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
-    if (!vorher || vorher.bildschirm !== einstellungen.bildschirm) {
-      const { x, y, width, height } = gewaehlterBildschirm().bounds;
-      overlayWindow.setBounds({ x, y, width, height });
-      // Nach dem Umsetzen die Ebene neu behaupten, sonst rutscht das Overlay
-      // auf manchen Systemen hinter andere Fenster.
-      overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1);
-
-      // Die Uebersicht ist ein eigenes Fenster und muss mit umziehen.
-      if (panelWindow && !panelWindow.isDestroyed()) {
-        const m = panelMasse(gewaehlterBildschirm());
-        panelWindow.setBounds({ x: m.x, y: m.y, width: m.breite, height: m.hoehe });
-        panelWindow.setAlwaysOnTop(true, 'screen-saver', 1);
-      }
-    }
+    if (!vorher || vorher.bildschirm !== einstellungen.bildschirm) passeFensterAnBildschirmAn();
     sendToOverlay('einstellungen', einstellungenFuerOverlay());
   }
 
@@ -2194,8 +2231,76 @@ function zeigeEinstellungen() {
  * nicht. Stattdessen ein eigenes Kuerzel, das ueberall funktioniert, plus
  * das automatische Aufgehen, sobald Steams Overlay erkannt wird.
  */
+/*
+ * Testmeldung per Tastenkuerzel - IM SPIEL, ohne es zu verlassen.
+ *
+ * Die Testknoepfe in den Einstellungen taugen fuer ein Spiel im exklusiven
+ * Vollbild nicht: Um sie zu druecken, muss man aus dem Spiel heraus, und
+ * genau das veraendert den Zustand, der geprueft werden soll.
+ *
+ * DIAGNOSE (voruebergehend): Jeder Druck zeigt die naechste von vier
+ * Varianten, jede mit genau EINER Aenderung gegenueber der aktuellen
+ * Meldung. Anlass: Bei Dead Space im exklusiven Vollbild war die Meldung vor
+ * den Gestaltungsaenderungen vom 19.09. sichtbar und danach nicht mehr - bei
+ * nachweislich ausgeloester Meldung. Welche Aenderung es war, laesst sich nur
+ * im Spiel feststellen. Die Varianten werden nach der Auswertung entfernt.
+ */
+const TEST_TASTE = 'Control+Alt+Shift+T';
+const TEST_VARIANTEN = [
+  { nr: 1, name: 'Aktuell', beschreibung: 'deckend, bündig, eckig, Metall' },
+  { nr: 2, name: 'Nur halbdeckend', beschreibung: 'wie 1, aber 96 % Deckkraft' },
+  { nr: 3, name: 'Nur mit Abstand', beschreibung: 'wie 1, aber 40 px vom Rand' },
+  { nr: 4, name: 'Wie am 18.09.', beschreibung: '96 %, 40 px, rund, ohne Metall' },
+];
+let testVarianteIndex = 0;
+
+function handleTestImSpiel() {
+  const v = TEST_VARIANTEN[testVarianteIndex % TEST_VARIANTEN.length];
+  testVarianteIndex += 1;
+
+  const echtesSymbol = [...achievementIndex.values()].find((a) => a.icon)?.icon;
+  sendAchievementToOverlay(
+    {
+      apiName: `TEST_${Date.now()}`,
+      name: `Test ${v.nr}: ${v.name}`,
+      description: v.beschreibung,
+      icon: echtesSymbol || '../assets/app-icon.png',
+      unlocked: true,
+      globalPercent: 7.1,
+      category: 'Gold',
+      diagVariante: v.nr,
+    },
+    true
+  );
+
+  // Alles festhalten, was fuer die Auswertung zaehlt. Die Vollbild-Abfrage
+  // kostet einen unsichtbaren PowerShell-Start und laeuft deshalb NACH dem
+  // Anzeigen, damit sie die Meldung nicht verzoegert.
+  const fenster = overlayWindow && !overlayWindow.isDestroyed() ? overlayWindow.getBounds() : null;
+  const bild = gewaehlterBildschirm().bounds;
+  vollbild.istExklusivesVollbild({ frisch: true }).then((modus) => {
+    logger.info(
+      `Testmeldung ${v.nr} (${v.name}) im Spiel gezeigt - ` +
+        `Fenster ${fenster ? `${fenster.x},${fenster.y} ${fenster.width}x${fenster.height}` : '-'}, ` +
+        `Bildschirm ${bild.width}x${bild.height}, Windows meldet: ${modus.zustand}` +
+        `, oben: ${overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isAlwaysOnTop()}`
+    );
+  });
+}
+
 function setzeTastenkuerzel() {
   globalShortcut.unregisterAll();
+
+  try {
+    if (globalShortcut.register(TEST_TASTE, handleTestImSpiel)) {
+      logger.info(`Testmeldung im Spiel: ${TEST_TASTE}`);
+    } else {
+      logger.warn(`Tastenkürzel ${TEST_TASTE} ist belegt - Testmeldung im Spiel nicht verfügbar`);
+    }
+  } catch (err) {
+    logger.warn(`Tastenkürzel ${TEST_TASTE} nicht verwendbar: ${err.message}`);
+  }
+
   const taste = (einstellungen.panelTaste || '').trim();
   if (!taste) return;
 
@@ -2369,6 +2474,18 @@ app.whenReady().then(async () => {
   createOverlayWindow();
   createPanelWindow();
   createTray();
+
+  // Aufloesung geaendert, Monitor ab- oder angesteckt, Skalierung umgestellt:
+  // Das Overlay muss mitwandern. Kurz verzoegert, weil Windows diese Meldungen
+  // beim Umschalten oft mehrfach hintereinander schickt.
+  let bildschirmTimer = null;
+  const beiBildschirmAenderung = () => {
+    clearTimeout(bildschirmTimer);
+    bildschirmTimer = setTimeout(passeFensterAnBildschirmAn, 300);
+  };
+  screen.on('display-metrics-changed', beiBildschirmAenderung);
+  screen.on('display-added', beiBildschirmAenderung);
+  screen.on('display-removed', beiBildschirmAenderung);
   setzeTastenkuerzel();
   // Der Schluessel wird VOR dem Backend gebraucht: Es bekommt ihn beim
   // Starten als Umgebungsvariable mit. Liefe die Einrichtung erst danach,

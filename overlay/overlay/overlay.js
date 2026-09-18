@@ -168,9 +168,15 @@ function showAchievementToast(achievement) {
   // Metallischer, in der Stufe getoenter Grund - siehe .toast--metall im CSS.
   // Nur fuer bekannte Stufen: Eine unbekannte bekommt den neutralen Grund
   // statt einer geratenen Farbe.
-  if (TIERS[achievement.category]) {
+  // DIAGNOSE (voruebergehend, siehe TEST_VARIANTEN in main.js): Variante 4
+  // ist die Meldung, wie sie am 18.09. aussah - ohne Metallgrund.
+  const diag = achievement.diagVariante;
+  if (TIERS[achievement.category] && diag !== 4) {
     el.classList.add('toast--metall', `toast--${achievement.category.toLowerCase()}`);
   }
+  if (diag === 2) el.classList.add('toast--diag-halb');
+  if (diag === 3) el.classList.add('toast--diag-abstand');
+  if (diag === 4) el.classList.add('toast--diag-alt', 'toast--diag-abstand');
   if (tier.rank >= 1) el.classList.add('toast--shine');
   if (tier.rank >= 2) el.classList.add('toast--glow');
   el.style.setProperty('--tier-color', tier.color);
