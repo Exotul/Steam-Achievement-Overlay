@@ -13,6 +13,7 @@ const updater = require('./lib/updater');
 const autostart = require('./lib/autostart');
 const { lesbareSpanne } = require('./lib/zeitspanne');
 const vollbild = require('./lib/vollbild');
+const { overlayRechteck } = require('./lib/overlayFlaeche');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -259,7 +260,11 @@ function createOverlayWindow() {
   // 3840x2160. Die Meldungen sassen dadurch 40 px ueber der Bildschirmecke und
   // verdeckten Steams Meldung, die genau dort erscheint, nicht vollstaendig.
   // Ein setBounds danach wird nicht gekuerzt.
-  overlayWindow.setBounds({ x, y, width, height });
+  //
+  // Aber NICHT exakt bildschirmgross: Das haelt Windows fuer eine
+  // Vollbild-Anwendung und unterdrueckt dann systemweit Benachrichtigungen.
+  // Warum und wie viel Rand, steht in lib/overlayFlaeche.js.
+  overlayWindow.setBounds(overlayRechteck({ x, y, width, height }, einstellungen.position));
 
   // 'screen-saver' ist die hoechste Fensterebene, die Electron anbietet -
   // damit liegt das Overlay ueber Vollbild-Spielen im randlosen Modus.
@@ -415,7 +420,9 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
   if (!nurTest && overlayWindow && !overlayWindow.isDestroyed()) {
     const f = overlayWindow.getBounds();
     const b = gewaehlterBildschirm().bounds;
-    const passt = f.width === b.width && f.height === b.height && f.x === b.x && f.y === b.y;
+    const soll = overlayRechteck(b, einstellungen.position);
+    const passt =
+      f.width === soll.width && f.height === soll.height && f.x === soll.x && f.y === soll.y;
     logger.info(
       `  Overlay ${f.width}x${f.height} auf Bildschirm ${b.width}x${b.height}` +
         (passt ? '' : '  <- PASST NICHT') +
@@ -1932,7 +1939,7 @@ async function handleSchluesselEintragen() {
  */
 function passeFensterAnBildschirmAn() {
   if (!overlayWindow || overlayWindow.isDestroyed()) return false;
-  const soll = gewaehlterBildschirm().bounds;
+  const soll = overlayRechteck(gewaehlterBildschirm().bounds, einstellungen.position);
   const ist = overlayWindow.getBounds();
   const gleich =
     ist.x === soll.x && ist.y === soll.y && ist.width === soll.width && ist.height === soll.height;
@@ -1957,7 +1964,15 @@ function passeFensterAnBildschirmAn() {
 
 function wendeEinstellungenAn(vorher) {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
-    if (!vorher || vorher.bildschirm !== einstellungen.bildschirm) passeFensterAnBildschirmAn();
+    // Auch die Ecke zaehlt: Sie bestimmt, an welcher Seite das Overlay den
+    // einen Pixel Rand laesst (siehe lib/overlayFlaeche.js).
+    if (
+      !vorher ||
+      vorher.bildschirm !== einstellungen.bildschirm ||
+      vorher.position !== einstellungen.position
+    ) {
+      passeFensterAnBildschirmAn();
+    }
     sendToOverlay('einstellungen', einstellungenFuerOverlay());
   }
 

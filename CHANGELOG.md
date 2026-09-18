@@ -35,6 +35,17 @@ nachgemessen 3840×2120 statt 3840×2160. Die Meldungen saßen dadurch 40 px
 erscheint, nicht vollständig. Ein `setBounds` nach dem Anlegen wird nicht
 gekürzt.
 
+**Aber nicht exakt bildschirmgroß:** Der erste Versuch deckte den Bildschirm
+genau ab — und Windows hielt das Overlay daraufhin für eine
+Vollbild-Anwendung (`SHQueryUserNotificationState` meldete 2 statt 5), obwohl
+es unsichtbar, nicht anklickbar und nicht im Vordergrund ist. Windows hätte
+dann systemweit Benachrichtigungen zurückgehalten, solange die App läuft.
+Gemessen: Schon ein einziger freier Pixel an irgendeiner Seite genügt. Das
+Overlay lässt jetzt 1 px frei, und zwar an der Seite gegenüber der
+eingestellten Ecke — die Ecke selbst bleibt exakt. In allen vier Ecken
+nachgemessen: Windows meldet „frei“, die Meldung sitzt auf 0 px genau in der
+Bildschirmecke.
+
 ### Behoben: Keine Reaktion auf Bildschirmänderungen
 
 Andere Auflösung, Monitor ab- oder angesteckt, Skalierung geändert: Das
