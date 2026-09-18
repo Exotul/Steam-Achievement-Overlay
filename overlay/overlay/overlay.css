@@ -188,6 +188,90 @@ body.pos-oben-links .xp-toast {
   }
 }
 
+/*
+ * Metallischer Grund in der Farbe der Stufe - Kupfer, Silber, Gold, Platin.
+ *
+ * Moeglich geworden, weil der Grund seit dem Abdecken der Steam-Meldung
+ * ohnehin voll deckend ist. Vier Schichten, von oben nach unten:
+ *
+ *   1. eine hauchduenne Lichtkante an der Oberseite (wie eine Fase)
+ *   2. ein schwacher schraeger Glanz
+ *   3. feine waagerechte Buerstung - Rauschen, in einer Richtung gestreckt
+ *   4. der getoente Grund, oben etwas heller als unten (gewoelbte Platte)
+ *
+ * LESBARKEIT ZUERST - die Toenung ist gemessen, nicht nach Gefuehl
+ * gewaehlt. Kontrast nach WCAG gegen den HELLSTEN gerenderten Pixel im
+ * Textbereich (Schrift ausgeblendet, Bildschirmabzug ausgewertet). Das ist
+ * ein strenger Massstab: Dort fallen Glanz und Buerstung zusammen, und der
+ * Pixel ist heller als jede Stelle, auf der tatsaechlich Buchstaben stehen.
+ *
+ *              Name   Beschreibung   Prozentzeile   Kopfzeile
+ *   Kupfer      9,8       7,0            5,4            5,3
+ *   Silber      9,5       6,8            5,2            7,7
+ *   Gold        9,4       6,8            5,2            6,5
+ *   Platin      9,5       6,8            5,2            5,8
+ *
+ * Alles ueber 4,5 (die Schwelle fuer gut lesbaren Fliesstext). Die vorab
+ * gerechneten Werte lagen etwas hoeher; gemessen zaehlt. Dafuer zwei
+ * Anpassungen: Die Kopfzeile steht in einer AUFGEHELLTEN Stufenfarbe - in
+ * reinem Kupfer auf Kupfergrund waeren es nur 3,7 gewesen, schon ungetoent
+ * nur 5,1. Und die Prozentzeile ist einen Hauch heller als vorher.
+ *
+ * Silber ist schwaecher getoent als die anderen: Es ist fast farblos und
+ * hellt den Grund deshalb vor allem auf, statt ihn einzufaerben.
+ *
+ * Kein Diamant hier - der hat seine eigene Feier in der Bildschirmmitte.
+ */
+.toast--kupfer {
+  --grund-oben: #2b2624;
+  --grund-unten: #211d1e;
+  --kopf-farbe: #d4a57e;
+}
+
+.toast--silber {
+  --grund-oben: #252a31;
+  --grund-unten: #1d2026;
+  --kopf-farbe: #cfd5dc;
+}
+
+.toast--gold {
+  --grund-oben: #2c2923;
+  --grund-unten: #21201d;
+  --kopf-farbe: #e1bf79;
+}
+
+.toast--platin {
+  --grund-oben: #242939;
+  --grund-unten: #1c202c;
+  --kopf-farbe: #b0b6ea;
+}
+
+.toast--metall {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0, rgba(255, 255, 255, 0) 2px),
+    linear-gradient(
+      112deg,
+      rgba(255, 255, 255, 0) 18%,
+      rgba(255, 255, 255, 0.045) 42%,
+      rgba(255, 255, 255, 0) 64%
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='180'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.1 0 0 0 -0.03'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, var(--grund-oben), var(--grund-unten));
+  /* Die Buerstung wird gestreckt statt gekachelt. Gekachelt zeigte sich bei
+     360 px eine senkrechte Naht, genau wo die Kachel neu beginnt. Gestreckt
+     faellt nichts auf - Buerstenstriche laufen ohnehin waagerecht. */
+  background-size: auto, auto, 100% 100%, auto;
+  background-repeat: no-repeat;
+}
+
+.toast--metall .toast__eyebrow {
+  color: var(--kopf-farbe);
+}
+
+.toast--metall .toast__meta {
+  color: #a9b0bd;
+}
+
 /* diagonaler Lichtstreif, läuft einmal über die Karte - ab Silber aufwärts */
 .toast--shine::before {
   content: '';
@@ -764,10 +848,15 @@ body.pos-oben-links .xp-toast {
   box-shadow:
     0 28px 70px -18px rgba(0, 0, 0, 0.8),
     0 0 60px -14px rgba(95, 211, 232, 0.42);
-  animation:
-    willkommen-auf 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) forwards,
-    willkommen-zu 0.6s ease forwards 5.1s;
+  /* Ausblenden steuert jetzt das Skript (Klasse willkommen--zu): Wie lange
+     die Karte steht, haengt davon ab, wann Level und XP ankommen. */
+  animation: willkommen-auf 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) forwards;
   opacity: 0;
+}
+
+.willkommen--zu {
+  animation: willkommen-zu 0.6s ease forwards;
+  opacity: 1;
 }
 
 @keyframes willkommen-auf {
@@ -867,6 +956,135 @@ body.pos-oben-links .xp-toast {
 @keyframes willkommen-text-ein {
   to {
     opacity: 1;
+  }
+}
+
+/* ---------- Level und XP in der Begruessung ---------- */
+
+.willkommen__stand {
+  width: 360px;
+  margin: 22px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  transition: opacity 0.3s ease;
+}
+
+.willkommen__stand--weg {
+  opacity: 0;
+}
+
+.willkommen__warten {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 0.8rem;
+  color: #767d8c;
+  animation: warten-pulsieren 1.4s ease-in-out infinite;
+}
+
+@keyframes warten-pulsieren {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.willkommen__stand--da {
+  animation: stand-auf 0.5s cubic-bezier(0.2, 1.1, 0.4, 1) both;
+}
+
+@keyframes stand-auf {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stand__kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+}
+
+.stand__label {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9aa1b0;
+}
+
+/* Die Zahl ist der Mittelpunkt dieses Blocks - gross, in der Farbe der
+   Begruessung, mit festen Ziffernbreiten, damit sie beim Hochzaehlen nicht
+   hin- und herspringt. */
+.stand__level {
+  font-family: 'Oswald', 'Segoe UI', sans-serif;
+  font-size: 3.1rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #bff3fb;
+  text-shadow: 0 0 22px rgba(127, 227, 245, 0.45);
+}
+
+.stand__balken {
+  height: 8px;
+  margin: 14px 0 9px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+/* scaleX statt width: Das verschiebt nur Pixel, statt bei jedem Bild das
+   Layout neu zu berechnen - wichtig, weil das hier ueber einem Spiel laeuft. */
+.stand__fuellung {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #5fd3e8, #9a8cf2);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stand__zeile,
+.stand__gesamt {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.stand__zeile {
+  font-size: 0.8rem;
+  color: #c3c8d2;
+}
+
+.stand__trenner {
+  margin: 0 5px;
+  color: #5f6675;
+}
+
+.stand__gesamt {
+  margin-top: 4px;
+  font-size: 0.74rem;
+  color: #767d8c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .willkommen__stand--da,
+  .willkommen__warten {
+    animation: none;
+  }
+
+  .stand__fuellung {
+    transition: none;
   }
 }
 

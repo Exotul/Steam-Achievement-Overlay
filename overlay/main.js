@@ -1108,6 +1108,36 @@ function buildTrayMenu(statusLine) {
  * Holt den XP-Gesamtstand. Laeuft die Berechnung noch, wird der Fortschritt
  * ins Overlay gemeldet, damit ein Ladebalken erscheint.
  */
+/**
+ * Level und XP fuer die Begruessung - genau EINMAL je Start.
+ *
+ * Die Begruessung beginnt, sobald das Overlay geladen ist; der XP-Stand kommt
+ * erst, wenn das Backend laeuft. Nachgemessen an neun echten Starts: 0,9 bis
+ * 6,7 Sekunden, im Median 4,3. Die Begruessungskarte wartet deshalb auf diese
+ * Nachricht - und muss erfahren, wenn nichts kommt (nicht angemeldet,
+ * Schluessel abgelehnt, Erstberechnung dauert Minuten). Sonst stuende sie
+ * sinnlos wartend da.
+ *
+ * @param {object|null} stand - null heisst ausdruecklich: kein Level zu zeigen
+ */
+let startLevelGemeldet = false;
+
+function meldeStartLevel(stand) {
+  if (startLevelGemeldet) return;
+  startLevelGemeldet = true;
+  sendToOverlay(
+    'start-level',
+    stand
+      ? {
+          level: stand.level,
+          xpIntoLevel: stand.xpIntoLevel,
+          xpForThisLevel: stand.xpForThisLevel,
+          totalXp: stand.totalXp,
+        }
+      : null
+  );
+}
+
 async function ladeXpStand() {
   let gemeldet = false;
 
@@ -1116,6 +1146,7 @@ async function ladeXpStand() {
     try {
       antwort = await steamClient.xpSummary();
     } catch (err) {
+      meldeStartLevel(null);
       return; // ohne XP-Stand laeuft alles weiter, nur ohne XP-Meldungen
     }
 
@@ -1124,6 +1155,7 @@ async function ladeXpStand() {
     // weiter und stiess bei jedem Durchlauf einen neuen, ebenso
     // aussichtslosen Versuch an.
     if (antwort.status === 'fehler') {
+      meldeStartLevel(null);
       logger.warn('XP-Stand nicht verfügbar: ' + antwort.grund);
       if (gemeldet) sendToOverlay('xp-loading', { abbruch: true });
       if (antwort.schluesselProblem) {
@@ -1134,6 +1166,9 @@ async function ladeXpStand() {
 
     if (antwort.status === 'ready') {
       xpStand = antwort;
+      // Auch ein "veralteter" Stand taugt fuer die Begruessung: Er weicht
+      // hoechstens um das ab, was seit der letzten Berechnung dazukam.
+      meldeStartLevel(antwort);
 
       // "veraltet" heisst: Das ist der zuletzt fertig berechnete Stand, im
       // Hintergrund laeuft gerade eine Neuberechnung. Damit ist sofort ein
@@ -1157,6 +1192,9 @@ async function ladeXpStand() {
     }
 
     // Kein frueherer Stand vorhanden - hier wartet also wirklich jemand.
+    // Die Erstberechnung kann Minuten dauern; darauf wartet die Begruessung
+    // nicht. Den Fortschritt zeigt der Ladebalken, das Level dann dessen Ende.
+    meldeStartLevel(null);
     gemeldet = true;
     sendToOverlay('xp-loading', {
       fertig: false,
@@ -2341,6 +2379,7 @@ app.whenReady().then(async () => {
     updateTrayStatus('Einrichtung - Steam-Schlüssel fehlt');
     const eingerichtet = await zeigeEinrichtung();
     if (!eingerichtet) {
+      meldeStartLevel(null);
       updateTrayStatus('Einrichtung offen - im Tray-Menü nachholbar');
       logger.info('Einrichtung übersprungen - App wartet auf den Schlüssel');
       return;
@@ -2358,6 +2397,7 @@ app.whenReady().then(async () => {
     });
     backendChild = child;
   } catch (err) {
+    meldeStartLevel(null);
     console.error('Backend konnte nicht gestartet werden:', err.message);
     tray.setToolTip('Trophäenschrank Overlay\nBackend konnte nicht gestartet werden');
     buildTrayMenu('Backend nicht erreichbar - siehe README');
@@ -2402,11 +2442,14 @@ app.whenReady().then(async () => {
   }
 
   if (!angemeldet) {
+    meldeStartLevel(null);
     updateTrayStatus('Nicht angemeldet');
     // Erst die Begruessung zu Ende laufen lassen. Zwei Dinge, die
     // gleichzeitig um Aufmerksamkeit bitten, sind eines zu viel - und die
     // Begruessung ist genau dann am Bildschirm, wenn dieses Fenster aufginge.
-    setTimeout(zeigeAnmeldung, restDerBegruessung());
+    // Mindestens 1,1 s: So lange braucht die Karte, um nach dem "kein Level"
+    // von eben auszublenden (0,4 s Nachlauf + 0,6 s Ausblenden).
+    setTimeout(zeigeAnmeldung, Math.max(1100, restDerBegruessung()));
   }
 });
 

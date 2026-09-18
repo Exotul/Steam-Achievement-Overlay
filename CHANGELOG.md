@@ -2,6 +2,41 @@
 
 ## Noch nicht veröffentlicht
 
+### Level und XP in der Begrüßung
+
+Die Startsequenz zeigt jetzt unter „Happy Trophy Hunting“ das aktuelle Level
+— groß, hochzählend —, darunter den Fortschrittsbalken zum nächsten Level, die
+fehlenden XP und die Gesamtsumme.
+
+Die Karte schließt dazu nicht mehr nach fester Zeit. Der XP-Stand kommt erst,
+wenn das Backend läuft, und das dauerte an neun echten Starts **0,9 bis 6,7 s**
+(Median 4,3). Mit den bisherigen 5,1 s wäre das Level bei drei von neun Starts
+zu spät gekommen. Jetzt wartet die Karte darauf, zeigt in der Zeit einen
+Ladehinweis und bleibt nach dem Hochzählen noch gut vier Sekunden stehen.
+
+Kommt kein Level — nicht angemeldet, Schlüssel abgelehnt, Erstberechnung läuft
+noch —, meldet der Hauptprozess das ausdrücklich, und die Karte schließt zur
+gewohnten Zeit. Kommt gar nichts, spätestens nach 9,5 s.
+
+### Meldungen in der Farbe der Stufe, mit Metalloptik
+
+Kupfer, Silber, Gold und Platin haben jetzt einen leicht getönten Grund:
+gewölbt wie eine Platte, fein gebürstet, mit schwachem Glanz. Möglich geworden,
+weil der Grund seit dem Abdecken der Steam-Meldung ohnehin deckend ist.
+
+**Lesbarkeit war dabei die Vorgabe, nicht die Farbe.** Gemessen am hellsten
+gerenderten Pixel hinter der Schrift liegt der schlechteste Kontrast bei 5,2
+(Schwelle für gut lesbaren Text: 4,5). Dafür zwei Anpassungen: Die Kopfzeile
+steht in einer aufgehellten Stufenfarbe — in reinem Kupfer auf Kupfergrund
+wären es nur 3,7 gewesen, schon ungetönt nur 5,1. Und die Prozentzeile ist einen
+Hauch heller.
+
+Dabei aufgefallen: Die Bürstung war als 360-px-Kachel angelegt und zeigte eine
+senkrechte Naht, wo sie sich wiederholte. Sie wird jetzt gestreckt statt
+gekachelt.
+
+Der Diamant bleibt, wie er ist — er hat seine eigene Feier.
+
 ### Unsere Meldung verdeckt Steams eigene
 
 Steam zeigt beim Freischalten eine eigene Meldung in der äußersten Ecke des

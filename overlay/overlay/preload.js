@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   onXpLoading: (callback) => {
     ipcRenderer.on('xp-loading', (_event, payload) => callback(payload));
   },
+  /** Level und XP fuer die Begruessung - oder null, wenn keins kommt. */
+  onStartLevel: (callback) => {
+    ipcRenderer.on('start-level', (_event, stand) => callback(stand));
+  },
   onWelcome: (callback) => {
     ipcRenderer.on('show-welcome', () => callback());
   },

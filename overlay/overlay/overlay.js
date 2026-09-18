@@ -171,6 +171,12 @@ function showAchievementToast(achievement) {
 
   const el = document.createElement('div');
   el.className = 'toast';
+  // Metallischer, in der Stufe getoenter Grund - siehe .toast--metall im CSS.
+  // Nur fuer bekannte Stufen: Eine unbekannte bekommt den neutralen Grund
+  // statt einer geratenen Farbe.
+  if (TIERS[achievement.category]) {
+    el.classList.add('toast--metall', `toast--${achievement.category.toLowerCase()}`);
+  }
   if (tier.rank >= 1) el.classList.add('toast--shine');
   if (tier.rank >= 2) el.classList.add('toast--glow');
   el.style.setProperty('--tier-color', tier.color);
@@ -397,6 +403,29 @@ function willkommenMarke() {
     </div>`;
 }
 
+/*
+ * Die Begruessung - und darin, sobald bekannt, Level und XP.
+ *
+ * Die Karte schliesst nicht mehr nach fester Zeit. Frueher waren das 5,1 s;
+ * der XP-Stand kommt aber erst, wenn das Backend laeuft, und das dauerte an
+ * neun echten Starts 0,9 bis 6,7 s. Bei drei davon waere das Level zu spaet
+ * gekommen. Jetzt gilt:
+ *
+ *   - Kommt das Level, bleibt die Karte danach noch LEVEL_STANDZEIT_MS.
+ *   - Kommt ausdruecklich "kein Level" (nicht angemeldet, Erstberechnung
+ *     laeuft noch), schliesst sie zur gewohnten Zeit.
+ *   - Kommt gar nichts, schliesst sie spaetestens nach WARTEN_MAX_MS.
+ *
+ * Solange gewartet wird, zeigt sie einen Ladehinweis - eine Karte, die
+ * mehrere Sekunden unveraendert dasteht, wirkt sonst eingefroren.
+ */
+const WILLKOMMEN_MIN_MS = 5100;
+const LEVEL_STANDZEIT_MS = 4200;
+const WARTEN_MAX_MS = 9500;
+const WARTEHINWEIS_AB_MS = 1500;
+
+let willkommen = null;
+
 function showWelcomeToast() {
   const el = document.createElement('div');
   el.className = 'willkommen';
@@ -404,8 +433,13 @@ function showWelcomeToast() {
     ${willkommenMarke()}
     <h2 class="willkommen__titel">Happy Trophy Hunting!</h2>
     <p class="willkommen__unter">Trophäenschrank ist bereit</p>
+    <div class="willkommen__stand" hidden>
+      <p class="willkommen__warten">Dein Stand wird geladen</p>
+    </div>
   `;
   mitteLayer.appendChild(el);
+
+  willkommen = { el, beginn: performance.now(), zuTimer: null, levelDa: false };
 
   playWelcomeChime();
 
@@ -424,7 +458,99 @@ function showWelcomeToast() {
     }
   }, 1150);
 
-  setTimeout(() => el.remove(), 5800);
+  // Ladehinweis erst, wenn die Karte fertig aufgebaut ist und noch nichts
+  // gekommen ist. Bei einem schnellen Start erscheint er gar nicht.
+  setTimeout(() => {
+    if (willkommen && willkommen.el === el && !willkommen.levelDa && !willkommen.zuTimer) {
+      el.querySelector('.willkommen__stand').hidden = false;
+    }
+  }, WARTEHINWEIS_AB_MS);
+
+  // Sicherheitsnetz: Kommt ueberhaupt keine Nachricht, nicht ewig warten.
+  setTimeout(() => {
+    if (willkommen && willkommen.el === el && !willkommen.levelDa) schliesseWillkommen(0);
+  }, WARTEN_MAX_MS);
+}
+
+/** Ausblenden - fruehestens zur gewohnten Zeit, nie mitten im Aufbau. */
+function schliesseWillkommen(nachMs) {
+  if (!willkommen) return;
+  const w = willkommen;
+  const bisMindestens = WILLKOMMEN_MIN_MS - (performance.now() - w.beginn);
+  const warte = Math.max(nachMs, bisMindestens, 0);
+  clearTimeout(w.zuTimer);
+  w.zuTimer = setTimeout(() => {
+    w.el.classList.add('willkommen--zu');
+    setTimeout(() => w.el.remove(), 650);
+    if (willkommen === w) willkommen = null;
+  }, warte);
+}
+
+/** Zaehlt eine Zahl weich hoch - schnell am Anfang, langsam am Ende. */
+function zaehleHoch(el, von, bis, dauerMs, format = (n) => String(n)) {
+  const start = performance.now();
+  const schritt = (jetzt) => {
+    const t = Math.min(1, (jetzt - start) / dauerMs);
+    const weich = 1 - Math.pow(1 - t, 3);
+    el.textContent = format(Math.round(von + (bis - von) * weich));
+    if (t < 1 && el.isConnected) requestAnimationFrame(schritt);
+  };
+  requestAnimationFrame(schritt);
+}
+
+const tausender = (n) => n.toLocaleString('de-DE');
+
+/**
+ * Level und XP in die Begruessung einsetzen.
+ *
+ * @param {object|null} stand - null: kein Level zu zeigen, Karte schliesst
+ *   zur gewohnten Zeit.
+ */
+function zeigeStartLevel(stand) {
+  if (!willkommen) return;
+  const w = willkommen;
+  const block = w.el.querySelector('.willkommen__stand');
+
+  if (!stand || !Number.isFinite(stand.level)) {
+    // Den Ladehinweis nicht einfach stehen lassen - er versprach etwas.
+    block.classList.add('willkommen__stand--weg');
+    schliesseWillkommen(400);
+    return;
+  }
+
+  w.levelDa = true;
+  const anteil =
+    stand.xpForThisLevel > 0 ? Math.min(1, Math.max(0, stand.xpIntoLevel / stand.xpForThisLevel)) : 0;
+  const fehlt = Math.max(0, stand.xpForThisLevel - stand.xpIntoLevel);
+
+  block.hidden = false;
+  block.classList.add('willkommen__stand--da');
+  block.innerHTML = `
+    <div class="stand__kopf">
+      <span class="stand__label">Level</span>
+      <span class="stand__level">1</span>
+    </div>
+    <div class="stand__balken"><div class="stand__fuellung"></div></div>
+    <p class="stand__zeile">
+      <span class="stand__xp">0</span> / ${tausender(stand.xpForThisLevel)} XP
+      <span class="stand__trenner">·</span>
+      noch ${tausender(fehlt)} bis Level ${stand.level + 1}
+    </p>
+    <p class="stand__gesamt"><span class="stand__gesamt-zahl">0</span> XP insgesamt</p>
+  `;
+
+  // Erst die Zahl, dann der Balken, dann die Summe - nacheinander liest es
+  // sich als Ablauf statt als ein Block, der auf einmal dasteht.
+  zaehleHoch(block.querySelector('.stand__level'), 1, stand.level, 1100);
+  setTimeout(() => {
+    block.querySelector('.stand__fuellung').style.transform = `scaleX(${anteil})`;
+    zaehleHoch(block.querySelector('.stand__xp'), 0, stand.xpIntoLevel, 1300, tausender);
+  }, 350);
+  setTimeout(() => {
+    zaehleHoch(block.querySelector('.stand__gesamt-zahl'), 0, stand.totalXp, 1400, tausender);
+  }, 600);
+
+  schliesseWillkommen(LEVEL_STANDZEIT_MS);
 }
 
 /*
@@ -958,6 +1084,7 @@ window.overlayAPI.onAchievement(enqueueAchievement);
 window.overlayAPI.onGameDiamond(showDiamondCelebration);
 window.overlayAPI.onBilanz(showSitzungsbilanz);
 window.overlayAPI.onWelcome(showWelcomeToast);
+window.overlayAPI.onStartLevel(zeigeStartLevel);
 window.overlayAPI.onEinstellungen((werte) => {
   wendeEinstellungenAn(werte);
   zeichneMerkliste();
