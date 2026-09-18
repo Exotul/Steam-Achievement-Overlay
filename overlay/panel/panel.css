@@ -93,22 +93,6 @@ body {
   padding: 14px 22px;
 }
 
-.panel__suche {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e8eaf0;
-  font-family: inherit;
-  font-size: 0.85rem;
-}
-
-.panel__suche:focus {
-  outline: none;
-  border-color: #8b93e0;
-}
-
 .panel__filter {
   display: flex;
   gap: 4px;
@@ -296,8 +280,7 @@ body {
   color: #9aa1b0;
 }
 
-.panel-notiz__plus,
-.panel-notiz__bearbeiten {
+.panel-notiz__plus {
   width: 26px;
   height: 22px;
   flex-shrink: 0;
@@ -309,8 +292,7 @@ body {
   cursor: pointer;
 }
 
-.panel-notiz__plus:hover,
-.panel-notiz__bearbeiten:hover {
+.panel-notiz__plus:hover {
   border-color: #6bd39a;
   color: #6bd39a;
 }
@@ -331,176 +313,12 @@ body {
   white-space: nowrap;
 }
 
-.panel-notiz__weg {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #767d8c;
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.panel-notiz__weg:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e07a7a;
-}
-
 .panel__fuss {
   padding: 11px 22px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 0.76rem;
   color: #767d8c;
   min-height: 18px;
-}
-
-/* Der Knopf, der das Eingabefeld erst hervorholt. Es dauerhaft anzuzeigen
-   waere Platzverschwendung fuer etwas, das man selten braucht. */
-.panel__notiz-auf {
-  padding: 7px 14px;
-  margin-bottom: 9px;
-  border: 1px dashed rgba(107, 211, 154, 0.35);
-  border-radius: 8px;
-  background: transparent;
-  color: #6bd39a;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.panel__notiz-auf:hover {
-  background: rgba(107, 211, 154, 0.1);
-  border-style: solid;
-}
-
-.panel__notiz {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 9px;
-}
-
-.panel__notiz-zeile {
-  display: flex;
-  gap: 8px;
-}
-
-/* Die Artenwahl steht ueber dem Feld, nicht daneben: Sie aendert, was in das
-   Feld gehoert - das soll man vorher sehen, nicht daneben suchen. */
-.panel__arten {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  align-self: flex-start;
-}
-
-.panel__art-knopf {
-  padding: 4px 12px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #767d8c;
-  font-family: inherit;
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.panel__art-knopf:hover {
-  color: #e8eaf0;
-}
-
-.panel__art-knopf[aria-pressed='true'] {
-  background: rgba(107, 211, 154, 0.18);
-  color: #6bd39a;
-}
-
-.panel__notiz-zahlen {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
-
-.panel__notiz-stand,
-.panel__notiz-ziel {
-  width: 62px;
-  padding: 8px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e8eaf0;
-  font-family: 'Space Mono', 'Consolas', monospace;
-  font-size: 0.82rem;
-  text-align: center;
-}
-
-.panel__notiz-stand:focus,
-.panel__notiz-ziel:focus {
-  outline: none;
-  border-color: #6bd39a;
-}
-
-.panel__notiz-trenner {
-  color: #767d8c;
-}
-
-.panel__notiz-ab {
-  width: 34px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
-  background: transparent;
-  color: #767d8c;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.panel__notiz-ab:hover {
-  color: #e07a7a;
-  border-color: rgba(224, 122, 122, 0.4);
-}
-
-.panel__notiz-feld {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.3);
-  color: #e8eaf0;
-  font-family: inherit;
-  font-size: 0.84rem;
-}
-
-.panel__notiz-feld::placeholder {
-  color: #545b69;
-}
-
-.panel__notiz-feld:focus {
-  outline: none;
-  border-color: #6bd39a;
-}
-
-.panel__notiz-knopf {
-  padding: 8px 15px;
-  border: 1px solid rgba(107, 211, 154, 0.35);
-  border-radius: 8px;
-  background: rgba(107, 211, 154, 0.12);
-  color: #6bd39a;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.panel__notiz-knopf:hover {
-  background: rgba(107, 211, 154, 0.22);
 }
 
 .panel__leer {

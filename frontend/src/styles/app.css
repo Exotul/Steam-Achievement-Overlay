@@ -541,46 +541,9 @@
 
 /* ---------- Friends ---------- */
 
-.friends__title {
-  font-size: 1.3rem;
-  margin-bottom: 16px;
-}
-
 .friends__hint {
   color: var(--ink-faint);
   font-size: 0.9rem;
-}
-
-.friends__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
-}
-
-.friend-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: var(--bg-raised);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-s);
-}
-
-.friend-row__avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-}
-
-.friend-row__name {
-  font-size: 0.88rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ---------- Modal ---------- */
@@ -976,7 +939,6 @@
   opacity: 0.55;
   cursor: default;
 }
-
 
 /* ---------- Hinweis bei eingeschränktem Betrieb ---------- */
 

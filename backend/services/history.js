@@ -35,11 +35,6 @@ function achievementFreigeschaltet({ steamId, appId, gameName, achievement, xpZu
   return ok;
 }
 
-/** Hält den XP-Stand fest, damit sich die Entwicklung nachzeichnen lässt. */
-function xpStand({ steamId, totalXp, level }) {
-  return storage.schreibeEreignis('xp', { steamId, totalXp, level });
-}
-
 let letztePruefung = 0;
 
 function pruefeKuerzung() {
@@ -130,4 +125,4 @@ function proTag({ tage = 30 } = {}) {
   return [...nachTag.values()].sort((a, b) => a.tag.localeCompare(b.tag));
 }
 
-module.exports = { achievementFreigeschaltet, xpStand, verlauf, proTag, rueckblick };
+module.exports = { achievementFreigeschaltet, verlauf, proTag, rueckblick };

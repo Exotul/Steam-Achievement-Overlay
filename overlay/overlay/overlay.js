@@ -143,14 +143,8 @@ function spawnSparkles(container, { count, colors, size = [4, 7], distance = [22
 // Das Logo der App als Diamant - eingefaerbt in der Farbe der jeweiligen
 // Trophaeenstufe. Der Umriss wird beim Erscheinen "gezeichnet", danach fuellt
 // sich die Flaeche und ein Glanzlicht laeuft einmal darueber.
-function logoSvg(color, glow) {
+function logoSvg(color) {
   return `<svg class="toast__logo-svg" viewBox="0 0 100 100" aria-hidden="true">
-    <defs>
-      <linearGradient id="lg-${Math.random().toString(36).slice(2, 8)}" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${color}" stop-opacity="0.55"/>
-        <stop offset="100%" stop-color="${color}" stop-opacity="0.12"/>
-      </linearGradient>
-    </defs>
     <path class="toast__logo-fill" d="M50 8 L92 50 L50 92 L8 50 Z" fill="${color}" opacity="0.16"/>
     <path class="toast__logo-shine" d="M50 8 L92 50 L50 50 Z" fill="#ffffff" opacity="0.18"/>
     <path class="toast__logo-outline" d="M50 8 L92 50 L50 92 L8 50 Z"
@@ -183,7 +177,7 @@ function showAchievementToast(achievement) {
   el.style.setProperty('--tier-glow', tier.glow);
 
   el.innerHTML = `
-    <div class="toast__logo">${logoSvg(tier.color, tier.glow)}</div>
+    <div class="toast__logo">${logoSvg(tier.color)}</div>
     <div class="toast__icon-wrap">
       ${tier.rank >= 3 ? '<div class="ring-pulse"></div>' : ''}
       <img class="toast__icon" src="${achievement.icon}" alt=""
@@ -806,7 +800,7 @@ function showGameStartedToast({
   }
 
   el.innerHTML = `
-    <div class="toast__logo">${logoSvg(color, color + '55')}</div>
+    <div class="toast__logo">${logoSvg(color)}</div>
     <div class="toast__text">
       <p class="toast__eyebrow">Wird jetzt verfolgt</p>
       <p class="toast__name">${escapeHtml(gameName)}</p>

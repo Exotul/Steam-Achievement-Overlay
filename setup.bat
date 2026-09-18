@@ -39,9 +39,9 @@ cd overlay
 call npm install
 if errorlevel 1 goto :error
 
-if not exist .env (
-  copy .env.example .env >nul
-)
+rem Hier wurde frueher overlay\.env aus der Vorlage angelegt. Das ist
+rem ueberfluessig, seit die App den Steam-Schluessel selbst abfragt und unter
+rem %USERPROFILE%\.trophaenschrank\config.env ablegt.
 
 cd ..
 

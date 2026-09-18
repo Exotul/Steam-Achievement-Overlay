@@ -154,6 +154,4 @@ module.exports = {
   pflegeEintrag,
   wasAutoStarted,
   isDevelopmentBuild,
-  _autostartArgs: autostartArgs,
-  _EINTRAG_NAME: EINTRAG_NAME,
 };

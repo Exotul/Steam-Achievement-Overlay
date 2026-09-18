@@ -114,4 +114,4 @@ function vergessen() {
   gemerkt = null;
 }
 
-module.exports = { istExklusivesVollbild, vergessen, deuteAusgabe, abfragen };
+module.exports = { istExklusivesVollbild, vergessen, deuteAusgabe };
