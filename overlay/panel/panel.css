@@ -280,7 +280,15 @@ body {
   color: #9aa1b0;
 }
 
-.panel-notiz__plus {
+/*
+ * Die beiden Zaehlerknoepfe eines Trackers.
+ *
+ * Der Minus-Knopf kam am 07.09. dazu, eine Regel dafuer aber nie. Er stand
+ * seitdem als weisser Standardknopf neben dem dunklen Plus-Knopf - im
+ * Bildschirmabzug der Uebersicht deutlich zu sehen.
+ */
+.panel-notiz__plus,
+.panel-notiz__minus {
   width: 26px;
   height: 22px;
   flex-shrink: 0;
@@ -292,9 +300,19 @@ body {
   cursor: pointer;
 }
 
-.panel-notiz__plus:hover {
+.panel-notiz__plus:hover:not(:disabled),
+.panel-notiz__minus:hover:not(:disabled) {
   border-color: #6bd39a;
   color: #6bd39a;
+}
+
+/* An den Grenzen (0 bzw. Ziel erreicht) sind die Knoepfe gesperrt. Ohne
+   eigenes Aussehen sahen sie genauso klickbar aus wie sonst - man drueckte
+   und nichts geschah. */
+.panel-notiz__plus:disabled,
+.panel-notiz__minus:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .panel-notiz__punkt {

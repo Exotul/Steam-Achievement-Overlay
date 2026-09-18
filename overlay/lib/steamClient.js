@@ -31,7 +31,7 @@ class SteamClient {
    * vergessenes Entwicklerfenster, nicht wie ein Teil des Programms.
    */
   _neuesFenster() {
-    return new BrowserWindow({
+    const fenster = new BrowserWindow({
       show: false,
       width: 980,
       height: 760,
@@ -42,6 +42,16 @@ class SteamClient {
       icon: this.iconPfad || undefined,
       webPreferences: { contextIsolation: true, nodeIntegration: false },
     });
+
+    // Steams Seite setzt ihren eigenen Titel. Ohne das hier stuende in der
+    // Fensterleiste die jeweilige Seitenueberschrift statt eines Satzes, der
+    // erklaert, warum dieses Fenster gerade offen ist.
+    //
+    // EINMAL je Fenster, hier beim Anlegen. Vorher stand das in login() und
+    // kam bei jeder Anmeldung dazu - dasselbe Fenster sammelte so mit jedem
+    // Abmelden und Wiederanmelden einen weiteren Zuhoerer an.
+    fenster.webContents.on('page-title-updated', (e) => e.preventDefault());
+    return fenster;
   }
 
   _ensureWindow() {
@@ -132,11 +142,7 @@ class SteamClient {
   /** Zeigt den Login sichtbar an; löst auf, sobald die Session steht. */
   async login() {
     this._ensureWindow();
-    // Steams Seite setzt ihren eigenen Titel. Ohne das hier stuende in der
-    // Fensterleiste die jeweilige Seitenueberschrift statt eines Satzes, der
-    // erklaert, warum dieses Fenster gerade offen ist.
     this.window.setTitle('Bei Steam anmelden');
-    this.window.webContents.on('page-title-updated', (e) => e.preventDefault());
     this.window.show();
     return new Promise((resolve, reject) => {
       const check = setInterval(async () => {
