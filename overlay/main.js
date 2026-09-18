@@ -12,6 +12,7 @@ const ChangeRecorder = require('./lib/changeRecorder');
 const updater = require('./lib/updater');
 const autostart = require('./lib/autostart');
 const { lesbareSpanne } = require('./lib/zeitspanne');
+const vollbild = require('./lib/vollbild');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -192,6 +193,9 @@ function merkeSpielname(appId, name) {
 // Steht die Uebersicht gerade offen? Davon haengt ab, ob das Overlay-Fenster
 // Mausklicks annimmt.
 let panelWindow = null;
+// Ist Steams eigenes Overlay gerade offen? Gebraucht, weil die Pruefung auf
+// exklusives Vollbild einen Moment dauert - siehe zeigePanel().
+let steamOverlayOffen = false;
 
 // Lokale Achievement-Datei, deren Parser sich gegen den von Steam
 // bestaetigten Stand als korrekt erwiesen hat. Nur dann wird sie genutzt.
@@ -600,6 +604,9 @@ async function startAchievementTracking(appId, gameName) {
     unlockedBaseline = null;
   }
 
+  // Anderes Spiel, womoeglich anderer Anzeigemodus - neu fragen.
+  vollbild.vergessen();
+
   sitzung = {
     appId,
     gameName: gameName || `App ${appId}`,
@@ -841,14 +848,21 @@ async function starteStatusAbzeichen() {
     onUnknownLine: (zeile) => logger.info('Steam-Overlay, unbekannte Zeile: ' + zeile.slice(0, 160)),
     onChange: (offen) => {
       logger.info(`Steams Overlay erkannt als: ${offen ? 'offen' : 'geschlossen'}`);
+      steamOverlayOffen = offen;
       sendStatusBadge(offen);
       // In Steams Overlay hineinzuzeichnen ist ausgeschlossen - unser
       // Fenster liegt aber darueber, und waehrend Steams Overlay offen ist
       // hat der Nutzer ohnehin einen Mauszeiger. Genau dann ist die
       // Uebersicht bedienbar.
       if (!einstellungen.panelBeiSteamOverlay) return;
-      if (offen) zeigePanel(true);
-      else if (panelOffen()) zeigePanel(false);
+      if (offen) {
+        // `nurWennSteamOffen`: Die Vollbild-Pruefung dauert einen Moment.
+        // Hat man Steams Overlay in der Zeit schon wieder zugemacht, soll
+        // die Uebersicht nicht nachtraeglich allein aufgehen.
+        zeigePanel(true, { nurWennSteamOffen: true });
+      } else if (panelOffen()) {
+        zeigePanel(false);
+      }
     },
   });
 
@@ -1200,6 +1214,43 @@ function sendeSpielDaten() {
   sendToPanel('spiel-daten', daten);
 }
 
+/**
+ * Sagt einmal je Spiel, warum die Uebersicht nicht aufgeht.
+ *
+ * Ohne das drueckt jemand Strg+Umschalt+A, und nichts passiert - man haelt
+ * die App fuer kaputt. Die Rueckmeldung kann aber nicht im Spiel erscheinen:
+ * Genau das darf ja nicht passieren. Also ins Tray (Tooltip und Statuszeile)
+ * und als Windows-Benachrichtigung. Die haelt Windows selbst zurueck, solange
+ * ein Spiel im exklusiven Vollbild laeuft, und zeigt sie danach - sie stoert
+ * also nicht, sondern wartet.
+ */
+let vollbildGemeldetFuer = null;
+
+function meldeExklusivesVollbild() {
+  const name = trackedGameName || 'Das Spiel';
+  updateTrayStatus(`${name}: Übersicht nur im randlosen Fenstermodus`);
+
+  if (vollbildGemeldetFuer === trackedAppId) return;
+  vollbildGemeldetFuer = trackedAppId;
+
+  try {
+    const { Notification } = require('electron');
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Übersicht im Vollbild nicht möglich',
+        body:
+          `${name} läuft im exklusiven Vollbild. Ein Fenster darüber würde das Spiel ` +
+          'minimieren. Stell im Spiel den Anzeigemodus auf „Randlos“ oder ' +
+          '„Vollbild-Fenster“ - dann geht die Übersicht auf.',
+        icon: path.join(__dirname, 'assets', 'app-icon.png'),
+        silent: true,
+      }).show();
+    }
+  } catch (err) {
+    /* Nur ein Hinweis - wenn er nicht geht, steht es im Tray und im Protokoll. */
+  }
+}
+
 /** Ist die Uebersicht gerade zu sehen? */
 function panelOffen() {
   return !!panelWindow && !panelWindow.isDestroyed() && panelWindow.isVisible();
@@ -1211,7 +1262,7 @@ function panelOffen() {
  * Nur noch show/hide - kein Umschalten von Fensterstilen mehr, weder hier
  * noch am Overlay. Genau das war der Grund, warum sich das Spiel minimierte.
  */
-function zeigePanel(sichtbar) {
+async function zeigePanel(sichtbar, { nurWennSteamOffen = false } = {}) {
   if (!panelWindow || panelWindow.isDestroyed()) return;
   const zeigen = sichtbar === undefined ? !panelOffen() : !!sichtbar;
 
@@ -1224,6 +1275,36 @@ function zeigePanel(sichtbar) {
     logger.info('Übersicht angefordert, aber kein Spiel mit Achievements verfolgt');
     return;
   }
+
+  /*
+   * NIE ueber einem Spiel im exklusiven Vollbild.
+   *
+   * Ein solches Spiel besitzt den Bildschirm; erscheint ein anderes Fenster
+   * darueber, verliert es das exklusive Vollbild und Windows minimiert es.
+   * Steams Overlay ueberlebt das nur, weil es IM Spiel steckt - unseres ist
+   * ein eigenes Fenster und kann das grundsaetzlich nicht.
+   *
+   * Nachgemessen, nicht vermutet: Dead Space meldet hier
+   * QUNS_RUNNING_D3D_FULL_SCREEN, und dort ging Steams Overlay elfmal
+   * hintereinander nach 0,4 s wieder zu. Bei Galaxy Burger (randlos) blieb
+   * es 8 s offen. Siehe lib/vollbild.js.
+   */
+  const modus = await vollbild.istExklusivesVollbild();
+  if (modus.exklusiv) {
+    logger.info(
+      `Übersicht nicht geöffnet: ${trackedGameName || 'das Spiel'} läuft im exklusiven ` +
+        'Vollbild - ein Fenster darüber würde es minimieren'
+    );
+    meldeExklusivesVollbild();
+    return;
+  }
+  if (modus.zustand === 'unbekannt' && modus.fehler) {
+    logger.warn('Vollbild-Prüfung fehlgeschlagen: ' + modus.fehler);
+  }
+
+  // Waehrend der Pruefung kann sich einiges getan haben.
+  if (nurWennSteamOffen && !steamOverlayOffen) return;
+  if (trackedAppId === null) return;
 
   sendeSpielDaten();
   // showInactive statt show: show() wuerde den Fokus anfordern und damit

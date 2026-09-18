@@ -2,6 +2,44 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Spiele im exklusiven Vollbild minimierten sich beim Öffnen von Steams Overlay
+
+Der vorige Fix (eigenes Fenster für die Übersicht) hat das Umschalten der
+Fensterstile beseitigt — aber nicht das eigentliche Problem. Das steckte
+woanders, und das Protokoll hat es gezeigt. Derselbe App-Stand, derselbe Tag:
+
+| Spiel | Steams Overlay blieb offen |
+|---|---|
+| Galaxy Burger (randlos) | 8,2 s und 5,7 s |
+| Dead Space | elfmal hintereinander **0,4 s** |
+
+Steams Overlay lebt *im* Spiel. Geht es nach 0,4 s wieder zu, ist das Spiel
+darunter weggeklappt. Und Dead Space lief am selben Tag zwei Stunden ohne
+Overlay-Aufruf ohne jedes Problem — es passierte also genau dann, wenn Steams
+Overlay aufging und daraufhin **unser Übersichtsfenster erschien**.
+
+Windows bestätigt die Ursache selbst: `SHQueryUserNotificationState` meldet
+während Dead Space **3 = QUNS_RUNNING_D3D_FULL_SCREEN**, also exklusives
+Vollbild. Ein solches Spiel besitzt den Bildschirm. Steams Overlay überlebt
+das, weil es in das Spiel eingeklinkt ist; unseres ist ein eigenes
+Windows-Fenster und kann das grundsätzlich nicht.
+
+**Die Lösung:** Bevor die Übersicht aufgeht, wird Windows gefragt. Bei
+exklusivem Vollbild bleibt sie zu — egal ob über Steams Overlay, das
+Tastenkürzel oder das Tray-Menü. Stattdessen steht im Tray, warum, und es
+kommt einmal je Spiel eine Windows-Benachrichtigung. Die hält Windows selbst
+zurück, solange das Spiel im Vollbild läuft; sie stört also nicht, sondern
+wartet.
+
+Gemessen, während Dead Space lief: Die Abfrage erkennt das exklusive Vollbild
+zuverlässig, kostet 320–490 ms (danach eine Minute lang 0 ms), und das Spiel
+blieb dabei im Vordergrund und **nicht minimiert** — die Prüfung selbst stört
+also nicht. Aufgerufen über eine unsichtbare PowerShell, weil native Module in
+diesem Projekt ausgeschlossen sind.
+
+**Wer die Übersicht in einem solchen Spiel will:** im Spiel den Anzeigemodus auf
+„Randlos“ bzw. „Vollbild-Fenster“ stellen.
+
 ### Bilanz am Ende einer Spielsitzung
 
 Beim Beenden eines Spiels passierte bisher nichts Sichtbares — eine Zeile ins
