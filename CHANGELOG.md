@@ -1,6 +1,6 @@
 # Änderungen heute
 
-## Noch nicht veröffentlicht
+## 1.1.0 — 19.09.2026
 
 ### Gold sieht nach Gold aus, Platin glänzt
 

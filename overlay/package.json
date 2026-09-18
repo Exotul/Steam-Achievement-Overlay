@@ -1,7 +1,7 @@
 {
   "name": "steam-achievements-overlay",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Desktop-Overlay, das neu freigeschaltete Steam-Achievements über laufenden Spielen einblendet.",
   "author": "Markus",
   "main": "main.js",
