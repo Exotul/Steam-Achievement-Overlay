@@ -23,8 +23,26 @@
  * stehenbleiben. Mit einem festen Ursprung wandern die Meldungen sonst beim
  * Vergroessern aus dem Bild.
  */
+/*
+ * BUENDIG IN DER ECKE, nicht 40 px davor.
+ *
+ * Steam zeigt beim Freischalten seine eigene Meldung - in der aeussersten
+ * Ecke des Bildschirms, im Spiel selbst gezeichnet. Abschalten laesst sie
+ * sich von hier aus nicht. Mit 40 px Abstand lag unsere Meldung knapp
+ * daneben, und man sah beide: zwei Meldungen fuer dasselbe Ereignis.
+ *
+ * Buendig in der Ecke, deckend und mit einer eckigen Kante genau dort (siehe
+ * unten) liegt unsere Meldung vollstaendig darueber. Das funktioniert, weil
+ * unser Fenster ueber dem Spiel liegt und Steams Meldung IM Spiel steckt.
+ *
+ * z-index: Merkliste und Status-Abzeichen stehen im HTML nach dem Stapel und
+ * wuerden sonst darueber gezeichnet. Das Abzeichen sitzt 22 px vor der
+ * unteren rechten Ecke - also genau in dem Bereich, den die Meldung jetzt
+ * abdecken soll. Fuer die paar Sekunden einer Meldung hat sie Vorrang.
+ */
 #stack {
   position: fixed;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -36,35 +54,67 @@
 }
 
 body.pos-oben-rechts #stack {
-  top: 40px;
-  right: 40px;
+  top: 0;
+  right: 0;
   align-items: flex-end;
   transform-origin: top right;
 }
 
 body.pos-oben-links #stack {
-  top: 40px;
-  left: 40px;
+  top: 0;
+  left: 0;
   align-items: flex-start;
   transform-origin: top left;
 }
 
 /* Unten wird die Reihenfolge umgedreht: Die neueste Meldung soll am Rand
-   erscheinen und die aelteren nach oben schieben, nicht umgekehrt. */
+   erscheinen und die aelteren nach oben schieben, nicht umgekehrt. So liegt
+   auch immer die NEUESTE in der Ecke - genau dort, wo Steam die zugehoerige
+   eigene Meldung zeigt. */
 body.pos-unten-rechts #stack {
-  bottom: 40px;
-  right: 40px;
+  bottom: 0;
+  right: 0;
   align-items: flex-end;
   flex-direction: column-reverse;
   transform-origin: bottom right;
 }
 
 body.pos-unten-links #stack {
-  bottom: 40px;
-  left: 40px;
+  bottom: 0;
+  left: 0;
   align-items: flex-start;
   flex-direction: column-reverse;
   transform-origin: bottom left;
+}
+
+/*
+ * Die eine eckige Kante - immer die, die in die Bildschirmecke zeigt.
+ *
+ * Eine abgerundete Ecke laesst ausserhalb ihres Bogens einen durchsichtigen
+ * Zwickel frei. Buendig in der Bildschirmecke waere das genau das Stueck, in
+ * dem Steams Meldung hervorschaut. Die drei anderen Ecken bleiben rund.
+ *
+ * Gilt fuer beide Meldungsarten im Stapel (Achievement und XP), damit sie
+ * nacheinander an derselben Stelle dieselbe Form haben.
+ */
+body.pos-unten-rechts .toast,
+body.pos-unten-rechts .xp-toast {
+  border-bottom-right-radius: 0;
+}
+
+body.pos-unten-links .toast,
+body.pos-unten-links .xp-toast {
+  border-bottom-left-radius: 0;
+}
+
+body.pos-oben-rechts .toast,
+body.pos-oben-rechts .xp-toast {
+  border-top-right-radius: 0;
+}
+
+body.pos-oben-links .toast,
+body.pos-oben-links .xp-toast {
+  border-top-left-radius: 0;
 }
 
 /* ---------- Standard-Achievement-Toast ---------- */
@@ -78,7 +128,9 @@ body.pos-unten-links #stack {
      einem grossen bis 900 px. Feste Breite (statt min/max), damit alle
      Meldungen gleich breit sind und nicht je nach Textlaenge springen. */
   width: clamp(660px, 40vw, 960px);
-  background: rgba(21, 25, 32, 0.96);
+  /* Voll deckend. Bei 96 % schimmerte Steams Meldung darunter noch durch -
+     genau die, die hier verdeckt werden soll. */
+  background: rgb(21, 25, 32);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-left: 4px solid var(--tier-color, #8b93e0);
   border-radius: 18px;
@@ -92,16 +144,25 @@ body.pos-unten-links #stack {
     toast-out 0.5s cubic-bezier(0.6, 0, 0.75, 0) forwards var(--display-time, 8.1s);
 }
 
-/* Von ausserhalb des rechten Bildschirmrands hereinfliegen, mit leichtem
-   Ueberschwingen nach links - dadurch wirkt die Bewegung gebremst statt
-   abrupt gestoppt. */
+/*
+ * Von ausserhalb des Bildschirmrands hereinfliegen.
+ *
+ * OHNE Ueberschwingen - das gab es hier bis eben: bei 55 % der Bewegung
+ * 14 px ueber das Ziel hinaus, dann zurueck. Seit die Meldung buendig in der
+ * Ecke sitzt, um Steams eigene Meldung zu verdecken, hiess das: 284 ms lang
+ * ein bis zu 14 px breiter Streifen an der Kante, durch den genau diese
+ * Steam-Meldung hervorschaute - und zwar in dem Moment, in dem beide
+ * erscheinen. Nachgemessen.
+ *
+ * Die Kurve (cubic-bezier 0.16, 1, 0.3, 1) bremst auch ohne Ueberschwingen
+ * deutlich ab; die Bewegung wirkt weiterhin gefangen statt gestoppt.
+ */
 @keyframes toast-in {
   0% {
     transform: translateX(calc(var(--flug-richtung, 1) * (100% + 60px)));
     opacity: 0;
   }
-  55% {
-    transform: translateX(calc(var(--flug-richtung, 1) * -14px));
+  40% {
     opacity: 1;
   }
   100% {
@@ -1269,7 +1330,8 @@ body.pos-unten-links #stack {
   width: clamp(420px, 26vw, 620px);
   padding: 14px 22px 14px 16px;
   border-radius: 14px;
-  background: rgba(21, 25, 32, 0.94);
+  /* Deckend wie die Achievement-Meldung, deren Platz sie uebernimmt. */
+  background: rgb(21, 25, 32);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 3px solid var(--tier-platin, #8b93e0);
   box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.65);

@@ -2,6 +2,40 @@
 
 ## Noch nicht veröffentlicht
 
+### Unsere Meldung verdeckt Steams eigene
+
+Steam zeigt beim Freischalten eine eigene Meldung in der äußersten Ecke des
+Bildschirms. Abschalten lässt sie sich von hier aus nicht. Unsere lag 40 px
+daneben, leicht durchscheinend und mit vier runden Ecken — man sah beide
+Meldungen für dasselbe Ereignis.
+
+Jetzt:
+
+- **bündig in der Ecke** statt 40 px davor,
+- **voll deckend** statt zu 96 % (bei 96 % schimmerte Steams Meldung durch),
+- **eine eckige Kante** — immer die, die in die Bildschirmecke zeigt. Eine runde
+  Ecke lässt außerhalb ihres Bogens genau das Stück frei, in dem Steams
+  Meldung hervorschauen würde. Die drei anderen bleiben rund. Wer die Ecke
+  in den Einstellungen wechselt, bekommt die eckige Kante mit.
+
+Gilt für die Achievement- und die XP-Meldung gleichermaßen.
+
+**Zwei Dinge, die dabei aufgefallen sind:**
+
+Der Einflug schwang 14 px über das Ziel hinaus und kam zurück. Bündig in der
+Ecke hieß das: 284 ms lang ein Streifen an der Kante, durch den Steams Meldung
+hervorschaute — genau in dem Moment, in dem beide erscheinen. Nachgemessen,
+herausgenommen, jetzt 0 px und 0 ms.
+
+Merkliste und Status-Abzeichen wurden über den Meldungen gezeichnet, weil sie
+im HTML später stehen. Das Abzeichen sitzt 22 px vor der unteren rechten Ecke —
+also genau dort, wo die Meldung jetzt abdecken soll. Für die Sekunden einer
+Meldung hat sie jetzt Vorrang.
+
+**Die Vorgabe für neue Anwender ist jetzt unten rechts** statt oben rechts — dort,
+wo Steam seine Meldung ab Werk zeigt. Mit oben rechts sähe jeder neue Anwender
+zwei Meldungen an zwei Ecken. Gespeicherte Einstellungen bleiben unberührt.
+
 ### Behoben: Das Level sprang zwischen 15 und 51
 
 Dieselben 376 Spiele ergaben einmal **24.096 XP** (Level 15) und einmal

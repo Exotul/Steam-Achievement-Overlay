@@ -42,8 +42,17 @@ test('Alle vier Ecken werden angenommen', () => {
 });
 
 test('Eine unbekannte Position fällt auf die Vorgabe zurück', () => {
-  assert.strictEqual(E.bereinige({ position: 'mitte' }).position, 'oben-rechts');
-  assert.strictEqual(E.bereinige({ position: 42 }).position, 'oben-rechts');
+  const vorgabe = E.standard().position;
+  assert.strictEqual(E.bereinige({ position: 'mitte' }).position, vorgabe);
+  assert.strictEqual(E.bereinige({ position: 42 }).position, vorgabe);
+});
+
+test('Die Vorgabe ist die Ecke, in der Steam seine eigene Meldung zeigt', () => {
+  // Unsere Meldung liegt bündig in der Ecke, um Steams Meldung zu verdecken.
+  // Das klappt nur, wenn beide in derselben Ecke sitzen - und Steam zeigt
+  // seine ab Werk unten rechts. Mit "oben rechts" als Vorgabe sah jeder neue
+  // Anwender zwei Meldungen an zwei Ecken für dasselbe Achievement.
+  assert.strictEqual(E.standard().position, 'unten-rechts');
 });
 
 test('Unbekannte Abzeichen-Betriebsart fällt zurück', () => {
@@ -143,7 +152,7 @@ test('Speichern gibt die bereinigten Werte zurück, nicht die angefragten', () =
   const antwort = E.speichern({ groesse: 99, position: 'quatsch' }, datei);
 
   assert.strictEqual(antwort.groesse, E.GRENZEN.groesse.max);
-  assert.strictEqual(antwort.position, 'oben-rechts');
+  assert.strictEqual(antwort.position, E.standard().position);
 
   fs.rmSync(dir, { recursive: true, force: true });
 });

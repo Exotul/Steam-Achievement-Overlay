@@ -44,7 +44,11 @@ const GRENZEN = {
  */
 function standard() {
   return {
-    position: 'oben-rechts',
+    // Dieselbe Ecke, in der Steam seine eigene Meldung zeigt. Nur dort kann
+    // unsere sie verdecken - an einer anderen Ecke sähe man zwei Meldungen
+    // für dasselbe Achievement. Wer Steams Ecke in den Steam-Einstellungen
+    // ändert, stellt hier dieselbe ein.
+    position: 'unten-rechts',
     // null = Hauptbildschirm. Eine feste Kennung wäre falsch: Monitore
     // können abgezogen werden, und dann läge das Overlay im Nirgendwo.
     bildschirm: null,

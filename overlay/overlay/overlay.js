@@ -18,7 +18,7 @@ let audioCtx = null;
  * oder stumm, je nachdem was gerade fehlt.
  */
 let einst = {
-  position: 'oben-rechts',
+  position: 'unten-rechts',
   groesse: 1,
   anzeigeDauerSek: 8.5,
   lautstaerke: 0.22,
@@ -31,7 +31,7 @@ function wendeEinstellungenAn(neue) {
   einst = { ...einst, ...neue };
 
   POSITIONEN.forEach((p) => document.body.classList.remove(`pos-${p}`));
-  const pos = POSITIONEN.includes(einst.position) ? einst.position : 'oben-rechts';
+  const pos = POSITIONEN.includes(einst.position) ? einst.position : 'unten-rechts';
   document.body.classList.add(`pos-${pos}`);
 
   document.documentElement.style.setProperty('--groesse', einst.groesse);
