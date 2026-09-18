@@ -2,6 +2,45 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Das Level sprang zwischen 15 und 51
+
+Dieselben 376 Spiele ergaben einmal **24.096 XP** (Level 15) und einmal
+**188.250 XP** (Level 51). Richtig ist 51.
+
+Die Ursache war eine einzige Zeile in der XP-Berechnung:
+
+```js
+totalXp += await spielXp(...);
+```
+
+ausgeführt von acht gleichzeitigen Arbeitern. `x += await f()` liest den alten
+Wert von `x`, **bevor** gewartet wird. Jeder Arbeiter schrieb danach „alter Stand
++ mein Spiel“ zurück und überschrieb, was die anderen sieben in der Zwischenzeit
+addiert hatten. Übrig blieb fast genau ein Achtel.
+
+Nachgestellt, bevor es behoben wurde:
+
+| | Summe |
+|---|---|
+| erwartet | 188.000 |
+| altes Muster, 8 Arbeiter | 23.500 – 24.000 |
+| altes Muster, 1 Arbeiter | 188.000 |
+
+Deshalb stimmte es manchmal: Musste nur ein Spiel neu gerechnet werden, lief
+ein einziger Arbeiter, und nichts ging verloren. Die Erstberechnung dagegen —
+also bei **jedem neuen Anwender** — war falsch.
+
+Die Werte je Spiel im Speicher waren die ganze Zeit richtig; nur das
+Zusammenzählen ging schief. Sie bleiben deshalb gültig. Gespeicherte
+*Gesamtsummen* werden dagegen verworfen, damit eine falsche nie wieder
+angezeigt wird — auch nicht für die ersten Sekunden nach dem Start.
+
+Vier neue Tests prüfen die echte Berechnungsfunktion mit Steam-Attrappen, die
+mit zufälliger Verzögerung antworten. Ohne die Verzögerung liefe alles in
+fester Reihenfolge durch, und der Fehler bliebe unsichtbar — wie er es lange
+war. Gegen den alten Code waren alle vier rot, mit genau der Meldung, die man
+erwartet: „Summe 2400 statt 18800 – ein Achtel davon (2350)“.
+
 ### Behoben: Spiele im exklusiven Vollbild minimierten sich beim Öffnen von Steams Overlay
 
 Der vorige Fix (eigenes Fenster für die Übersicht) hat das Umschalten der

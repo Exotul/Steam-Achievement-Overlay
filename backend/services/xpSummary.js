@@ -36,9 +36,28 @@ const LETZTER_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage
 // verworfen wird, sobald sich die Spielzeit ändert (siehe xpPlan.js).
 const SPIEL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/*
+ * SUMMEN_FASSUNG gilt nur fuer die Gesamtsummen, nicht fuer die Werte je
+ * Spiel.
+ *
+ * Die Gesamtsummen konnten bis hierher falsch sein (siehe worker() unten:
+ * verlorene Additionen, etwa ein Achtel des richtigen Werts). Ein neuer
+ * Schluessel sorgt dafuer, dass eine so gespeicherte Summe nie wieder
+ * angezeigt wird - auch nicht fuer die ersten Sekunden nach dem Start, bis
+ * die Neuberechnung durch ist.
+ *
+ * Die Werte JE SPIEL waren dagegen immer richtig: Jeder wurde einzeln
+ * berechnet und einzeln gemerkt, nur das Zusammenzaehlen ging schief. Sie
+ * bleiben deshalb gueltig. Die naechste Summe entsteht fast vollstaendig aus
+ * ihnen - schnell, ohne die ganze Bibliothek neu bei Steam zu erfragen.
+ */
+const SUMMEN_FASSUNG = 2;
+
 const schluesselSpiel = (steamId, appId) => `xp-spiel:v${FORMEL_VERSION}:${steamId}:${appId}`;
-const schluesselFrisch = (steamId) => `xpsummary:v${FORMEL_VERSION}:${steamId}`;
-const schluesselLetzter = (steamId) => `xpsummary-letzter:v${FORMEL_VERSION}:${steamId}`;
+const schluesselFrisch = (steamId) =>
+  `xpsummary:v${FORMEL_VERSION}.s${SUMMEN_FASSUNG}:${steamId}`;
+const schluesselLetzter = (steamId) =>
+  `xpsummary-letzter:v${FORMEL_VERSION}.s${SUMMEN_FASSUNG}:${steamId}`;
 
 // Laufende Berechnungen je Konto.
 const jobs = new Map();
@@ -135,7 +154,18 @@ async function berechneIntern(steamId, job) {
     while (warteschlange.length > 0) {
       const g = warteschlange.shift();
       try {
-        totalXp += await spielXp(steamId, g.appid, g.playtime_forever || 0);
+        // ERST warten, DANN addieren - in zwei Schritten, mit Absicht.
+        //
+        // Hier stand `totalXp += await spielXp(...)`. Das liest totalXp,
+        // BEVOR gewartet wird. Bei acht gleichzeitigen Arbeitern schrieb
+        // jeder danach "alter Stand + mein Spiel" zurueck und ueberschrieb,
+        // was die anderen sieben inzwischen addiert hatten. Uebrig blieb
+        // fast genau ein Achtel: 24.096 statt 188.250 XP, Level 15 statt 51.
+        //
+        // Wer das "vereinfacht", macht den Fehler wieder rueckgaengig. Der
+        // Test in tests/backend/xpSummary.test.js wird dann rot.
+        const xp = await spielXp(steamId, g.appid, g.playtime_forever || 0);
+        totalXp += xp;
       } catch (err) {
         /* Spiel überspringen */
       }
@@ -229,4 +259,11 @@ function getSummary(steamId, neuBerechnen = false) {
   };
 }
 
-module.exports = { getSummary, getLevelProgress, achievementXp, TIER_MULTIPLIER };
+module.exports = {
+  getSummary,
+  getLevelProgress,
+  achievementXp,
+  TIER_MULTIPLIER,
+  // Fuer die Tests: die Berechnung selbst, ohne Warteschlange und Job-Verwaltung.
+  _berechneIntern: berechneIntern,
+};
