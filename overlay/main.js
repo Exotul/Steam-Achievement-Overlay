@@ -254,6 +254,13 @@ function createOverlayWindow() {
     },
   });
 
+  // Die Groesse EXPLIZIT noch einmal setzen. Beim Anlegen kuerzt Windows ein
+  // Fenster auf die Flaeche ohne Taskleiste - nachgemessen: 3840x2120 statt
+  // 3840x2160. Die Meldungen sassen dadurch 40 px ueber der Bildschirmecke und
+  // verdeckten Steams Meldung, die genau dort erscheint, nicht vollstaendig.
+  // Ein setBounds danach wird nicht gekuerzt.
+  overlayWindow.setBounds({ x, y, width, height });
+
   // 'screen-saver' ist die hoechste Fensterebene, die Electron anbietet -
   // damit liegt das Overlay ueber Vollbild-Spielen im randlosen Modus.
   // relativeLevel 1 schiebt es zusaetzlich ueber andere Fenster derselben
@@ -414,6 +421,13 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
         (passt ? '' : '  <- PASST NICHT') +
         `, sichtbar: ${overlayWindow.isVisible()}, oben: ${overlayWindow.isAlwaysOnTop()}`
     );
+    // Aus dem Zwischenspeicher, wenn vorhanden - keine Verzoegerung der Meldung.
+    vollbild.istExklusivesVollbild().then((modus) => {
+      if (modus.exklusiv) {
+        logger.info('  Spiel im exklusiven Vollbild - diese Meldung ist vermutlich nicht zu sehen');
+        meldeExklusivesVollbild();
+      }
+    });
   }
 
   // Fuer die Bilanz am Ende der Sitzung mitschreiben. Tests zaehlen nicht -
@@ -619,6 +633,7 @@ async function startAchievementTracking(appId, gameName) {
 
   // Anderes Spiel, womoeglich anderer Anzeigemodus - neu fragen.
   vollbild.vergessen();
+  planeVollbildPruefung(appId);
 
   sitzung = {
     appId,
@@ -943,6 +958,7 @@ function stopLocalWatcher() {
 }
 
 function stopAchievementTracking() {
+  clearTimeout(vollbildPruefTimer);
   // Keine Verfolgung, keine Sitzung. zeigeSitzungsbilanz() raeumt selbst auf
   // und wird VOR dieser Funktion gerufen - hier steht es noch einmal, damit
   // die Regel nicht an der Aufrufreihenfolge haengt. Ueber stopPolling()
@@ -1277,22 +1293,41 @@ function sendeSpielDaten() {
  */
 let vollbildGemeldetFuer = null;
 
+/*
+ * Ueber einem Spiel im EXKLUSIVEN Vollbild zeigt Windows fremde Fenster nicht
+ * zuverlaessig an - weder unsere Meldungen noch die Uebersicht. Steam, Discord
+ * und NVIDIA schaffen das nur, weil sie sich in das Spiel selbst einklinken.
+ * Das kommt hier nicht in Frage: Es braucht nativen Code, und Anti-Cheat-
+ * Systeme reagieren darauf, in Mehrspielerspielen bis zur Kontosperre.
+ *
+ * Nachgewiesen an Dead Space: vier verschiedene Meldungen, alle nachweislich
+ * ausgeloest und angezeigt, Overlay sichtbar und oben - und alle unsichtbar,
+ * waehrend Windows "exklusives Vollbild" meldete.
+ *
+ * Was bleibt: Es nicht still ins Leere laufen lassen, sondern einmal je Spiel
+ * sagen, warum man nichts sieht und was hilft.
+ */
 function meldeExklusivesVollbild() {
   const name = trackedGameName || 'Das Spiel';
-  updateTrayStatus(`${name}: Übersicht nur im randlosen Fenstermodus`);
+  updateTrayStatus(`${name}: exklusives Vollbild - Meldungen nur im randlosen Modus sichtbar`);
 
   if (vollbildGemeldetFuer === trackedAppId) return;
   vollbildGemeldetFuer = trackedAppId;
+  logger.info(`${name} läuft im exklusiven Vollbild - Hinweis auf den randlosen Modus gegeben`);
 
   try {
     const { Notification } = require('electron');
     if (Notification.isSupported()) {
+      // Windows haelt Benachrichtigungen selbst zurueck, solange ein Spiel im
+      // exklusiven Vollbild laeuft, und zeigt sie danach - sie stoeren also
+      // nicht, sondern warten.
       new Notification({
-        title: 'Übersicht im Vollbild nicht möglich',
+        title: 'Meldungen im Vollbild nicht sichtbar',
         body:
-          `${name} läuft im exklusiven Vollbild. Ein Fenster darüber würde das Spiel ` +
-          'minimieren. Stell im Spiel den Anzeigemodus auf „Randlos“ oder ' +
-          '„Vollbild-Fenster“ - dann geht die Übersicht auf.',
+          `${name} läuft im exklusiven Vollbild. Darüber zeigt Windows fremde Fenster ` +
+          'nicht zuverlässig an - Achievement-Meldungen und die Übersicht bleiben ' +
+          'unsichtbar (der Ton kommt trotzdem). Stell im Spiel den Anzeigemodus auf ' +
+          '„Randlos“ oder „Vollbild-Fenster“, dann ist alles zu sehen.',
         icon: path.join(__dirname, 'assets', 'app-icon.png'),
         silent: true,
       }).show();
@@ -1300,6 +1335,26 @@ function meldeExklusivesVollbild() {
   } catch (err) {
     /* Nur ein Hinweis - wenn er nicht geht, steht es im Tray und im Protokoll. */
   }
+}
+
+/**
+ * Einmal je Spiel nachsehen, ob es im exklusiven Vollbild laeuft.
+ *
+ * 45 Sekunden nach dem Start: Viele Spiele zeigen zuerst ein Startfenster und
+ * schalten erst danach ins Vollbild - eine fruehere Abfrage saehe noch das
+ * Startfenster. Die Abfrage selbst stoert das Spiel nicht (nachgemessen: Dead
+ * Space blieb dabei im Vordergrund und nicht minimiert).
+ */
+const VOLLBILD_PRUEFUNG_NACH_MS = 45 * 1000;
+let vollbildPruefTimer = null;
+
+function planeVollbildPruefung(appId) {
+  clearTimeout(vollbildPruefTimer);
+  vollbildPruefTimer = setTimeout(async () => {
+    if (trackedAppId !== appId) return;
+    const modus = await vollbild.istExklusivesVollbild({ frisch: true });
+    if (trackedAppId === appId && modus.exklusiv) meldeExklusivesVollbild();
+  }, VOLLBILD_PRUEFUNG_NACH_MS);
 }
 
 /** Ist die Uebersicht gerade zu sehen? */
@@ -2234,56 +2289,27 @@ function zeigeEinstellungen() {
 /*
  * Testmeldung per Tastenkuerzel - IM SPIEL, ohne es zu verlassen.
  *
- * Die Testknoepfe in den Einstellungen taugen fuer ein Spiel im exklusiven
- * Vollbild nicht: Um sie zu druecken, muss man aus dem Spiel heraus, und
- * genau das veraendert den Zustand, der geprueft werden soll.
+ * Die Testknoepfe in den Einstellungen taugen dafuer nicht: Um sie zu
+ * druecken, muss man aus dem Spiel heraus, und genau das veraendert den
+ * Zustand, der geprueft werden soll (Vollbild, Fensterreihenfolge).
  *
- * DIAGNOSE (voruebergehend): Jeder Druck zeigt die naechste von vier
- * Varianten, jede mit genau EINER Aenderung gegenueber der aktuellen
- * Meldung. Anlass: Bei Dead Space im exklusiven Vollbild war die Meldung vor
- * den Gestaltungsaenderungen vom 19.09. sichtbar und danach nicht mehr - bei
- * nachweislich ausgeloester Meldung. Welche Aenderung es war, laesst sich nur
- * im Spiel feststellen. Die Varianten werden nach der Auswertung entfernt.
+ * Entstanden bei der Fehlersuche zum exklusiven Vollbild: Vier Varianten der
+ * Meldung - bis hin zu ihrem Aussehen vom 18.09. - waren ueber Dead Space
+ * ALLE unsichtbar, waehrend Windows "exklusives Vollbild" meldete. Damit war
+ * klar, dass es nicht am Aussehen lag. Die Varianten sind wieder entfernt;
+ * das Kuerzel bleibt, weil es genau fuer solche Pruefungen gebraucht wird.
  */
 const TEST_TASTE = 'Control+Alt+Shift+T';
-const TEST_VARIANTEN = [
-  { nr: 1, name: 'Aktuell', beschreibung: 'deckend, bündig, eckig, Metall' },
-  { nr: 2, name: 'Nur halbdeckend', beschreibung: 'wie 1, aber 96 % Deckkraft' },
-  { nr: 3, name: 'Nur mit Abstand', beschreibung: 'wie 1, aber 40 px vom Rand' },
-  { nr: 4, name: 'Wie am 18.09.', beschreibung: '96 %, 40 px, rund, ohne Metall' },
-];
-let testVarianteIndex = 0;
 
 function handleTestImSpiel() {
-  const v = TEST_VARIANTEN[testVarianteIndex % TEST_VARIANTEN.length];
-  testVarianteIndex += 1;
-
-  const echtesSymbol = [...achievementIndex.values()].find((a) => a.icon)?.icon;
-  sendAchievementToOverlay(
-    {
-      apiName: `TEST_${Date.now()}`,
-      name: `Test ${v.nr}: ${v.name}`,
-      description: v.beschreibung,
-      icon: echtesSymbol || '../assets/app-icon.png',
-      unlocked: true,
-      globalPercent: 7.1,
-      category: 'Gold',
-      diagVariante: v.nr,
-    },
-    true
-  );
-
-  // Alles festhalten, was fuer die Auswertung zaehlt. Die Vollbild-Abfrage
-  // kostet einen unsichtbaren PowerShell-Start und laeuft deshalb NACH dem
-  // Anzeigen, damit sie die Meldung nicht verzoegert.
+  handleTestAchievement();
   const fenster = overlayWindow && !overlayWindow.isDestroyed() ? overlayWindow.getBounds() : null;
   const bild = gewaehlterBildschirm().bounds;
   vollbild.istExklusivesVollbild({ frisch: true }).then((modus) => {
     logger.info(
-      `Testmeldung ${v.nr} (${v.name}) im Spiel gezeigt - ` +
-        `Fenster ${fenster ? `${fenster.x},${fenster.y} ${fenster.width}x${fenster.height}` : '-'}, ` +
-        `Bildschirm ${bild.width}x${bild.height}, Windows meldet: ${modus.zustand}` +
-        `, oben: ${overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isAlwaysOnTop()}`
+      'Testmeldung per Tastenkürzel - ' +
+        `Fenster ${fenster ? `${fenster.width}x${fenster.height}` : '-'}, ` +
+        `Bildschirm ${bild.width}x${bild.height}, Windows meldet: ${modus.zustand}`
     );
   });
 }

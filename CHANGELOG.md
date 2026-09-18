@@ -1,5 +1,45 @@
 # Änderungen heute
 
+## Noch nicht veröffentlicht
+
+### Exklusives Vollbild: geklärt, und die App sagt es jetzt
+
+Bei Dead Space im exklusiven Vollbild waren Meldungen unsichtbar. Vermutet
+war, dass die Gestaltungsänderungen vom 19.09. schuld seien. Geprüft mit
+einer Testmeldung per Tastenkürzel (im Spiel, ohne Alt+Tab) in vier Varianten
+bis hin zum Aussehen vom 18.09.: **alle vier unsichtbar**, obwohl nachweislich
+angezeigt, das Overlay sichtbar und oben, und Windows „exklusives Vollbild“
+meldete. Es liegt also nicht am Aussehen.
+
+Über einem Spiel im exklusiven Vollbild zeigt Windows fremde Fenster nicht
+zuverlässig an. Steam, Discord und NVIDIA schaffen das nur, weil sie sich in
+das Spiel einklinken — das braucht nativen Code, und Anti-Cheat-Systeme
+reagieren darauf, in Mehrspielerspielen bis zur Kontosperre. Kommt hier nicht
+in Frage. Die eine sichtbare Meldung am 18.09. kam in einem Spiel, das kurz
+vorher sechsmal minimiert und wiederhergestellt worden war und danach
+vermutlich in einem anderen Darstellungsmodus lief.
+
+Neu: 45 Sekunden nach dem Spielstart prüft die App einmal, ob das Spiel im
+exklusiven Vollbild läuft, und sagt es dann einmal je Spiel — im Tray und als
+Windows-Benachrichtigung, die Windows bis nach dem Spiel zurückhält. Die
+Lösung für den Anwender: im Spiel „Randlos“ oder „Vollbild-Fenster“.
+
+Die Testmeldung per `Strg+Alt+Umschalt+T` bleibt: Sie ist der einzige Weg,
+im Spiel zu prüfen, ohne es zu verlassen.
+
+### Behoben: Das Overlay war 40 px zu niedrig
+
+Beim Anlegen kürzt Windows ein Fenster auf die Fläche ohne Taskleiste —
+nachgemessen 3840×2120 statt 3840×2160. Die Meldungen saßen dadurch 40 px
+über der Bildschirmecke und verdeckten Steams Meldung, die genau dort
+erscheint, nicht vollständig. Ein `setBounds` nach dem Anlegen wird nicht
+gekürzt.
+
+### Behoben: Keine Reaktion auf Bildschirmänderungen
+
+Andere Auflösung, Monitor ab- oder angesteckt, Skalierung geändert: Das
+Overlay blieb in der alten Größe. Jetzt passt es sich an.
+
 ## 1.1.0 — 19.09.2026
 
 ### Gold sieht nach Gold aus, Platin glänzt
