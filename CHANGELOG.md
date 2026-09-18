@@ -2,6 +2,20 @@
 
 ## Noch nicht veröffentlicht
 
+### Gold sieht nach Gold aus, Platin glänzt
+
+Gold unterschied sich kaum von Kupfer. Nachgerechnet: Gold hatte 11 %
+Sättigung, Kupfer 9 % — beide waren praktisch dunkles Grau, nur der Farbton wich
+um ein paar Grad ab. Gold hat jetzt rund 50 % Sättigung, dunkel gehalten, und
+einen warmgoldenen statt weißen Glanz.
+
+Platin hat einen kühleren, satteren Grund, zwei Glanzbänder statt einem und
+einen Lichtstreif, der während der Anzeige wiederholt darüberläuft.
+
+Der erste Platin-Entwurf war zu hell: Wo beide Glanzbänder und die Bürstung
+zusammentrafen, fiel die Prozentzeile auf einen Kontrast von 4,1. Gemessen,
+nachjustiert, jetzt 5,9. Über alle Stufen liegt der schlechteste Wert bei 5,2.
+
 ### Level und XP in der Begrüßung
 
 Die Startsequenz zeigt jetzt unter „Happy Trophy Hunting“ das aktuelle Level

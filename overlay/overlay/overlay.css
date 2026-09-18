@@ -208,8 +208,8 @@ body.pos-oben-links .xp-toast {
  *              Name   Beschreibung   Prozentzeile   Kopfzeile
  *   Kupfer      9,8       7,0            5,4            5,3
  *   Silber      9,5       6,8            5,2            7,7
- *   Gold        9,4       6,8            5,2            6,5
- *   Platin      9,5       6,8            5,2            5,8
+ *   Gold        8,3       6,0            5,4            6,6
+ *   Platin      8,7       6,3            5,9            6,6
  *
  * Alles ueber 4,5 (die Schwelle fuer gut lesbaren Fliesstext). Die vorab
  * gerechneten Werte lagen etwas hoeher; gemessen zaehlt. Dafuer zwei
@@ -234,16 +234,32 @@ body.pos-oben-links .xp-toast {
   --kopf-farbe: #cfd5dc;
 }
 
+/*
+ * Gold war zu grau: 11 % Saettigung gegen 9 % bei Kupfer. Beide sahen wie
+ * dunkles Graubraun aus, nur der Farbton wich um ein paar Grad ab. Jetzt rund
+ * 50 % Saettigung - dunkel gehalten, damit die Schrift lesbar bleibt - und
+ * ein warmgoldener statt weisser Glanz.
+ */
 .toast--gold {
-  --grund-oben: #2c2923;
-  --grund-unten: #21201d;
-  --kopf-farbe: #e1bf79;
+  --grund-oben: #372b0f;
+  --grund-unten: #231b08;
+  --kopf-farbe: #f0cf82;
+  --glanz: rgba(255, 206, 108, 0.1);
+  --meta-farbe: #b8bec9;
 }
 
+/*
+ * Platin soll glaenzen: kuehlerer, satterer Grund, zwei Glanzbaender statt
+ * einem (ein breites, weiches und ein schmales, helles) und ein Lichtstreif,
+ * der waehrend der Anzeige wiederholt darueberlaeuft statt nur einmal.
+ */
 .toast--platin {
-  --grund-oben: #242939;
-  --grund-unten: #1c202c;
-  --kopf-farbe: #b0b6ea;
+  --grund-oben: #232a4a;
+  --grund-unten: #171b30;
+  --kopf-farbe: #c6cbf7;
+  --glanz: rgba(214, 222, 255, 0.075);
+  --glanz-2: rgba(255, 255, 255, 0.055);
+  --meta-farbe: #bcc2d0;
 }
 
 .toast--metall {
@@ -252,15 +268,22 @@ body.pos-oben-links .xp-toast {
     linear-gradient(
       112deg,
       rgba(255, 255, 255, 0) 18%,
-      rgba(255, 255, 255, 0.045) 42%,
+      var(--glanz, rgba(255, 255, 255, 0.045)) 42%,
       rgba(255, 255, 255, 0) 64%
+    ),
+    /* zweites, schmales Glanzband - nur wo eine Stufe es setzt (Platin) */
+    linear-gradient(
+      112deg,
+      rgba(255, 255, 255, 0) 57%,
+      var(--glanz-2, rgba(255, 255, 255, 0)) 62%,
+      rgba(255, 255, 255, 0) 67%
     ),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='180'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.1 0 0 0 -0.03'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E"),
     linear-gradient(180deg, var(--grund-oben), var(--grund-unten));
   /* Die Buerstung wird gestreckt statt gekachelt. Gekachelt zeigte sich bei
      360 px eine senkrechte Naht, genau wo die Kachel neu beginnt. Gestreckt
      faellt nichts auf - Buerstenstriche laufen ohnehin waagerecht. */
-  background-size: auto, auto, 100% 100%, auto;
+  background-size: auto, auto, auto, 100% 100%, auto;
   background-repeat: no-repeat;
 }
 
@@ -269,7 +292,33 @@ body.pos-oben-links .xp-toast {
 }
 
 .toast--metall .toast__meta {
-  color: #a9b0bd;
+  color: var(--meta-farbe, #a9b0bd);
+}
+
+/*
+ * Der Lichtstreif laeuft bei Platin wiederholt ueber die Karte - mit Pause
+ * dazwischen, damit er als Glanz wirkt und nicht als Flackern. Er zieht
+ * jedes Mal nur kurz ueber die Schrift; gemessen wurde die Lesbarkeit ohne
+ * ihn, also an dem, was die meiste Zeit zu sehen ist.
+ */
+.toast--platin.toast--shine::before {
+  animation: platin-glanz 2.8s ease-in-out 0.25s infinite;
+}
+
+@keyframes platin-glanz {
+  0% {
+    transform: translateX(-120%);
+  }
+  45%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast--platin.toast--shine::before {
+    animation: none;
+  }
 }
 
 /* diagonaler Lichtstreif, läuft einmal über die Karte - ab Silber aufwärts */
