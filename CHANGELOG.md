@@ -2,6 +2,26 @@
 
 ## Noch nicht veröffentlicht
 
+### XP-Zuwachs direkt an der Meldung
+
+Bisher kam der XP-Zuwachs als eigene Karte, erst nachdem die
+Achievement-Meldung verschwunden war, rund neun Sekunden nach dem Achievement.
+Jetzt schiebt sich die XP-Leiste gut eine Sekunde nach der Meldung unter ihr
+hervor, zur Bildschirmmitte hin, und der Balken wächst, während das
+Achievement noch zu sehen ist. Der XP-Ton kommt genau dann. Die Leiste trägt
+die Farbe der Stufe, beide verschwinden gemeinsam und zählen im Stapel als eine
+Meldung. Bei Blutig wartet die Leiste, bis Totenkopf und Klang durch sind.
+
+### Blutig: gruseligerer Klang, leerer Totenkopf
+
+- **Klang:** Der Herzschlag sackt jetzt nach unten weg. Darunter liegt ein
+  dunkler, leicht verstimmter Grundton, der unruhig schwebt. Darüber spielt
+  eine Spieluhr in a-Moll mit Echo, abwärts, dann ein falscher Ton (Tritonus),
+  der sich nach e auflöst. Die Auflösung ist der befriedigende Moment. Offline
+  gerendert: Spitzenpegel 0,35, keine Übersteuerung, knapp 3 s.
+- **Totenkopf:** bleibt leer wie die Rauten der anderen Stufen. Die
+  knochenweiße Füllung wirkte daneben wie ein Fremdkörper.
+
 ### Neue fünfte Stufe: Blutig
 
 Für die allerschwersten Achievements, die weltweit höchstens 0,2 % haben.

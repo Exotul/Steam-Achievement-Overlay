@@ -59,13 +59,18 @@ prüfen…" listet unter "Status-Abzeichen" die Zeilen auf, die aus Steams
 Protokoll nicht zugeordnet werden konnten. Damit lässt sich die Erkennung
 gezielt anpassen, statt zu raten.
 
-## XP-Meldung und Level
+## XP-Leiste und Level
 
-Nachdem eine Achievement-Meldung verschwunden ist, folgt eine schmalere
-Meldung mit dem XP-Zuwachs, dem aktuellen Level und einem Balken, der sichtbar
-weiterwächst. Beim Levelaufstieg läuft der Balken zuerst voll, die Meldung
-leuchtet kurz auf, die Levelzahl springt, Funken fliegen und eine aufsteigende
-Tonfolge spielt - danach beginnt der Balken von vorn.
+Gut eine Sekunde nach der Achievement-Meldung schiebt sich unter ihr eine
+Leiste hervor, mit dem XP-Zuwachs, dem aktuellen Level und einem Balken, der
+sichtbar weiterwächst. Sie sitzt auf der Seite zur Bildschirmmitte, bei einer
+unteren Ecke also über der Meldung, bei einer oberen darunter. Ihr Rand hat die
+Farbe der Stufe, und beide verschwinden gemeinsam. Bei Blutig kommt die Leiste
+erst nach 2,7 s, wenn der Totenkopf fertig und der Klang durch ist.
+
+Beim Levelaufstieg läuft der Balken zuerst voll, die Leiste leuchtet kurz auf,
+die Levelzahl springt, Funken fliegen und eine aufsteigende Tonfolge spielt.
+Danach beginnt der Balken von vorn.
 
 **Der XP-Stand wird nur EINMAL beim Start der App ermittelt.** Danach schreibt
 die App ihn selbst fort: Der Zuwachs eines Achievements ist eine bekannte
@@ -329,8 +334,10 @@ nur farblich:
 - **Blutig** (0,2 % und weniger): kein Metall, sondern Blut. Dunkelroter
   Grund mit doppeltem Rahmen, von unten steigt Blut mit Wellen an der
   Oberfläche. Die Raute morpht wie beim Diamanten, hier in einen Totenkopf,
-  der knochenfarben wird und Zähne bekommt. Danach fliegen Tropfen statt
-  Funken. Eigener Klang: zwei Herzschläge, dann ein dunkler Mollakkord.
+  der leer bleibt wie die anderen Rauten und Zähne bekommt. Danach fliegen
+  Tropfen statt Funken. Eigener Klang: zwei Herzschläge, ein dunkler,
+  schwebender Grundton und eine Spieluhr in Moll mit Echo, deren schiefer Ton
+  sich am Ende auflöst.
 - **Diamant** (ganzes Spiel abgeschlossen): eigene, deutlich größere
   Feier-Karte statt des normalen Toasts - rotierender Regenbogen-Rahmen,
   schimmernder Farbverlauf-Schriftzug, größerer Funkenregen und eine

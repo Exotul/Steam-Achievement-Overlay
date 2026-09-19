@@ -458,8 +458,9 @@ body.pos-oben-links .xp-toast {
 
 /*
  * Ablauf: Die Raute wird gezeichnet wie bei jeder Stufe, dann klappt sie in
- * den Schaedel um, Augen und Nase wachsen aus einem Punkt, die Form wird
- * knochenfarben, zuletzt kommen die Zaehne.
+ * den Schaedel um, Augen und Nase wachsen aus einem Punkt, zuletzt kommen die
+ * Zaehne. Der Schaedel bleibt LEER wie die Rauten der anderen Stufen - eine
+ * knochenweisse Fuellung wirkte wie ein Fremdkoerper neben ihnen.
  *
  * Die Strichelung zum Zeichnen passt nur zur Raute (Umfang 240). Nach dem
  * Morph ist der Pfad laenger - mit der Strichelung fehlten dann Stuecke der
@@ -475,8 +476,7 @@ body.pos-oben-links .xp-toast {
   animation:
     logo-draw 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.22s forwards,
     strich-aus 0s linear 1.15s forwards,
-    schaedel-morph 1.1s cubic-bezier(0.65, 0, 0.3, 1) 1.3s forwards,
-    schaedel-knochen 0.8s ease-out 1.9s forwards;
+    schaedel-morph 1.1s cubic-bezier(0.65, 0, 0.3, 1) 1.3s forwards;
 }
 
 @keyframes strich-aus {
@@ -488,13 +488,6 @@ body.pos-oben-links .xp-toast {
 @keyframes schaedel-morph {
   to {
     d: path('M 50 8 C 72 8 88 22 88 42 C 88 54 84 60 80 64 C 74 68 70 74 68 90 C 62 92 56 92 50 92 C 44 92 38 92 32 90 C 30 74 26 68 20 64 C 16 60 12 54 12 42 C 12 22 28 8 50 8 Z M 64 41 C 70 41 74 45 74 51 C 74 57 69 60 64 60 C 58 60 55 56 55 51 C 55 45 58 41 64 41 Z M 36 41 C 30 41 26 45 26 51 C 26 57 31 60 36 60 C 42 60 45 56 45 51 C 45 45 42 41 36 41 Z M 50 64 L 54 73 L 46 73 Z');
-  }
-}
-
-@keyframes schaedel-knochen {
-  to {
-    fill: #eadccb;
-    fill-opacity: 0.94;
   }
 }
 
@@ -1760,7 +1753,89 @@ body.pos-oben-links .xp-toast {
   }
 }
 
-/* ---------- Schmale XP-Meldung ---------- */
+/* ---------- XP-Leiste an der Achievement-Meldung ---------- */
+
+/*
+ * Meldung und Leiste stecken in einer gemeinsamen Huelle. Die Leiste sitzt
+ * auf der Seite, die zur Bildschirmmitte zeigt: bei einer unteren Ecke UEBER
+ * der Meldung, bei einer oberen darunter. So bleibt die Meldung selbst buendig
+ * in der Ecke, wo sie Steams Meldung verdeckt.
+ */
+.meldung {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.pos-unten-rechts .xp-leiste,
+body.pos-unten-links .xp-leiste {
+  order: -1;
+  --leiste-von: 34px;
+}
+
+body.pos-oben-rechts .xp-leiste,
+body.pos-oben-links .xp-leiste {
+  --leiste-von: -34px;
+}
+
+/* Die Meldung liegt ueber der Leiste - die Leiste schiebt sich unter ihr
+   hervor, statt aus dem Nichts aufzutauchen. */
+.meldung > .toast {
+  z-index: 1;
+}
+
+.xp-leiste {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 24px 12px 18px;
+  border-radius: 14px;
+  background: rgb(21, 25, 32);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* In der Farbe der Stufe - sichtbar dieselbe Meldung. */
+  border-left: 4px solid var(--tier-color, #8b93e0);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.65);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #e8eaf0;
+  animation: leiste-ein 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards,
+    toast-out 0.5s cubic-bezier(0.6, 0, 0.75, 0) forwards var(--leiste-aus, 7s);
+}
+
+@keyframes leiste-ein {
+  from {
+    transform: translateY(var(--leiste-von, 34px));
+    opacity: 0;
+  }
+}
+
+.xp-leiste--levelup {
+  border-left-color: #5fd3e8;
+  border-color: rgba(95, 211, 232, 0.4);
+  box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 22px -8px rgba(95, 211, 232, 0.6);
+}
+
+.xp-leiste--levelup .xp-toast__level-num {
+  background: linear-gradient(90deg, #5fd3e8, #9a8cf2, #5fd3e8);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-text 2.2s linear infinite, levelnum-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.1s both;
+}
+
+.xp-leiste--levelup .xp-toast__bar-fill {
+  background: linear-gradient(90deg, #5fd3e8, #9a8cf2);
+}
+
+.xp-leiste--flash {
+  animation: leiste-ein 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards,
+    toast-out 0.5s cubic-bezier(0.6, 0, 0.75, 0) forwards var(--leiste-aus, 7s),
+    levelup-flash 0.7s ease-out;
+}
+
+/* ---------- Schmale XP-Karte: nur noch der Ladebalken beim Start ---------- */
 
 .xp-toast {
   display: flex;
@@ -1778,14 +1853,6 @@ body.pos-oben-links .xp-toast {
   color: #e8eaf0;
   animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,
     toast-out 0.45s cubic-bezier(0.6, 0, 0.75, 0) forwards 4.5s;
-}
-
-.xp-toast--levelup {
-  border-left-color: #5fd3e8;
-  border-color: rgba(95, 211, 232, 0.4);
-  box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 22px -8px rgba(95, 211, 232, 0.6);
-  animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-    toast-out 0.45s cubic-bezier(0.6, 0, 0.75, 0) forwards 6.5s;
 }
 
 /* Der Ladebalken beim Start bleibt stehen, bis er fertig ist. */
@@ -1808,15 +1875,6 @@ body.pos-oben-links .xp-toast {
   font-size: 2rem;
   line-height: 1;
   color: #e8eaf0;
-}
-
-.xp-toast--levelup .xp-toast__level-num {
-  background: linear-gradient(90deg, #5fd3e8, #9a8cf2, #5fd3e8);
-  background-size: 220% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer-text 2.2s linear infinite, levelnum-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.75s both;
 }
 
 @keyframes levelnum-pop {
@@ -1892,10 +1950,6 @@ body.pos-oben-links .xp-toast {
   transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.xp-toast--levelup .xp-toast__bar-fill {
-  background: linear-gradient(90deg, #5fd3e8, #9a8cf2);
-}
-
 /*
  * Unbestimmter Balken: solange noch nicht feststeht, WIE VIEL zu tun ist.
  *
@@ -1937,13 +1991,7 @@ body.pos-oben-links .xp-toast {
   }
 }
 
-/* Kurzes Aufleuchten im Moment des Levelaufstiegs. */
-.xp-toast--flash {
-  animation: toast-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-    toast-out 0.45s cubic-bezier(0.6, 0, 0.75, 0) forwards 6.5s,
-    levelup-flash 0.7s ease-out;
-}
-
+/* Kurzes Aufleuchten im Moment des Levelaufstiegs (.xp-leiste--flash). */
 @keyframes levelup-flash {
   0% {
     box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7), 0 0 0 0 rgba(95, 211, 232, 0.9);

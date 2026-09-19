@@ -117,23 +117,105 @@ function playTierChime(category) {
 }
 
 /**
- * Klang fuer Blutig: zwei dumpfe Herzschlaege, dann ein dunkler Mollakkord,
- * der lange ausklingt. Bewusst tiefer und langsamer als alle anderen Stufen -
- * man soll schon am Ton hoeren, dass das hier etwas anderes ist. Die Toene
- * liegen nicht zu tief (ab 110 Hz), sonst verschluckt sie jeder
- * Laptop-Lautsprecher.
+ * Klang fuer Blutig: gruselig, aber mit Aufloesung.
+ *
+ *   1. zwei Herzschlaege, deren Ton nach unten wegsackt
+ *   2. ein dunkler Grund aus leicht gegeneinander verstimmten Toenen - das
+ *      Schweben zwischen ihnen macht ihn unruhig
+ *   3. eine Spieluhr in a-Moll mit Echo, abwaerts, dann ein falscher Ton
+ *      (dis, der Tritonus zu a) - und die Aufloesung nach e. Genau dieses
+ *      Aufloesen ist der befriedigende Moment; ohne ihn bliebe nur Unbehagen.
+ *   4. darunter leise der Mollakkord, der alles traegt
+ *
+ * Nichts davon liegt unter 100 Hz, sonst verschluckt es jeder
+ * Laptop-Lautsprecher - der Herzschlag beginnt deshalb bei 150 Hz und sackt
+ * nur bis 58 Hz, das Knacken am Anfang bleibt hoerbar.
  */
 function playBlutigChime() {
   const ctx = getAudioCtx();
-  // Herzschlag: "ba-bumm"
-  tone(ctx, { freq: 110, start: 0, dur: 0.18, gainPeak: 0.3, type: 'triangle' });
-  tone(ctx, { freq: 98, start: 0.2, dur: 0.26, gainPeak: 0.34, type: 'triangle' });
-  // a-Moll, von unten aufgebaut
-  [220, 261.63, 329.63, 440].forEach((freq, i) => {
-    tone(ctx, { freq, start: 0.62 + i * 0.07, dur: 1.5, gainPeak: 0.16 });
+  const t0 = ctx.currentTime + 0.02;
+
+  // Wie bei tone(): Die Einstellung wirkt als Faktor auf alles.
+  const master = ctx.createGain();
+  master.gain.value = einst.lautstaerke / 0.22;
+  master.connect(ctx.destination);
+
+  // Echo mit Rueckkopplung - macht aus der Spieluhr einen leeren Raum.
+  const echo = ctx.createDelay(1);
+  echo.delayTime.value = 0.23;
+  const echoFilter = ctx.createBiquadFilter();
+  echoFilter.type = 'lowpass';
+  echoFilter.frequency.value = 2200;
+  const rueck = ctx.createGain();
+  rueck.gain.value = 0.38;
+  echo.connect(echoFilter).connect(rueck).connect(echo);
+  echoFilter.connect(master);
+
+  const huelle = (start, spitze, anstieg, dauer) => {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0 + start);
+    g.gain.exponentialRampToValueAtTime(spitze, t0 + start + anstieg);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dauer);
+    return g;
+  };
+  const oszillator = (typ, freq, start, dauer) => {
+    const osc = ctx.createOscillator();
+    osc.type = typ;
+    osc.frequency.setValueAtTime(freq, t0 + start);
+    osc.start(t0 + start);
+    osc.stop(t0 + start + dauer + 0.05);
+    return osc;
+  };
+
+  // 1. Herzschlag
+  [
+    [0, 0.3],
+    [0.24, 0.36],
+  ].forEach(([start, spitze]) => {
+    const osc = oszillator('sine', 150, start, 0.32);
+    osc.frequency.exponentialRampToValueAtTime(58, t0 + start + 0.22);
+    osc.connect(huelle(start, spitze, 0.012, 0.3)).connect(master);
   });
-  // ein kalter, hoher Nachklang
-  tone(ctx, { freq: 1318.5, start: 0.95, dur: 1.2, gainPeak: 0.05 });
+
+  // 2. Dunkler Grund, durch einen Filter, der sich oeffnet und wieder schliesst
+  [110, 110 * 1.006, 164.81 * 0.997].forEach((freq) => {
+    const osc = oszillator('sawtooth', freq, 0.5, 2.8);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(300, t0 + 0.5);
+    filter.frequency.linearRampToValueAtTime(900, t0 + 1.6);
+    filter.frequency.linearRampToValueAtTime(250, t0 + 3.2);
+    osc.connect(filter).connect(huelle(0.5, 0.05, 0.6, 2.8)).connect(master);
+  });
+
+  // 3. Spieluhr: e - c - a, dann der falsche Ton dis, dann die Aufloesung e
+  const noten = [
+    [659.25, 0.62],
+    [523.25, 0.8],
+    [440, 0.98],
+    [622.25, 1.24],
+    [659.25, 1.56],
+  ];
+  noten.forEach(([freq, start], i) => {
+    const letzte = i === noten.length - 1;
+    const dauer = letzte ? 1.5 : 0.5;
+    const g = huelle(start, letzte ? 0.13 : 0.1, 0.006, dauer);
+    oszillator('triangle', freq, start, dauer).connect(g);
+    g.connect(master);
+    g.connect(echo);
+  });
+
+  // 4. Der tragende Mollakkord unter der Aufloesung
+  [220, 261.63, 329.63].forEach((freq) => {
+    oszillator('sine', freq, 1.56, 1.9).connect(huelle(1.56, 0.06, 0.08, 1.9)).connect(master);
+  });
+
+  // Echo und Master nach dem Ausklingen abhaengen, sonst laeuft die
+  // Rueckkopplung unhoerbar weiter.
+  setTimeout(() => {
+    master.disconnect();
+    rueck.disconnect();
+  }, 6000);
 }
 
 // Größere, mehrteilige Fanfare für den Diamant-Moment.
@@ -195,7 +277,7 @@ function schaedelSvg() {
   return `<svg class="toast__logo-svg schaedel" viewBox="0 0 100 100" aria-hidden="true">
     <path class="schaedel__form" fill-rule="evenodd" stroke-width="6"
           stroke-linejoin="round" stroke-linecap="butt" />
-    <g class="schaedel__zaehne" fill="none" stroke="#3a0a0e" stroke-width="3" stroke-linecap="round">
+    <g class="schaedel__zaehne" fill="none" stroke="#d8323c" stroke-width="3" stroke-linecap="round">
       <path d="M 41 81 L 41 90" />
       <path d="M 50 81 L 50 91" />
       <path d="M 59 81 L 59 90" />
@@ -245,6 +327,14 @@ function showAchievementToast(achievement) {
   el.style.setProperty('--tier-color', tier.color);
   el.style.setProperty('--tier-glow', tier.glow);
 
+  // Huelle um Meldung und XP-Leiste: Beide gehoeren zusammen, kommen
+  // zusammen und gehen zusammen. Im Stapel zaehlen sie als EINE Meldung.
+  const gruppe = document.createElement('div');
+  gruppe.className = 'meldung';
+  // Die Leiste traegt die Farbe der Stufe - sichtbar dieselbe Meldung.
+  gruppe.style.setProperty('--tier-color', tier.color);
+  gruppe.appendChild(el);
+
   el.innerHTML = `
     ${blutig ? blutSchicht() : ''}
     <div class="toast__logo">${blutig ? schaedelSvg() : logoSvg(tier.color)}</div>
@@ -263,7 +353,7 @@ function showAchievementToast(achievement) {
       <span class="toast__tier-label">${achievement.category}</span>
     </div>
   `;
-  stack.appendChild(el);
+  stack.appendChild(gruppe);
 
   playTierChime(achievement.category);
 
@@ -288,12 +378,16 @@ function showAchievementToast(achievement) {
   // aus, deshalb bekommt die Animation den etwas kuerzeren Wert.
   const dauerMs = Math.max(1000, einst.anzeigeDauerSek * 1000);
   el.style.setProperty('--display-time', `${Math.max(0.5, einst.anzeigeDauerSek - 0.5)}s`);
-  setTimeout(() => el.remove(), dauerMs + 100);
+  setTimeout(() => gruppe.remove(), dauerMs + 100);
 
-  // Die XP-Meldung folgt, sobald das Achievement-Popup verschwunden ist -
-  // so ueberlagern sich die beiden nicht und die Abfolge bleibt lesbar.
+  // Die XP-Leiste kommt kurz nach der Meldung - bei Blutig erst, wenn der
+  // Totenkopf fertig und der Klang durch ist, sonst ginge beides unter.
   if (achievement.xp) {
-    setTimeout(() => showXpToast(achievement.xp), dauerMs + 400);
+    const verzoegerungMs = blutig ? 2700 : 1100;
+    const ausblendenNachS = Math.max(0.5, einst.anzeigeDauerSek - 0.5) - verzoegerungMs / 1000;
+    setTimeout(() => {
+      if (gruppe.isConnected) zeigeXpLeiste(gruppe, achievement.xp, ausblendenNachS);
+    }, verzoegerungMs);
   }
 }
 
@@ -924,9 +1018,24 @@ function xpTonSpielen(levelUp) {
   }
 }
 
-function showXpToast(xp) {
+/**
+ * Die XP-Leiste haengt an der Achievement-Meldung.
+ *
+ * Frueher kam der XP-Zuwachs als eigene Karte - erst NACHDEM die Meldung
+ * verschwunden war, rund neun Sekunden nach dem Achievement. Ursache und
+ * Wirkung lagen damit so weit auseinander, dass der Zuwachs wie eine
+ * Nebensache wirkte. Jetzt schiebt sich die Leiste kurz nach der Meldung aus
+ * ihr heraus (zur Bildschirmmitte hin), und der Balken waechst, waehrend das
+ * Achievement noch zu sehen ist. Beide verschwinden gemeinsam.
+ *
+ * @param {HTMLElement} gruppe - Huelle um die Meldung (.meldung)
+ * @param {number} ausblendenNachS - wann die Leiste mit der Meldung geht,
+ *        gerechnet ab ihrem eigenen Erscheinen
+ */
+function zeigeXpLeiste(gruppe, xp, ausblendenNachS) {
   const el = document.createElement('div');
-  el.className = `xp-toast${xp.levelUp ? ' xp-toast--levelup' : ''}`;
+  el.className = `xp-leiste${xp.levelUp ? ' xp-leiste--levelup' : ''}`;
+  el.style.setProperty('--leiste-aus', `${Math.max(0.5, ausblendenNachS)}s`);
 
   // Balken: von der Position vor dem Achievement zur neuen Position.
   //
@@ -955,18 +1064,19 @@ function showXpToast(xp) {
     </div>
   `;
 
-  stack.appendChild(el);
-  xpTonSpielen(xp.levelUp);
+  gruppe.appendChild(el);
 
-  // Balken erst nach dem Einfliegen wachsen lassen, damit die Bewegung
-  // sichtbar ist statt schon im Endzustand anzukommen.
+  // Balken wachsen lassen, sobald die Leiste draussen ist - mit dem Ton
+  // genau in diesem Moment, damit man den Zuwachs hoert, wo man ihn sieht.
   const fill = el.querySelector('.xp-toast__bar-fill');
   setTimeout(() => {
+    if (!el.isConnected) return;
+    xpTonSpielen(xp.levelUp);
     if (xp.levelUp) {
       // Erst volllaufen, kurz aufleuchten, dann von vorn beginnen.
       fill.style.width = '100%';
       setTimeout(() => {
-        el.classList.add('xp-toast--flash');
+        el.classList.add('xp-leiste--flash');
         fill.style.transition = 'none';
         fill.style.width = '0%';
         requestAnimationFrame(() => {
@@ -974,22 +1084,16 @@ function showXpToast(xp) {
           fill.style.width = `${bisProzent}%`;
         });
       }, 750);
+      spawnSparkles(el.querySelector('.xp-toast__level'), {
+        count: 12,
+        colors: ['#5fd3e8', '#9a8cf2', '#ffffff'],
+        distance: [30, 60],
+        duration: [0.8, 1.3],
+      });
     } else {
       fill.style.width = `${bisProzent}%`;
     }
-  }, 700);
-
-  if (xp.levelUp) {
-    spawnSparkles(el.querySelector('.xp-toast__level'), {
-      count: 12,
-      colors: ['#5fd3e8', '#9a8cf2', '#ffffff'],
-      distance: [30, 60],
-      duration: [0.8, 1.3],
-    });
-  }
-
-  const dauer = xp.levelUp ? 7000 : 5000;
-  setTimeout(() => el.remove(), dauer);
+  }, 380);
 }
 
 /* ==========================================================================
