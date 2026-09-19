@@ -150,7 +150,7 @@ async function getGameSchema(appId) {
 
 /**
  * Globale Prozentsätze: wie viel Prozent aller Spieler haben dieses
- * Achievement freigeschaltet. Grundlage für Kupfer/Silber/Gold/Platin.
+ * Achievement freigeschaltet. Grundlage für die Stufen (siehe scoring.js).
  */
 async function getGlobalAchievementPercentages(appId) {
   // Aendert sich nur sehr langsam (Durchschnitt ueber alle Spieler weltweit).

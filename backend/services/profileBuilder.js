@@ -61,7 +61,7 @@ async function buildProfileIntern(steamId) {
 
   let totalXp = 0;
   let diamondCount = 0;
-  const tierCounts = { Kupfer: 0, Silber: 0, Gold: 0, Platin: 0 };
+  const tierCounts = { Kupfer: 0, Silber: 0, Gold: 0, Platin: 0, Blutig: 0 };
   const allUnlocked = [];
 
   const gameList = results.map(({ game, progress }) => {

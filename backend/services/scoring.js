@@ -22,19 +22,30 @@ const TIER_THRESHOLDS = {
   kupfer: Number(process.env.TIER_KUPFER_MIN) || 30, // >= 30 %
   silber: Number(process.env.TIER_SILBER_MIN) || 10, // >= 10 %
   gold: Number(process.env.TIER_GOLD_MIN) || 3, // >= 3 %
-  // alles darunter: Platin
+  // darunter Platin - bis auf die allerschwersten:
+  //
+  // Blutig: 0,2 % und weniger. Nachgemessen an einer echten Bibliothek: Von
+  // 15.925 Achievements in 377 gespielten Spielen liegen 515 in diesem
+  // Bereich (3 %). Erreichbar, aber richtig schwer - die Sammlung dazu hatte
+  // nach 2.213 Trophaeen noch keine einzige; die seltenste lag bei 0,6 %.
+  blutig: Number(process.env.TIER_BLUTIG_MAX) || 0.2, // <= 0,2 %
 };
 
 function categorize(percent) {
   if (percent >= TIER_THRESHOLDS.kupfer) return 'Kupfer';
   if (percent >= TIER_THRESHOLDS.silber) return 'Silber';
   if (percent >= TIER_THRESHOLDS.gold) return 'Gold';
+  if (percent <= TIER_THRESHOLDS.blutig) return 'Blutig';
   return 'Platin';
 }
 
 // --- Relative Einstufung innerhalb eines Spiels -----------------------------
 
-const STUFEN_ORDNUNG = ['Kupfer', 'Silber', 'Gold', 'Platin'];
+// Blutig steht ganz oben, wird aber NUR ueber den weltweiten Anteil
+// vergeben: Die Einstufung im Spiel reicht hoechstens bis Platin. "Das
+// schwerste Achievement eines leichten Spiels" ist etwas anderes als eines,
+// das weltweit fast niemand hat.
+const STUFEN_ORDNUNG = ['Kupfer', 'Silber', 'Gold', 'Platin', 'Blutig'];
 
 // Obergrenzen, damit ein haeufiges Achievement niemals hochgestuft wird.
 // Ein Achievement, das 60 % der Spieler haben, ist auch dann nicht "Gold",
@@ -121,7 +132,7 @@ function categorizeInContext(percent, context) {
 // um Hunderte XP, ohne dass jemand etwas getan hatte.
 //
 // Deshalb steigt der XP-Faktor jetzt STUFENLOS mit der Seltenheit. Er trifft
-// den bekannten Stufenfaktor (1 / 2,5 / 4 / 6) jeweils in der Mitte einer
+// den bekannten Stufenfaktor (1 / 2,5 / 4 / 6 / 9) jeweils in der Mitte einer
 // Stufe und gleitet dazwischen. Im Mittel bringt eine Stufe damit so viel wie
 // vorher, aber eine kleine Aenderung der Statistik bewegt nur ein paar XP.
 
@@ -144,12 +155,15 @@ function stueckweise(x, punkte) {
  * Gerechnet auf der logarithmischen Skala, wie die Grenzen selbst: Der Schritt
  * von 10 % auf 3 % ist so gross wie der von 30 % auf 10 %. Die Stuetzpunkte
  * liegen jeweils in der (geometrischen) Mitte einer Stufe - mit den
- * Standardgrenzen bei 17,3 % (Silber), 5,5 % (Gold) und 1 % (Platin).
+ * Standardgrenzen bei 17,3 % (Silber), 5,5 % (Gold) und 1 % (Platin). Blutig
+ * hat seinen Punkt bei der Haelfte seiner Grenze (0,1 %); noch seltener
+ * bleibt der Faktor gleich.
  */
 function absoluterFaktor(prozent) {
-  const { kupfer, silber, gold } = TIER_THRESHOLDS;
+  const { kupfer, silber, gold, blutig } = TIER_THRESHOLDS;
   const log = (p) => Math.log10(Math.max(p, 0.01));
   return stueckweise(log(prozent), [
+    [log(blutig / 2), TIER_MULTIPLIER.Blutig],
     [log(gold / 3), TIER_MULTIPLIER.Platin],
     [log(Math.sqrt(gold * silber)), TIER_MULTIPLIER.Gold],
     [log(Math.sqrt(silber * kupfer)), TIER_MULTIPLIER.Silber],

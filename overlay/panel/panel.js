@@ -15,6 +15,7 @@ const TIERS = {
   Silber: { color: '#b9c1cc', rank: 1 },
   Gold: { color: '#d3a13a', rank: 2 },
   Platin: { color: '#8b93e0', rank: 3 },
+  Blutig: { color: '#d8323c', rank: 4 },
 };
 
 const panelEl = document.getElementById('panel');

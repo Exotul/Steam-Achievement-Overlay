@@ -19,11 +19,13 @@
 //    des Spiels ein - die gemerkten Werte je Spiel waren nach festen Grenzen
 //    gerechnet und damit zu niedrig.
 // 4: Gleitende XP statt Spruengen an den Stufengrenzen (scoring.js).
-const FORMEL_VERSION = 4;
+// 5: Fuenfte Stufe "Blutig" (0,2 % und weniger) mit eigenem Faktor.
+const FORMEL_VERSION = 5;
 
 // Stufenfaktoren. Seit den gleitenden XP sind das die Werte in der MITTE
 // einer Stufe - dazwischen gleitet der Faktor (siehe xpFaktor in scoring.js).
-const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2.5, Gold: 4, Platin: 6 };
+// Blutig bringt rund 900 XP: fast ein Drittel eines Levels.
+const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2.5, Gold: 4, Platin: 6, Blutig: 9 };
 
 /** XP eines einzelnen freigeschalteten Achievements. */
 function achievementXp(faktor, globalPercent) {

@@ -1577,8 +1577,9 @@ function handleTestAchievement() {
     { category: 'Silber', globalPercent: 22.8, xp: 135, name: 'Auf halbem Weg' },
     { category: 'Gold', globalPercent: 7.1, xp: 340, name: 'Meisterprüfung' },
     { category: 'Platin', globalPercent: 1.4, xp: 553, name: 'Gegen alle Widerstände' },
+    { category: 'Blutig', globalPercent: 0.1, xp: 899, name: 'Nur die Härtesten' },
   ];
-  // Bei jedem Aufruf die naechste Stufe, damit sich alle vier pruefen lassen.
+  // Bei jedem Aufruf die naechste Stufe, damit sich alle fuenf pruefen lassen.
   const stufe = stufen[testZaehler % stufen.length];
   testZaehler += 1;
 

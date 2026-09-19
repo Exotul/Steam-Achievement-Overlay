@@ -2,6 +2,30 @@
 
 ## Noch nicht veröffentlicht
 
+### Neue fünfte Stufe: Blutig
+
+Für die allerschwersten Achievements, die weltweit höchstens 0,2 % haben.
+Nachgemessen an einer echten Bibliothek: Von 15.925 Achievements in 377
+gespielten Spielen liegen 515 in diesem Bereich (3 %). Sie sind erreichbar,
+aber richtig schwer, denn unter 2.213 errungenen Trophäen war noch keine
+einzige.
+
+- **Einstufung:** nur nach dem weltweiten Anteil. Die Einstufung im Spiel
+  reicht weiter höchstens bis Platin, denn das schwerste Achievement eines
+  leichten Spiels ist nicht dasselbe wie eines, das weltweit fast niemand hat.
+- **XP:** Faktor 9, also rund 900 XP, fast ein Drittel eines Levels. Auch hier
+  gleitend: An der Grenze bei 0,2 % gibt es keinen Sprung zu Platin.
+- **Meldung:** dunkelroter Grund, doppelter Rahmen, von unten steigendes Blut
+  mit gegeneinander laufenden Wellen. Die Raute morpht in einen Totenkopf,
+  der knochenfarben wird und Zähne bekommt. Tropfen statt Funken. Eigener
+  Klang: zwei Herzschläge, dann ein dunkler Mollakkord.
+- **Lesbarkeit gemessen,** wie bei den Metallstufen, über acht
+  Wellenstellungen. Die Lichtkante der Welle drückte die Beschreibung
+  zunächst auf 3,8. Gedämpft und die Schrift angehoben, liegt der
+  schlechteste Wert jetzt bei 6,4.
+- Die Testmeldung zeigt jetzt reihum alle fünf Stufen. Dashboard, Liste im
+  Steam-Overlay und Sitzungsbilanz kennen die neue Stufe. Formelfassung 5.
+
 ### Neue Levelkurve: Treppe mit Deckel
 
 Bisher stiegen die Levelkosten immer weiter (`400 × Level^0,7`). Bei rund

@@ -18,7 +18,7 @@ import { baueRaster, stufeVon, serie, summe, nachTagen, lesbaresDatum } from '..
  * Die Kennzahlen darüber sind bewusst KEIN Diagramm: Einzelne Werte gehören
  * in Kachelform, nicht in ein Balkendiagramm mit einem Balken.
  *
- * Die Stufenfarben (Kupfer/Silber/Gold/Platin) sind ordinal und in der ganzen
+ * Die Stufenfarben (Kupfer/Silber/Gold/Platin/Blutig) sind ordinal und in der ganzen
  * App etabliert. Sie bestehen die Unterscheidbarkeitsprüfungen und tragen
  * ohnehin immer ihren Namen als Text - Farbe allein trägt hier nie eine
  * Aussage.

@@ -242,7 +242,7 @@ test('Unbekannte Stufen bringen die Summe nicht durcheinander', async () => {
   const { summe } = await modul();
   const r = summe([{ tag: '2026-09-16', anzahl: 1, xp: 5, stufen: { Quatsch: 1 } }], 7, JETZT);
   assert.strictEqual(r.anzahl, 1);
-  assert.deepStrictEqual(Object.keys(r.stufen).sort(), ['Gold', 'Kupfer', 'Platin', 'Silber']);
+  assert.deepStrictEqual(Object.keys(r.stufen).sort(), ['Blutig', 'Gold', 'Kupfer', 'Platin', 'Silber']);
 });
 
 test('Ein leerer Zeitraum liefert Nullen statt undefined', async () => {

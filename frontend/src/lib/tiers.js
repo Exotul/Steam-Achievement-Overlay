@@ -6,9 +6,10 @@ export const TIERS = {
   Silber: { label: 'Silber', color: 'var(--tier-silber)', glow: 'var(--tier-silber-glow)', order: 1 },
   Gold: { label: 'Gold', color: 'var(--tier-gold)', glow: 'var(--tier-gold-glow)', order: 2 },
   Platin: { label: 'Platin', color: 'var(--tier-platin)', glow: 'var(--tier-platin-glow)', order: 3 },
+  Blutig: { label: 'Blutig', color: 'var(--tier-blutig)', glow: 'var(--tier-blutig-glow)', order: 4 },
 };
 
-export const TIER_ORDER = ['Kupfer', 'Silber', 'Gold', 'Platin'];
+export const TIER_ORDER = ['Kupfer', 'Silber', 'Gold', 'Platin', 'Blutig'];
 
 export function tierOf(category) {
   return TIERS[category] || TIERS.Kupfer;

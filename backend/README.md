@@ -86,11 +86,14 @@ womit du weitermachen willst.
 Zwei Bewertungen greifen ineinander; die höhere gewinnt.
 
 **1. Absolut** (weltweiter Anteil aller Spieler):
-Kupfer ab 30 %, Silber ab 10 %, Gold ab 3 %, darunter Platin.
+Kupfer ab 30 %, Silber ab 10 %, Gold ab 3 %, darunter Platin, bei 0,2 % und
+weniger **Blutig**, die allerschwersten Achievements.
 
 **2. Relativ** (Stellung innerhalb des eigenen Spiels):
 Die seltensten 5 % der Achievements eines Spiels kommen für Platin infrage,
-die nächsten 15 % für Gold, die nächsten 30 % für Silber.
+die nächsten 15 % für Gold, die nächsten 30 % für Silber. Blutig gibt es nur
+absolut: Das schwerste Achievement eines leichten Spiels ist nicht dasselbe wie
+eines, das weltweit fast niemand hat.
 
 **Warum die zweite Bewertung nötig ist:** Bei einem gut zugänglichen Spiel,
 das viele Leute tatsächlich durchspielen, liegt selbst das schwerste
@@ -121,7 +124,7 @@ Alle Werte sind über die `.env` einstellbar.
 
 Der Faktor gleitet stufenlos mit der Seltenheit (`xpFaktor` in
 `services/scoring.js`). In der Mitte jeder Stufe trifft er den Stufenfaktor
-(Kupfer 1, Silber 2,5, Gold 4, Platin 6), dazwischen gleitet er. Name und Farbe
+(Kupfer 1, Silber 2,5, Gold 4, Platin 6, Blutig 9), dazwischen gleitet er. Name und Farbe
 der Stufe springen weiterhin an den Grenzen, die XP nicht: Vorher gab 30,0 % als
 Kupfer 70 XP und 29,9 % als Silber 175 XP. Weil sich die weltweiten Anteile
 ständig bewegen, wanderte der Gesamtstand dadurch um Hunderte XP. An einer

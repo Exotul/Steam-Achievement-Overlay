@@ -83,7 +83,7 @@ Während der einmaligen Berechnung erscheint ein Ladebalken mit dem Fortschritt
 einem erfundenen Achievement ab - Popup, Ton, XP-Meldung -, **ohne** etwas am
 tatsächlichen Stand zu ändern. Gedacht zum Prüfen von Aussehen, Position und
 Ton, ohne erst ein Achievement erspielen zu müssen. Bei jedem Aufruf kommt die
-nächste Trophäenstufe an die Reihe, sodass sich alle vier Farben durchprobieren
+nächste Trophäenstufe an die Reihe, sodass sich alle fünf Stufen durchprobieren
 lassen.
 
 ## Automatisch mit Windows starten
@@ -325,7 +325,12 @@ nur farblich:
 - **Gold**: Lichtstreif + pulsierender Glow-Rahmen + kleine Funken, die vom
   Icon wegspringen.
 - **Platin**: wie Gold, plus ein doppelter Ring-Puls um das Icon und mehr
-  Funken - das spürbar "seltenste" Gefühl der vier Stufen.
+  Funken.
+- **Blutig** (0,2 % und weniger): kein Metall, sondern Blut. Dunkelroter
+  Grund mit doppeltem Rahmen, von unten steigt Blut mit Wellen an der
+  Oberfläche. Die Raute morpht wie beim Diamanten, hier in einen Totenkopf,
+  der knochenfarben wird und Zähne bekommt. Danach fliegen Tropfen statt
+  Funken. Eigener Klang: zwei Herzschläge, dann ein dunkler Mollakkord.
 - **Diamant** (ganzes Spiel abgeschlossen): eigene, deutlich größere
   Feier-Karte statt des normalen Toasts - rotierender Regenbogen-Rahmen,
   schimmernder Farbverlauf-Schriftzug, größerer Funkenregen und eine

@@ -134,7 +134,7 @@ export default function App() {
 
   const levelProgress = getLevelProgress(totalXp);
 
-  const tierCounts = { Kupfer: 0, Silber: 0, Gold: 0, Platin: 0 };
+  const tierCounts = { Kupfer: 0, Silber: 0, Gold: 0, Platin: 0, Blutig: 0 };
   let diamondCount = 0;
   Object.values(progressByAppId).forEach((p) => {
     if (p.isDiamond) diamondCount += 1;

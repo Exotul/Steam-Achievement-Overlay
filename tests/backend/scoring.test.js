@@ -18,6 +18,19 @@ test('Absolute Schwellen liegen dort, wo sie liegen sollen', () => {
   assert.strictEqual(A.categorize(9.9), 'Gold');
   assert.strictEqual(A.categorize(3), 'Gold');
   assert.strictEqual(A.categorize(2.9), 'Platin');
+  assert.strictEqual(A.categorize(0.21), 'Platin');
+  assert.strictEqual(A.categorize(0.2), 'Blutig');
+  assert.strictEqual(A.categorize(0), 'Blutig');
+});
+
+test('Blutig gibt es nur weltweit, nicht ueber die Stellung im Spiel', () => {
+  // Das schwerste Achievement eines zugaenglichen Spiels wird Platin, nicht
+  // Blutig - Blutig heisst: weltweit hat es fast niemand.
+  const werte = [80, 60, 50, 40, 30, 20, 12];
+  assert.strictEqual(A.categorizeInContext(12, A.buildTierContext(werte)), 'Platin');
+  // Ein weltweit blutiges Achievement bleibt es auch im Zusammenhang.
+  const schwer = [60, 40, 20, 5, 1, 0.1];
+  assert.strictEqual(A.categorizeInContext(0.1, A.buildTierContext(schwer)), 'Blutig');
 });
 
 test('Bei typischer Verteilung ist Kupfer die Mehrheit', () => {
@@ -146,6 +159,15 @@ test('In der Mitte jeder Stufe gilt genau der bekannte Stufenfaktor', () => {
   assert.ok(nah(A.xpFaktor(Math.sqrt(silber * kupfer), null), M.Silber));
   assert.ok(nah(A.xpFaktor(Math.sqrt(gold * silber), null), M.Gold));
   assert.ok(nah(A.xpFaktor(gold / 3, null), M.Platin));
+  assert.ok(nah(A.xpFaktor(A.TIER_THRESHOLDS.blutig / 2, null), M.Blutig));
+});
+
+test('Blutig bringt am meisten - und springt an seiner Grenze nicht', () => {
+  const blutig = A.TIER_THRESHOLDS.blutig;
+  const drin = xp.achievementXp(A.xpFaktor(blutig, null), blutig);
+  const knappDrueber = xp.achievementXp(A.xpFaktor(blutig + 0.01, null), blutig + 0.01);
+  assert.ok(Math.abs(drin - knappDrueber) / drin < 0.02, `${knappDrueber} -> ${drin}`);
+  assert.ok(xp.achievementXp(A.xpFaktor(0.1, null), 0.1) > xp.achievementXp(A.xpFaktor(1, null), 1));
 });
 
 test('Seltener heisst nie weniger Faktor', () => {

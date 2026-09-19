@@ -11,7 +11,7 @@ export default function LoginScreen() {
           Vergleicht euch.
         </h1>
         <p className="login-screen__text">
-          Bibliothek, Fortschritt und Freunde direkt aus Steam - mit Kupfer, Silber, Gold, Platin
+          Bibliothek, Fortschritt und Freunde direkt aus Steam - mit Kupfer, Silber, Gold, Platin, Blutig
           und dem Diamant-Status für komplett abgeschlossene Spiele.
         </p>
         <a className="login-screen__button" href={api.loginUrl}>

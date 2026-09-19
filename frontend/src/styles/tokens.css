@@ -17,6 +17,9 @@
   --tier-gold-glow: #d3a13a55;
   --tier-platin: #8b93e0;
   --tier-platin-glow: #8b93e055;
+  /* Blutig: die allerschwersten (0,2 % und weniger) - Blut statt Metall */
+  --tier-blutig: #d8323c;
+  --tier-blutig-glow: #d8323c66;
   --tier-diamant-a: #5fd3e8;
   --tier-diamant-b: #9a8cf2;
   --tier-diamant-glow: #5fd3e866;

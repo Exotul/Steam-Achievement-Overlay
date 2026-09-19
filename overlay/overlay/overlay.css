@@ -220,7 +220,8 @@ body.pos-oben-links .xp-toast {
  * Silber ist schwaecher getoent als die anderen: Es ist fast farblos und
  * hellt den Grund deshalb vor allem auf, statt ihn einzufaerben.
  *
- * Kein Diamant hier - der hat seine eigene Feier in der Bildschirmmitte.
+ * Kein Diamant hier - der hat seine eigene Feier in der Bildschirmmitte. Und
+ * keine Stufe Blutig: Die ist kein Metall, sie steht weiter unten.
  */
 .toast--kupfer {
   --grund-oben: #2b2624;
@@ -317,6 +318,203 @@ body.pos-oben-links .xp-toast {
 
 @media (prefers-reduced-motion: reduce) {
   .toast--platin.toast--shine::before {
+    animation: none;
+  }
+}
+
+/* ---------- Blutig: die allerschwersten (0,2 % und weniger) ---------- */
+
+/*
+ * Kein Metall, sondern Blut. Drei Dinge unterscheiden die Karte von allen
+ * anderen Stufen:
+ *
+ *   1. ein dunkelroter Grund
+ *   2. ein doppelter Rahmen - aussen die Kante in Blutrot, innen eine
+ *      zweite, feine Linie
+ *   3. Blut, das von unten in die Karte steigt, mit Wellen an der
+ *      Oberflaeche, die gegeneinander laufen
+ *
+ * Die Schrift liegt ueber dem Blut (z-index), und das Blut ist dunkel genug,
+ * dass sie lesbar bleibt - nachgemessen, siehe CHANGELOG.
+ */
+.toast--blutig {
+  background: linear-gradient(180deg, #2e0f13, #1b080a);
+  border: 1px solid rgba(216, 50, 60, 0.4);
+  border-left: 4px solid #d8323c;
+}
+
+/* die innere, zweite Rahmenlinie */
+.toast--blutig::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(216, 50, 60, 0.28);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Alles Sichtbare ueber das Blut heben. */
+.toast--blutig > :not(.toast__blut) {
+  position: relative;
+  z-index: 1;
+}
+
+.toast--blutig .toast__eyebrow {
+  color: #f5a3a9;
+}
+
+.toast--blutig .toast__desc {
+  color: #eadcdd;
+}
+
+.toast--blutig .toast__meta {
+  color: #d9bfc2;
+}
+
+/* Heller Text auf Rot: dunkle Schrift kaeme auf dem Blutrot nur auf 3,6. */
+.toast--blutig .toast__tier-label {
+  color: #fff4f4;
+}
+
+.toast__blut {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Der Pegel steigt nach dem Einfliegen langsam auf gut ein Drittel. */
+.toast__blut-pegel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: rgba(118, 8, 17, 0.78);
+  animation:
+    blut-steigen 2.6s cubic-bezier(0.3, 0.6, 0.3, 1) 0.55s forwards,
+    blut-schwappen 3.4s ease-in-out 3.2s infinite;
+}
+
+@keyframes blut-steigen {
+  to {
+    height: 38%;
+  }
+}
+
+@keyframes blut-schwappen {
+  0%,
+  100% {
+    height: 38%;
+  }
+  50% {
+    height: 41%;
+  }
+}
+
+/*
+ * Die Oberflaeche: eine Welle als Kachel, die waagerecht wandert. Gekachelt
+ * ist hier richtig (anders als bei der Buerstung): Die Welle ist so
+ * gezeichnet, dass Anfang und Ende auf derselben Hoehe liegen - es gibt
+ * keine Naht.
+ */
+.toast__blut-welle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 16px;
+  margin-bottom: -1px;
+  background-repeat: repeat-x;
+  background-size: 140px 16px;
+}
+
+.toast__blut-welle--vorn {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 16' preserveAspectRatio='none'%3E%3Cpath d='M0 8 Q17.5 0 35 8 T70 8 T105 8 T140 8 V16 H0 Z' fill='%23760811' fill-opacity='0.78'/%3E%3Cpath d='M0 8 Q17.5 0 35 8 T70 8 T105 8 T140 8' fill='none' stroke='%23ff6b74' stroke-opacity='0.24' stroke-width='1.2'/%3E%3C/svg%3E");
+  animation: welle-laufen 3.2s linear infinite;
+}
+
+.toast__blut-welle--hinten {
+  bottom: calc(100% + 3px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 16' preserveAspectRatio='none'%3E%3Cpath d='M0 8 Q17.5 16 35 8 T70 8 T105 8 T140 8 V16 H0 Z' fill='%23a3141f' fill-opacity='0.45'/%3E%3C/svg%3E");
+  animation: welle-laufen-rueck 4.6s linear infinite;
+}
+
+@keyframes welle-laufen {
+  to {
+    background-position-x: 140px;
+  }
+}
+
+@keyframes welle-laufen-rueck {
+  to {
+    background-position-x: -140px;
+  }
+}
+
+/* ---------- Das Zeichen: Raute wird Totenkopf ---------- */
+
+/*
+ * Ablauf: Die Raute wird gezeichnet wie bei jeder Stufe, dann klappt sie in
+ * den Schaedel um, Augen und Nase wachsen aus einem Punkt, die Form wird
+ * knochenfarben, zuletzt kommen die Zaehne.
+ *
+ * Die Strichelung zum Zeichnen passt nur zur Raute (Umfang 240). Nach dem
+ * Morph ist der Pfad laenger - mit der Strichelung fehlten dann Stuecke der
+ * Augen. Deshalb wird sie nach dem Zeichnen abgeschaltet (strich-aus).
+ */
+.schaedel__form {
+  d: path('M 50 8 C 57 15 64 22 71 29 C 78 36 85 43 92 50 C 85 57 78 64 71 71 C 64 78 57 85 50 92 C 43 85 36 78 29 71 C 22 64 15 57 8 50 C 15 43 22 36 29 29 C 36 22 43 15 50 8 Z M 64 50 C 64 50 64 50 64 50 C 64 50 64 50 64 50 C 64 50 64 50 64 50 C 64 50 64 50 64 50 Z M 36 50 C 36 50 36 50 36 50 C 36 50 36 50 36 50 C 36 50 36 50 36 50 C 36 50 36 50 36 50 Z M 50 66 L 50 66 L 50 66 Z');
+  fill: #d8323c;
+  fill-opacity: 0.16;
+  stroke: #d8323c;
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+  animation:
+    logo-draw 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.22s forwards,
+    strich-aus 0s linear 1.15s forwards,
+    schaedel-morph 1.1s cubic-bezier(0.65, 0, 0.3, 1) 1.3s forwards,
+    schaedel-knochen 0.8s ease-out 1.9s forwards;
+}
+
+@keyframes strich-aus {
+  to {
+    stroke-dasharray: none;
+  }
+}
+
+@keyframes schaedel-morph {
+  to {
+    d: path('M 50 8 C 72 8 88 22 88 42 C 88 54 84 60 80 64 C 74 68 70 74 68 90 C 62 92 56 92 50 92 C 44 92 38 92 32 90 C 30 74 26 68 20 64 C 16 60 12 54 12 42 C 12 22 28 8 50 8 Z M 64 41 C 70 41 74 45 74 51 C 74 57 69 60 64 60 C 58 60 55 56 55 51 C 55 45 58 41 64 41 Z M 36 41 C 30 41 26 45 26 51 C 26 57 31 60 36 60 C 42 60 45 56 45 51 C 45 45 42 41 36 41 Z M 50 64 L 54 73 L 46 73 Z');
+  }
+}
+
+@keyframes schaedel-knochen {
+  to {
+    fill: #eadccb;
+    fill-opacity: 0.94;
+  }
+}
+
+.schaedel__zaehne {
+  opacity: 0;
+  animation: zaehne-ein 0.5s ease-out 2.35s forwards;
+}
+
+@keyframes zaehne-ein {
+  to {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast__blut-pegel {
+    animation: none;
+    height: 38%;
+  }
+  .toast__blut-welle {
     animation: none;
   }
 }

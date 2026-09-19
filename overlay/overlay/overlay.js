@@ -3,6 +3,9 @@ const TIERS = {
   Silber: { color: '#b9c1cc', glow: '#b9c1cc4d', rank: 1 },
   Gold: { color: '#d3a13a', glow: '#d3a13a55', rank: 2 },
   Platin: { color: '#8b93e0', glow: '#8b93e055', rank: 3 },
+  // Die allerschwersten: 0,2 % und weniger. Eigener Auftritt - Blut statt
+  // Metall, der Totenkopf statt der Raute, ein eigener Klang.
+  Blutig: { color: '#d8323c', glow: '#d8323c66', rank: 4 },
 };
 
 const stack = document.getElementById('stack');
@@ -98,6 +101,10 @@ function spieleEigenenTon() {
 function playTierChime(category) {
   if (einst.lautstaerke <= 0) return;
   if (spieleEigenenTon()) return;
+  if (category === 'Blutig') {
+    playBlutigChime();
+    return;
+  }
 
   const rank = TIERS[category]?.rank ?? 3;
   const base = 740 + rank * 60;
@@ -107,6 +114,26 @@ function playTierChime(category) {
   if (rank >= 2) {
     tone(ctx, { freq: base * 2, start: 0.22, dur: 0.3, gainPeak: 0.14 });
   }
+}
+
+/**
+ * Klang fuer Blutig: zwei dumpfe Herzschlaege, dann ein dunkler Mollakkord,
+ * der lange ausklingt. Bewusst tiefer und langsamer als alle anderen Stufen -
+ * man soll schon am Ton hoeren, dass das hier etwas anderes ist. Die Toene
+ * liegen nicht zu tief (ab 110 Hz), sonst verschluckt sie jeder
+ * Laptop-Lautsprecher.
+ */
+function playBlutigChime() {
+  const ctx = getAudioCtx();
+  // Herzschlag: "ba-bumm"
+  tone(ctx, { freq: 110, start: 0, dur: 0.18, gainPeak: 0.3, type: 'triangle' });
+  tone(ctx, { freq: 98, start: 0.2, dur: 0.26, gainPeak: 0.34, type: 'triangle' });
+  // a-Moll, von unten aufgebaut
+  [220, 261.63, 329.63, 440].forEach((freq, i) => {
+    tone(ctx, { freq, start: 0.62 + i * 0.07, dur: 1.5, gainPeak: 0.16 });
+  });
+  // ein kalter, hoher Nachklang
+  tone(ctx, { freq: 1318.5, start: 0.95, dur: 1.2, gainPeak: 0.05 });
 }
 
 // Größere, mehrteilige Fanfare für den Diamant-Moment.
@@ -152,6 +179,44 @@ function logoSvg(color) {
   </svg>`;
 }
 
+/**
+ * Die Raute aus dem App-Symbol, die sich in einen Totenkopf verwandelt -
+ * das Gegenstueck zum Diamanten, fuer die Stufe Blutig.
+ *
+ * Wie beim Diamanten muessen beide Formen dieselbe Bauart haben, sonst
+ * springt der Browser statt zu morphen: acht Kurven fuer den Umriss, dazu
+ * zwei Augen aus je vier Kurven und eine dreieckige Nase. In der Raute sind
+ * Augen und Nase auf einen Punkt zusammengezogen und damit unsichtbar - beim
+ * Morph wachsen sie aus diesem Punkt heraus. Mit `evenodd` werden sie zu
+ * Loechern im Schaedel. Die Pfade selbst stehen in overlay.css
+ * (.schaedel__form), weil `d` dort animiert wird.
+ */
+function schaedelSvg() {
+  return `<svg class="toast__logo-svg schaedel" viewBox="0 0 100 100" aria-hidden="true">
+    <path class="schaedel__form" fill-rule="evenodd" stroke-width="6"
+          stroke-linejoin="round" stroke-linecap="butt" />
+    <g class="schaedel__zaehne" fill="none" stroke="#3a0a0e" stroke-width="3" stroke-linecap="round">
+      <path d="M 41 81 L 41 90" />
+      <path d="M 50 81 L 50 91" />
+      <path d="M 59 81 L 59 90" />
+    </g>
+  </svg>`;
+}
+
+/**
+ * Das Blut, das in der Meldung steigt: zwei Wellen, die gegeneinander
+ * laufen, ueber einem Pegel, der langsam hochkommt. Reine Dekoration -
+ * liegt unter dem Text und faengt keine Maus ab.
+ */
+function blutSchicht() {
+  return `<div class="toast__blut" aria-hidden="true">
+    <div class="toast__blut-pegel">
+      <div class="toast__blut-welle toast__blut-welle--hinten"></div>
+      <div class="toast__blut-welle toast__blut-welle--vorn"></div>
+    </div>
+  </div>`;
+}
+
 function showAchievementToast(achievement) {
   // Die Merkliste und die Uebersicht muessen denselben Stand zeigen wie die
   // Meldung - sonst steht eine gerade errungene Trophaee weiter als "offen"
@@ -168,16 +233,21 @@ function showAchievementToast(achievement) {
   // Metallischer, in der Stufe getoenter Grund - siehe .toast--metall im CSS.
   // Nur fuer bekannte Stufen: Eine unbekannte bekommt den neutralen Grund
   // statt einer geratenen Farbe.
-  if (TIERS[achievement.category]) {
+  const blutig = achievement.category === 'Blutig';
+  if (blutig) {
+    // Kein Metall: Blut hat keinen Buerstenstrich und keinen Lichtstreif.
+    el.classList.add('toast--blutig');
+  } else if (TIERS[achievement.category]) {
     el.classList.add('toast--metall', `toast--${achievement.category.toLowerCase()}`);
   }
-  if (tier.rank >= 1) el.classList.add('toast--shine');
+  if (tier.rank >= 1 && !blutig) el.classList.add('toast--shine');
   if (tier.rank >= 2) el.classList.add('toast--glow');
   el.style.setProperty('--tier-color', tier.color);
   el.style.setProperty('--tier-glow', tier.glow);
 
   el.innerHTML = `
-    <div class="toast__logo">${logoSvg(tier.color)}</div>
+    ${blutig ? blutSchicht() : ''}
+    <div class="toast__logo">${blutig ? schaedelSvg() : logoSvg(tier.color)}</div>
     <div class="toast__icon-wrap">
       ${tier.rank >= 3 ? '<div class="ring-pulse"></div>' : ''}
       <img class="toast__icon" src="${achievement.icon}" alt=""
@@ -197,7 +267,16 @@ function showAchievementToast(achievement) {
 
   playTierChime(achievement.category);
 
-  if (tier.rank >= 2) {
+  if (blutig) {
+    // Tropfen statt Funken: dunkelrot, spaeter - erst wenn der Totenkopf
+    // fertig ist.
+    const logo = el.querySelector('.toast__logo');
+    setTimeout(() => {
+      if (logo.isConnected) {
+        spawnSparkles(logo, { count: 9, colors: ['#d8323c', '#8e1019', '#f06a72'], distance: [26, 44] });
+      }
+    }, 2300);
+  } else if (tier.rank >= 2) {
     const iconWrap = el.querySelector('.toast__logo');
     spawnSparkles(iconWrap, {
       count: tier.rank === 2 ? 5 : 8,
@@ -583,7 +662,7 @@ function sitzungsDauer(minuten) {
 
 /** "1x Gold, 2x Silber" - in der Reihenfolge der Wertigkeit, nicht zufaellig. */
 function stufenZeile(nachStufe) {
-  return ['Platin', 'Gold', 'Silber', 'Kupfer']
+  return ['Blutig', 'Platin', 'Gold', 'Silber', 'Kupfer']
     .filter((name) => nachStufe[name] > 0)
     .map((name) => {
       const farbe = stufeVon(name).color;

@@ -116,7 +116,7 @@ export function serie(proTag, jetzt = Date.now()) {
 /** Summen über einen Zeitraum - für die Kennzahlen über dem Raster. */
 export function summe(proTag, tage, jetzt = Date.now()) {
   const ab = tagPlus(tagVon(jetzt), -(tage - 1));
-  const stufen = { Kupfer: 0, Silber: 0, Gold: 0, Platin: 0 };
+  const stufen = { Kupfer: 0, Silber: 0, Gold: 0, Platin: 0, Blutig: 0 };
   let anzahl = 0;
   let xp = 0;
   let besterTag = null;
