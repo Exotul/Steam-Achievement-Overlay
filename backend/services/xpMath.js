@@ -15,7 +15,10 @@
  * bliebe scheinbar unverändert, und man würde den Fehler in der Formel suchen
  * statt im Zwischenspeicher. Bei jeder Änderung unten hochzählen.
  */
-const FORMEL_VERSION = 2;
+// 3: Die Levelberechnung stuft jetzt wie die Meldung mit dem Zusammenhang
+//    des Spiels ein - die gemerkten Werte je Spiel waren nach festen Grenzen
+//    gerechnet und damit zu niedrig.
+const FORMEL_VERSION = 3;
 
 // Stufenfaktoren. Kupfer bleibt der Grundwert, die selteneren Stufen sind
 // gegenüber der ersten Fassung (1/2/3/4) stärker gespreizt.

@@ -110,6 +110,31 @@ function categorizeInContext(percent, context) {
 }
 
 /**
+ * Die EINE Einstufung fuer alle Achievements eines Spiels.
+ *
+ * Warum es diese Funktion gibt: Meldung und Dashboard stuften mit dem
+ * Zusammenhang des Spiels ein, die Levelberechnung beim Start nur nach den
+ * festen Grenzen. Ein Achievement mit 12 %, das seltenste seines Spiels,
+ * erschien als Platin (528 XP) und zaehlte beim naechsten Start als Silber
+ * (220 XP) - das Level fiel nach einem Neustart scheinbar zurueck. Seitdem
+ * gehen beide Wege durch diese Funktion.
+ *
+ * Der Zusammenhang wird aus ALLEN Achievements des Spiels gebaut, auch den
+ * noch nicht freigeschalteten - sonst haengt die Stufe davon ab, wie weit
+ * jemand im Spiel ist.
+ *
+ * @param {Array<{apiname: string}>} alleAchievements - Spielerstand von Steam
+ * @param {Object<string, number>} prozente - apiname -> weltweiter Anteil
+ * @returns {(prozent: number) => string} Stufe fuer einen Anteil
+ */
+function stufeImSpiel(alleAchievements, prozente) {
+  const kontext = buildTierContext(
+    (alleAchievements || []).map((a) => prozente[a.apiname]).filter((p) => typeof p === 'number')
+  );
+  return (prozent) => categorizeInContext(prozent, kontext);
+}
+
+/**
  * Schaetzt die Schwierigkeit der Komplettierung auf einer Skala von 0 bis 10.
  *
  * WICHTIG: Das ist eine BERECHNUNG aus den Seltenheitswerten, keine von
@@ -172,5 +197,6 @@ module.exports = {
   categorize,
   categorizeInContext,
   buildTierContext,
+  stufeImSpiel,
   estimateDifficulty,
 };

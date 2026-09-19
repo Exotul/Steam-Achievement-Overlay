@@ -39,7 +39,7 @@ const zufall = () => warte(Math.random() * 6);
  * berührt. xpMath, xpPlan und steamFehler bleiben echt - um genau deren
  * Zusammenspiel geht es.
  */
-function ladeMitAttrappen({ spiele, errungenJeSpiel = 1, prozent = 50 }) {
+function ladeMitAttrappen({ spiele, errungenJeSpiel = 1, prozent = 50, spielStand = null }) {
   ['xpSummary.js', 'steamApi.js', 'steamQueue.js', 'cache.js', 'logger.js'].forEach((n) => {
     delete require.cache[modul(n)];
   });
@@ -61,6 +61,7 @@ function ladeMitAttrappen({ spiele, errungenJeSpiel = 1, prozent = 50 }) {
     },
     getPlayerAchievements: async () => {
       await zufall();
+      if (spielStand) return spielStand.map(({ apiname, achieved }) => ({ apiname, achieved }));
       return Array.from({ length: errungenJeSpiel }, (_, i) => ({
         apiname: 'A' + i,
         achieved: 1,
@@ -68,11 +69,11 @@ function ladeMitAttrappen({ spiele, errungenJeSpiel = 1, prozent = 50 }) {
     },
     getGlobalAchievementPercentages: async () => {
       await zufall();
+      if (spielStand) return Object.fromEntries(spielStand.map((a) => [a.apiname, a.prozent]));
       const p = {};
       for (let i = 0; i < errungenJeSpiel; i++) p['A' + i] = prozent;
       return p;
     },
-    categorize: () => 'Kupfer',
   });
   attrappe('steamQueue.js', { mitPrioritaet: (_stufe, fn) => fn() });
   attrappe('cache.js', {
@@ -147,4 +148,34 @@ test('Ein einzelnes fehlschlagendes Spiel kostet nur seinen eigenen Beitrag', as
 
   const ergebnis = await xpSummary._berechneIntern('ich', {});
   assert.strictEqual(ergebnis.totalXp, Math.round(49 * achievementXp('Kupfer', 50)));
+});
+
+// --- Dieselbe Stufe wie in der Meldung -----------------------------------------
+
+test('Die Levelberechnung stuft wie die Meldung ein - mit dem Zusammenhang des Spiels', async () => {
+  // Ein gut zugaengliches Spiel: Selbst das schwerste Achievement haben 12 %.
+  // Nach festen Grenzen waere das Silber, im Spiel ist es das seltenste und
+  // die Meldung zeigt Platin. Vorher zaehlte die Levelberechnung beim Start
+  // trotzdem Silber - das Level fiel nach einem Neustart scheinbar zurueck.
+  const spielStand = [
+    { apiname: 'Start', achieved: 1, prozent: 80 },
+    { apiname: 'Kapitel2', achieved: 1, prozent: 60 },
+    { apiname: 'Kapitel3', achieved: 1, prozent: 50 },
+    { apiname: 'Kapitel4', achieved: 0, prozent: 40 },
+    { apiname: 'Ende', achieved: 0, prozent: 30 },
+    { apiname: 'Meister', achieved: 1, prozent: 12 },
+  ];
+  const { xpSummary } = ladeMitAttrappen({ spiele: gespielt(1), spielStand });
+
+  // Erwartung aus derselben Einstufung, die die Meldung benutzt - ueber das
+  // GANZE Spiel, auch die noch fehlenden Achievements.
+  const { stufeImSpiel } = require(path.join(DIENSTE, 'scoring.js'));
+  const stufe = stufeImSpiel(spielStand, Object.fromEntries(spielStand.map((a) => [a.apiname, a.prozent])));
+  assert.strictEqual(stufe(12), 'Platin', 'Voraussetzung des Tests: 12 % ist hier Platin');
+
+  const erwartet = Math.round(
+    spielStand.filter((a) => a.achieved).reduce((s, a) => s + achievementXp(stufe(a.prozent), a.prozent), 0)
+  );
+  const ergebnis = await xpSummary._berechneIntern('ich', {});
+  assert.strictEqual(ergebnis.totalXp, erwartet);
 });

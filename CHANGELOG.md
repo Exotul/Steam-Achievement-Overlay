@@ -2,6 +2,22 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Level nach dem Neustart niedriger als vorher
+
+Meldung und Dashboard stufen ein Achievement auch nach seiner Stellung im
+eigenen Spiel ein: Das seltenste Achievement eines gut zugänglichen Spiels
+wird Platin, auch wenn es weltweit 12 % haben. Die Levelberechnung beim Start
+nutzte dagegen nur die festen Grenzen und zählte dasselbe Achievement als
+Silber (220 statt 528 XP). Das Overlay schrieb nach jeder Meldung den höheren
+Wert fort, der nächste Start rechnete wieder mit dem niedrigeren – das Level
+fiel scheinbar zurück.
+
+Jetzt laufen beide Wege durch dieselbe Einstufung (`stufeImSpiel` in
+`scoring.js`). Ein Test prüft an einem solchen Spiel, dass die Levelberechnung
+genau die XP der Meldung zählt; mit dem alten Weg ergab er 330 statt 638 XP.
+Die gemerkten Werte je Spiel waren nach dem alten Weg gerechnet und werden
+beim nächsten Start einmal neu ermittelt (Formelfassung 3).
+
 ### Exklusives Vollbild: geklärt, und die App sagt es jetzt
 
 Bei Dead Space im exklusiven Vollbild waren Meldungen unsichtbar. Vermutet

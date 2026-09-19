@@ -19,6 +19,7 @@ const logger = require('./logger');
 
 const { FORMEL_VERSION, TIER_MULTIPLIER, achievementXp, getLevelProgress } = require('./xpMath');
 const { planeBerechnung } = require('./xpPlan');
+const { stufeImSpiel } = require('./scoring');
 const steamFehler = require('./steamFehler');
 
 // Höher als früher: Die Warteschlange begrenzt ohnehin global und gibt der
@@ -118,11 +119,15 @@ async function spielXp(steamId, appId, spielzeit) {
 
   const percentages = await steamApi.getGlobalAchievementPercentages(appId);
 
+  // Einstufung mit dem Zusammenhang des GANZEN Spiels, genau wie in der
+  // Meldung - vorher hier nur nach den festen Grenzen (siehe scoring.js).
+  const stufe = stufeImSpiel(playerAch, percentages);
+
   let xp = 0;
   errungen.forEach((a) => {
     const prozent = percentages[a.apiname];
     if (typeof prozent !== 'number') return;
-    xp += achievementXp(steamApi.categorize(prozent), prozent);
+    xp += achievementXp(stufe(prozent), prozent);
   });
 
   cache.set(schluessel, { xp, spielzeit }, SPIEL_TTL_MS);

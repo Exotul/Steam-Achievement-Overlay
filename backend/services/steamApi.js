@@ -206,12 +206,9 @@ async function getPlayerSummaries(steamIds) {
 
 // --- Anreicherung: Kategorie, Diamant-Status --------------------------------
 
-/**
- * Ordnet ein Achievement anhand des globalen Prozentsatzes einer Stufe zu.
- * Kupfer 100–60% | Silber <60–25% | Gold <25–5% | Platin <5–0%
- */
+// Die Stufen selbst (Grenzen, Einstufung im Spiel) stehen in scoring.js.
 const scoring = require('./scoring');
-const { categorize, categorizeInContext, buildTierContext, estimateDifficulty } = scoring;
+const { categorize, categorizeInContext, buildTierContext, stufeImSpiel, estimateDifficulty } = scoring;
 
 async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
   const [playerAch, schema, percentages] = await Promise.all([
@@ -226,11 +223,9 @@ async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
 
   const schemaByName = Object.fromEntries(schema.map((s) => [s.name, s]));
 
-  // Zusammenhang des Spiels einmal aufbauen, damit die relative Einstufung
-  // fuer alle Achievements auf derselben Grundlage steht.
-  const tierContext = buildTierContext(
-    playerAch.map((a) => percentages[a.apiname]).filter((p) => typeof p === 'number')
-  );
+  // Dieselbe Einstufung wie in der Levelberechnung (xpSummary.js) - sonst
+  // zeigt die Meldung eine andere Stufe, als spaeter gezaehlt wird.
+  const stufe = stufeImSpiel(playerAch, percentages);
 
   const achievements = playerAch.map((a) => {
     const meta = schemaByName[a.apiname] || {};
@@ -243,7 +238,7 @@ async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
       unlocked: !!a.achieved,
       unlockedAt: a.achieved ? a.unlocktime : null,
       globalPercent: percent,
-      category: categorizeInContext(percent, tierContext),
+      category: stufe(percent),
     };
   });
 
