@@ -4,10 +4,8 @@ const queue = require('./steamQueue');
 
 // Frueher stand hier eine EIGENE Kopie der Stufenfaktoren. Sie ist beim
 // Anpassen der Kurve prompt uebersehen worden, wodurch Freundesprofile mit
-// anderen Faktoren gerechnet haetten als das eigene Profil. Jetzt aus der
-// einen maessgeblichen Quelle - dieses Modul hat ohnehin Netzwerkzugriff,
-// die Abhaengigkeit kostet also nichts.
-const { TIER_MULTIPLIER } = require('./xpMath');
+// anderen Faktoren gerechnet haetten als das eigene Profil. Jetzt bringt jedes
+// Achievement seine XP fertig gerechnet mit (steamApi -> scoring.bewerteSpiel).
 
 // Wie viele Spiele eines Profils gleichzeitig abgefragt werden. Bewusst
 // niedrig: Bei Freunden geht es um Vollstaendigkeit, nicht um Tempo, und die
@@ -72,7 +70,7 @@ async function buildProfileIntern(steamId) {
     progress.achievements.forEach((a) => {
       if (!a.unlocked) return;
       tierCounts[a.category] = (tierCounts[a.category] || 0) + 1;
-      totalXp += (TIER_MULTIPLIER[a.category] || 1) * (100 - a.globalPercent);
+      totalXp += a.xp || 0;
       allUnlocked.push({
         apiName: a.apiName,
         name: a.name,
@@ -127,4 +125,4 @@ async function getProfile(steamId, neuBerechnen = false) {
   return cache.remember(`profile:${steamId}`, PROFILE_TTL_MS, () => buildProfile(steamId));
 }
 
-module.exports = { getProfile, buildProfile, TIER_MULTIPLIER };
+module.exports = { getProfile, buildProfile };

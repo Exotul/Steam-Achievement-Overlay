@@ -2,9 +2,9 @@
  * XP- und Level-Berechnung.
  *
  * Bewusst ohne Abhängigkeiten: Diese Kurve bestimmt, welches Level angezeigt
- * wird, und liegt gespiegelt auch im Dashboard (frontend/src/lib/xp.js). Ein
- * Test vergleicht beide - laufen sie auseinander, zeigen Overlay und
- * Dashboard unbemerkt verschiedene Level.
+ * wird, und liegt gespiegelt im Dashboard (frontend/src/lib/xp.js) und im
+ * Overlay (overlay/lib/levelKurve.js). Tests vergleichen alle drei - laufen
+ * sie auseinander, zeigen Overlay und Dashboard unbemerkt verschiedene Level.
  */
 
 /**
@@ -18,38 +18,40 @@
 // 3: Die Levelberechnung stuft jetzt wie die Meldung mit dem Zusammenhang
 //    des Spiels ein - die gemerkten Werte je Spiel waren nach festen Grenzen
 //    gerechnet und damit zu niedrig.
-const FORMEL_VERSION = 3;
+// 4: Gleitende XP statt Spruengen an den Stufengrenzen (scoring.js).
+const FORMEL_VERSION = 4;
 
-// Stufenfaktoren. Kupfer bleibt der Grundwert, die selteneren Stufen sind
-// gegenüber der ersten Fassung (1/2/3/4) stärker gespreizt.
+// Stufenfaktoren. Seit den gleitenden XP sind das die Werte in der MITTE
+// einer Stufe - dazwischen gleitet der Faktor (siehe xpFaktor in scoring.js).
 const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2.5, Gold: 4, Platin: 6 };
 
 /** XP eines einzelnen freigeschalteten Achievements. */
-function achievementXp(category, globalPercent) {
-  return (TIER_MULTIPLIER[category] || 1) * (100 - globalPercent);
+function achievementXp(faktor, globalPercent) {
+  return faktor * (100 - globalPercent);
 }
 
 /**
- * Kosten einer Levelstufe.
+ * Kosten einer Levelstufe: eine Treppe mit Deckel.
  *
- * Die erste Fassung war `90 * level^1.55`. Der Exponent war das Problem:
- * Die Levelkosten wuchsen weit schneller als eine Sammlung wächst. An einer
- * echten Sammlung nachgemessen (2.177 Trophäen, Level 28): Eine Stufe kostete
- * dort 15.752 XP, während eine durchschnittliche Silbertrophäe 154 XP brachte
- * - **ein Prozent**. Der Fortschrittsbalken stand faktisch still, und je
- * weiter jemand kam, desto schlimmer wurde es. Genau das ist das Gegenteil
- * dessen, was eine Levelkurve leisten soll.
+ * Die Vorgeschichte: Erst `90 * level^1.55`, dann `400 * level^0.7`. Beide
+ * liessen die Kosten mit dem Level immer weiter steigen. An einer echten
+ * Sammlung (rund 190.000 XP, Level 51) kostete eine Stufe 6.271 XP - eine
+ * Kupfertrophaee bewegte den Balken um 1 %, eine Platintrophaee um 9 %, und
+ * je weiter jemand kam, desto bedeutungsloser wurde jede einzelne Trophaee.
  *
- * Der flachere Exponent dreht das um: Die Kosten steigen noch, aber langsam
- * genug, dass eine einzelne Trophäe sichtbar bleibt. Dieselbe Sammlung liegt
- * damit bei Level 52, eine Stufe kostet rund 6.400 XP, und eine Silbertrophäe
- * bewegt den Balken um 3 %, eine Platintrophäe um 9 %.
- *
- * Der höhere Grundwert hält dabei die ersten Level davon ab, im Sekundentakt
- * durchzurauschen - Stufe 1 kostet weiterhin etwa zehn Kupfertrophäen.
+ * Jetzt: Die ersten 15 Level kosten je 1.000 XP, damit man am Anfang zuegig
+ * aufsteigt. Level 16 bis 30 kosten 2.000 XP, ab Level 31 kostet JEDES Level
+ * 3.000 XP - fuer immer. Dadurch behaelt eine Trophaee ihr Gewicht, egal wie
+ * gross die Sammlung ist: Platin fuellt knapp ein Fuenftel eines Levels.
  */
+const LEVEL_TREPPE = [
+  { bisLevel: 15, kosten: 1000 },
+  { bisLevel: 30, kosten: 2000 },
+  { bisLevel: Infinity, kosten: 3000 },
+];
+
 function xpRequiredForLevel(level) {
-  return Math.round(400 * Math.pow(level, 0.7));
+  return LEVEL_TREPPE.find((stufe) => level <= stufe.bisLevel).kosten;
 }
 
 function getLevelProgress(totalXp) {
@@ -74,6 +76,7 @@ function getLevelProgress(totalXp) {
 module.exports = {
   FORMEL_VERSION,
   TIER_MULTIPLIER,
+  LEVEL_TREPPE,
   achievementXp,
   xpRequiredForLevel,
   getLevelProgress,

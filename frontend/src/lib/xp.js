@@ -1,13 +1,15 @@
-// ACHTUNG: Diese Kurve liegt gespiegelt in backend/services/xpMath.js.
-// Laufen beide auseinander, zeigen Overlay und Dashboard verschiedene Level
-// für denselben Stand - ein Test in tests/backend/scoring.test.js vergleicht
-// sie deshalb. Bei Änderungen BEIDE Dateien anfassen.
+// ACHTUNG: Diese Kurve liegt gespiegelt in backend/services/xpMath.js und
+// overlay/lib/levelKurve.js. Laufen sie auseinander, zeigen Overlay und
+// Dashboard verschiedene Level für denselben Stand - Tests in
+// tests/backend/scoring.test.js vergleichen sie deshalb. Bei Änderungen ALLE
+// DREI Dateien anfassen.
 //
-// Der Exponent war ursprünglich 1.55 und liess die Levelkosten weit schneller
-// wachsen als eine Sammlung wächst: Bei Level 28 kostete eine Stufe 15.752 XP,
-// eine durchschnittliche Silbertrophäe brachte 154 - der Balken stand still.
+// Treppe mit Deckel: Level 1-15 je 1.000 XP, 16-30 je 2.000 XP, ab 31 je
+// 3.000 XP für immer. Warum, steht in xpMath.js.
 function xpRequiredForLevel(level) {
-  return Math.round(400 * Math.pow(level, 0.7));
+  if (level <= 15) return 1000;
+  if (level <= 30) return 2000;
+  return 3000;
 }
 
 export function getLevelProgress(totalXp) {

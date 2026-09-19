@@ -7,6 +7,8 @@
  * wodurch die Tests axios brauchten.
  */
 
+const { TIER_MULTIPLIER, achievementXp } = require('./xpMath');
+
 // Schwellenwerte der Trophaeenstufen, ueber die .env anpassbar.
 //
 // Warum die Standardwerte deutlich niedriger liegen als urspruenglich:
@@ -109,29 +111,150 @@ function categorizeInContext(percent, context) {
   return STUFEN_ORDNUNG.indexOf(relativ) > STUFEN_ORDNUNG.indexOf(absolut) ? relativ : absolut;
 }
 
+// --- Gleitende XP -------------------------------------------------------------
+//
+// Die Stufe (Name und Farbe) springt an festen Grenzen - das soll sie auch,
+// sie ist eine Einordnung. Die XP sind dagegen an diesen Grenzen mitgesprungen:
+// 30,0 % gab als Kupfer 70 XP, 29,9 % als Silber 175 XP. Die weltweiten
+// Prozentsaetze bewegen sich staendig ein wenig, und bei ueber 2.000 Trophaeen
+// liegen immer einige knapp an einer Grenze - der XP-Stand wanderte dadurch
+// um Hunderte XP, ohne dass jemand etwas getan hatte.
+//
+// Deshalb steigt der XP-Faktor jetzt STUFENLOS mit der Seltenheit. Er trifft
+// den bekannten Stufenfaktor (1 / 2,5 / 4 / 6) jeweils in der Mitte einer
+// Stufe und gleitet dazwischen. Im Mittel bringt eine Stufe damit so viel wie
+// vorher, aber eine kleine Aenderung der Statistik bewegt nur ein paar XP.
+
+/** Stueckweise lineare Kurve durch Stuetzpunkte [x, y], aufsteigend in x. */
+function stueckweise(x, punkte) {
+  if (x <= punkte[0][0]) return punkte[0][1];
+  for (let i = 1; i < punkte.length; i++) {
+    const [x1, y1] = punkte[i];
+    if (x <= x1) {
+      const [x0, y0] = punkte[i - 1];
+      return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+    }
+  }
+  return punkte[punkte.length - 1][1];
+}
+
 /**
- * Die EINE Einstufung fuer alle Achievements eines Spiels.
+ * Faktor allein aus dem weltweiten Anteil.
+ *
+ * Gerechnet auf der logarithmischen Skala, wie die Grenzen selbst: Der Schritt
+ * von 10 % auf 3 % ist so gross wie der von 30 % auf 10 %. Die Stuetzpunkte
+ * liegen jeweils in der (geometrischen) Mitte einer Stufe - mit den
+ * Standardgrenzen bei 17,3 % (Silber), 5,5 % (Gold) und 1 % (Platin).
+ */
+function absoluterFaktor(prozent) {
+  const { kupfer, silber, gold } = TIER_THRESHOLDS;
+  const log = (p) => Math.log10(Math.max(p, 0.01));
+  return stueckweise(log(prozent), [
+    [log(gold / 3), TIER_MULTIPLIER.Platin],
+    [log(Math.sqrt(gold * silber)), TIER_MULTIPLIER.Gold],
+    [log(Math.sqrt(silber * kupfer)), TIER_MULTIPLIER.Silber],
+    [log(kupfer), TIER_MULTIPLIER.Kupfer],
+  ]);
+}
+
+// Wie weit zwei Anteile auseinanderliegen muessen, bis sie als klar
+// verschieden gelten (auf der ln-Skala; 0,1 entspricht rund 10 %). Ohne diese
+// Unschaerfe spraenge die Stellung im Spiel, sobald ein anderes Achievement
+// knapp an diesem vorbeizieht.
+const RANG_UNSCHAERFE = 0.1;
+
+/**
+ * Stellung im Spiel, stufenlos: 0 = seltenstes Achievement, 1 = haeufigstes.
+ * Ein weicher Rang - bei klar verschiedenen Werten genau der gewohnte Rang,
+ * bei fast gleichen Werten ein Mittelweg statt eines Sprungs.
+ */
+function weicheStellung(prozent, sortiert) {
+  const n = sortiert.length;
+  if (n < 2) return 1;
+  const lp = Math.log(Math.max(prozent, 0.01));
+  let rang = 0;
+  for (const wert of sortiert) {
+    rang += 1 / (1 + Math.exp(-(lp - Math.log(Math.max(wert, 0.01))) / RANG_UNSCHAERFE));
+  }
+  // Das Achievement selbst steht in der Liste und zaehlt dort genau 0,5.
+  return Math.min(1, Math.max(0, (rang - 0.5) / (n - 1)));
+}
+
+/**
+ * Faktor aus der Stellung im Spiel - das stufenlose Gegenstueck zu
+ * categorizeInContext. Stuetzpunkte wieder in der Mitte der dortigen
+ * Bereiche (seltenste 5 % Platin, bis 20 % Gold, bis 50 % Silber), die
+ * Obergrenzen ebenso.
+ */
+function relativerFaktor(prozent, kontext) {
+  if (!kontext || !kontext.sortiert || kontext.sortiert.length < 5) return TIER_MULTIPLIER.Kupfer;
+
+  const nachStellung = stueckweise(weicheStellung(prozent, kontext.sortiert), [
+    [0.025, TIER_MULTIPLIER.Platin],
+    [0.125, TIER_MULTIPLIER.Gold],
+    [0.35, TIER_MULTIPLIER.Silber],
+    [0.75, TIER_MULTIPLIER.Kupfer],
+  ]);
+
+  // Obergrenze: Ein haeufiges Achievement wird nie weit hochgestuft, auch
+  // wenn es das seltenste seines Spiels ist.
+  const deckel = stueckweise(prozent, [
+    [OBERGRENZEN.Platin / 2, TIER_MULTIPLIER.Platin],
+    [(OBERGRENZEN.Platin + OBERGRENZEN.Gold) / 2, TIER_MULTIPLIER.Gold],
+    [(OBERGRENZEN.Gold + OBERGRENZEN.Silber) / 2, TIER_MULTIPLIER.Silber],
+    [(OBERGRENZEN.Silber + 100) / 2, TIER_MULTIPLIER.Kupfer],
+  ]);
+
+  // Statt eines harten Schalters bei MIN_SPREIZUNG blendet die Einstufung im
+  // Spiel zwischen 2 und 3,1 (Standardwert) ein - sonst sprang ein ganzes
+  // Spiel, wenn seine Spreizung die Grenze kreuzte.
+  const gewicht = stueckweise(Math.log(kontext.spreizung), [
+    [Math.log(MIN_SPREIZUNG / 1.25), 0],
+    [Math.log(MIN_SPREIZUNG * 1.25), 1],
+  ]);
+
+  return 1 + gewicht * (Math.min(nachStellung, deckel) - 1);
+}
+
+/**
+ * Der XP-Faktor eines Achievements: der hoehere aus weltweitem Anteil und
+ * Stellung im Spiel - wie bei der Stufe, nur ohne Spruenge.
+ */
+function xpFaktor(prozent, kontext) {
+  return Math.max(absoluterFaktor(prozent), relativerFaktor(prozent, kontext));
+}
+
+/**
+ * Die EINE Bewertung fuer alle Achievements eines Spiels: Stufe und XP.
  *
  * Warum es diese Funktion gibt: Meldung und Dashboard stuften mit dem
  * Zusammenhang des Spiels ein, die Levelberechnung beim Start nur nach den
  * festen Grenzen. Ein Achievement mit 12 %, das seltenste seines Spiels,
  * erschien als Platin (528 XP) und zaehlte beim naechsten Start als Silber
  * (220 XP) - das Level fiel nach einem Neustart scheinbar zurueck. Seitdem
- * gehen beide Wege durch diese Funktion.
+ * gehen alle Wege durch diese Funktion, und Overlay wie Dashboard uebernehmen
+ * die hier errechneten XP, statt sie selbst nachzurechnen.
  *
  * Der Zusammenhang wird aus ALLEN Achievements des Spiels gebaut, auch den
- * noch nicht freigeschalteten - sonst haengt die Stufe davon ab, wie weit
+ * noch nicht freigeschalteten - sonst haengt die Bewertung davon ab, wie weit
  * jemand im Spiel ist.
  *
  * @param {Array<{apiname: string}>} alleAchievements - Spielerstand von Steam
  * @param {Object<string, number>} prozente - apiname -> weltweiter Anteil
- * @returns {(prozent: number) => string} Stufe fuer einen Anteil
+ * @returns {(prozent: number) => {stufe: string, faktor: number, xp: number}}
  */
-function stufeImSpiel(alleAchievements, prozente) {
+function bewerteSpiel(alleAchievements, prozente) {
   const kontext = buildTierContext(
     (alleAchievements || []).map((a) => prozente[a.apiname]).filter((p) => typeof p === 'number')
   );
-  return (prozent) => categorizeInContext(prozent, kontext);
+  return (prozent) => {
+    const faktor = xpFaktor(prozent, kontext);
+    return {
+      stufe: categorizeInContext(prozent, kontext),
+      faktor,
+      xp: achievementXp(faktor, prozent),
+    };
+  };
 }
 
 /**
@@ -197,6 +320,7 @@ module.exports = {
   categorize,
   categorizeInContext,
   buildTierContext,
-  stufeImSpiel,
+  xpFaktor,
+  bewerteSpiel,
   estimateDifficulty,
 };

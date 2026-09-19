@@ -85,7 +85,10 @@ function ladeMitAttrappen({ spiele, errungenJeSpiel = 1, prozent = 50, spielStan
   return { xpSummary: require(modul('xpSummary.js')), speicher };
 }
 
-const { achievementXp } = require(path.join(DIENSTE, 'xpMath.js'));
+const { xpFaktor } = require(path.join(DIENSTE, 'scoring.js'));
+// XP eines Achievements mit 50 % in einem Spiel mit nur einem Achievement:
+// ohne Zusammenhang, also allein nach dem weltweiten Anteil.
+const xpBei50 = xpFaktor(50, null) * 50;
 const gespielt = (n) =>
   Array.from({ length: n }, (_, i) => ({ appid: 1000 + i, playtime_forever: 60 + i }));
 
@@ -96,7 +99,7 @@ test('Die Erstberechnung zählt JEDES Spiel - auch mit acht Arbeitern', async ()
   const { xpSummary } = ladeMitAttrappen({ spiele });
 
   const ergebnis = await xpSummary._berechneIntern('ich', {});
-  const erwartet = Math.round(376 * achievementXp('Kupfer', 50));
+  const erwartet = Math.round(376 * xpBei50);
 
   assert.strictEqual(
     ergebnis.totalXp,
@@ -147,7 +150,7 @@ test('Ein einzelnes fehlschlagendes Spiel kostet nur seinen eigenen Beitrag', as
   };
 
   const ergebnis = await xpSummary._berechneIntern('ich', {});
-  assert.strictEqual(ergebnis.totalXp, Math.round(49 * achievementXp('Kupfer', 50)));
+  assert.strictEqual(ergebnis.totalXp, Math.round(49 * xpBei50));
 });
 
 // --- Dieselbe Stufe wie in der Meldung -----------------------------------------
@@ -169,12 +172,12 @@ test('Die Levelberechnung stuft wie die Meldung ein - mit dem Zusammenhang des S
 
   // Erwartung aus derselben Einstufung, die die Meldung benutzt - ueber das
   // GANZE Spiel, auch die noch fehlenden Achievements.
-  const { stufeImSpiel } = require(path.join(DIENSTE, 'scoring.js'));
-  const stufe = stufeImSpiel(spielStand, Object.fromEntries(spielStand.map((a) => [a.apiname, a.prozent])));
-  assert.strictEqual(stufe(12), 'Platin', 'Voraussetzung des Tests: 12 % ist hier Platin');
+  const { bewerteSpiel } = require(path.join(DIENSTE, 'scoring.js'));
+  const bewerte = bewerteSpiel(spielStand, Object.fromEntries(spielStand.map((a) => [a.apiname, a.prozent])));
+  assert.strictEqual(bewerte(12).stufe, 'Platin', 'Voraussetzung des Tests: 12 % ist hier Platin');
 
   const erwartet = Math.round(
-    spielStand.filter((a) => a.achieved).reduce((s, a) => s + achievementXp(stufe(a.prozent), a.prozent), 0)
+    spielStand.filter((a) => a.achieved).reduce((s, a) => s + bewerte(a.prozent).xp, 0)
   );
   const ergebnis = await xpSummary._berechneIntern('ich', {});
   assert.strictEqual(ergebnis.totalXp, erwartet);

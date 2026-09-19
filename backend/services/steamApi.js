@@ -208,7 +208,11 @@ async function getPlayerSummaries(steamIds) {
 
 // Die Stufen selbst (Grenzen, Einstufung im Spiel) stehen in scoring.js.
 const scoring = require('./scoring');
-const { categorize, categorizeInContext, buildTierContext, stufeImSpiel, estimateDifficulty } = scoring;
+const { categorize, categorizeInContext, buildTierContext, bewerteSpiel, estimateDifficulty } = scoring;
+
+// Mit Fassung: Aeltere Sicherungskopien haben noch keine XP je Achievement.
+// Aus ihnen wuerde das Overlay nach einem Steam-Ausfall 0 XP gutschreiben.
+const schluesselLetzterStand = (steamId, appId) => `achievements-letzter:v2:${steamId}:${appId}`;
 
 async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
   const [playerAch, schema, percentages] = await Promise.all([
@@ -223,13 +227,14 @@ async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
 
   const schemaByName = Object.fromEntries(schema.map((s) => [s.name, s]));
 
-  // Dieselbe Einstufung wie in der Levelberechnung (xpSummary.js) - sonst
-  // zeigt die Meldung eine andere Stufe, als spaeter gezaehlt wird.
-  const stufe = stufeImSpiel(playerAch, percentages);
+  // Dieselbe Bewertung wie in der Levelberechnung (xpSummary.js) - sonst
+  // zeigt die Meldung andere XP, als spaeter gezaehlt werden.
+  const bewerte = bewerteSpiel(playerAch, percentages);
 
   const achievements = playerAch.map((a) => {
     const meta = schemaByName[a.apiname] || {};
     const percent = percentages[a.apiname] ?? 100; // Fallback, falls Steam nichts liefert
+    const { stufe, xp } = bewerte(percent);
     return {
       apiName: a.apiname,
       name: meta.displayName || a.apiname,
@@ -238,7 +243,10 @@ async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
       unlocked: !!a.achieved,
       unlockedAt: a.achieved ? a.unlocktime : null,
       globalPercent: percent,
-      category: stufe(percent),
+      category: stufe,
+      // Fertig gerechnet mitgeliefert: Overlay und Dashboard uebernehmen den
+      // Wert, statt die Formel ein zweites und drittes Mal nachzubauen.
+      xp,
     };
   });
 
@@ -256,7 +264,7 @@ async function buildEnrichedAchievements(steamId, appId, optionen = {}) {
 
   // Langlebige Sicherungskopie: Faellt Steam aus, ist das die Grundlage, mit
   // der zusammen mit der lokalen Datei weitergearbeitet werden kann.
-  cache.set(`achievements-letzter:${steamId}:${appId}`, ergebnis, 30 * 24 * 60 * 60 * 1000);
+  cache.set(schluesselLetzterStand(steamId, appId), ergebnis, 30 * 24 * 60 * 60 * 1000);
 
   return ergebnis;
 }
@@ -334,6 +342,7 @@ module.exports = {
   getPlayerSummaries,
   getPresence,
   // aus scoring.js weitergereicht, damit bestehende Aufrufe unveraendert bleiben
+  schluesselLetzterStand,
   categorize,
   categorizeInContext,
   buildTierContext,

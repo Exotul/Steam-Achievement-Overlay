@@ -79,7 +79,7 @@ router.get('/games/:appId/achievements', async (req, res) => {
       // Steam nicht erreichbar? Dann den letzten bekannten Stand ausliefern
       // statt gar nichts. Das Overlay ergaenzt ihn mit der lokalen Datei und
       // bleibt dadurch arbeitsfaehig.
-      const letzter = cache.get(`achievements-letzter:${req.user.steamId}:${req.params.appId}`);
+      const letzter = cache.get(steamApi.schluesselLetzterStand(req.user.steamId, req.params.appId));
       if (letzter) {
         logger.warn(`Steam nicht erreichbar - liefere letzten Stand für App ${req.params.appId}`);
         return res.json({ ...letzter, veraltet: true });

@@ -17,9 +17,9 @@ const logger = require('./logger');
  * damit die App einen Ladebalken zeigen kann.
  */
 
-const { FORMEL_VERSION, TIER_MULTIPLIER, achievementXp, getLevelProgress } = require('./xpMath');
+const { FORMEL_VERSION, getLevelProgress } = require('./xpMath');
 const { planeBerechnung } = require('./xpPlan');
-const { stufeImSpiel } = require('./scoring');
+const { bewerteSpiel } = require('./scoring');
 const steamFehler = require('./steamFehler');
 
 // Höher als früher: Die Warteschlange begrenzt ohnehin global und gibt der
@@ -119,15 +119,15 @@ async function spielXp(steamId, appId, spielzeit) {
 
   const percentages = await steamApi.getGlobalAchievementPercentages(appId);
 
-  // Einstufung mit dem Zusammenhang des GANZEN Spiels, genau wie in der
+  // Bewertung mit dem Zusammenhang des GANZEN Spiels, genau wie in der
   // Meldung - vorher hier nur nach den festen Grenzen (siehe scoring.js).
-  const stufe = stufeImSpiel(playerAch, percentages);
+  const bewerte = bewerteSpiel(playerAch, percentages);
 
   let xp = 0;
   errungen.forEach((a) => {
     const prozent = percentages[a.apiname];
     if (typeof prozent !== 'number') return;
-    xp += achievementXp(stufe(prozent), prozent);
+    xp += bewerte(prozent).xp;
   });
 
   cache.set(schluessel, { xp, spielzeit }, SPIEL_TTL_MS);
@@ -267,8 +267,6 @@ function getSummary(steamId, neuBerechnen = false) {
 module.exports = {
   getSummary,
   getLevelProgress,
-  achievementXp,
-  TIER_MULTIPLIER,
   // Fuer die Tests: die Berechnung selbst, ohne Warteschlange und Job-Verwaltung.
   _berechneIntern: berechneIntern,
 };

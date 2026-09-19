@@ -2,6 +2,37 @@
 
 ## Noch nicht veröffentlicht
 
+### Neue Levelkurve: Treppe mit Deckel
+
+Bisher stiegen die Levelkosten immer weiter (`400 × Level^0,7`). Bei rund
+190.000 XP (Level 51) kostete ein Level 6.271 XP. Eine Kupfertrophäe bewegte
+den Balken um 1 %, eine Platintrophäe um 9 %, und mit jedem Level wurde es
+weniger.
+
+Jetzt: Level 1–15 je 1.000 XP, 16–30 je 2.000 XP, ab Level 31 jedes Level
+3.000 XP für immer. Platin füllt damit stets knapp ein Fünftel eines Levels.
+Dieselbe Sammlung steht jetzt auf **Level 78**.
+
+### Gleitende XP statt Sprüngen an den Stufengrenzen
+
+Name und Farbe der Stufe bleiben, die XP springen nicht mehr: 30,0 % gab als
+Kupfer 70 XP, 29,9 % als Silber 175 XP. Weil sich die weltweiten Anteile
+ständig bewegen, wanderte der XP-Stand um Hunderte XP, ohne dass jemand
+spielte. Jetzt steigt der Faktor stufenlos und trifft den gewohnten
+Stufenfaktor in der Mitte jeder Stufe. Die Stellung im Spiel geht ebenfalls
+stufenlos ein.
+
+An der echten Sammlung (2.213 Trophäen) nachgemessen: Wackelt jeder Anteil
+zufällig um etwa 1 %, streute der Gesamtstand vorher über 825 XP, jetzt über
+236 XP.
+
+Die XP je Achievement liefert jetzt das Backend fertig mit. Overlay und
+Dashboard hatten die Formel samt Stufenfaktoren je eine eigene Kopie, sie
+fallen weg. Die Levelkurve des Overlays liegt in `overlay/lib/levelKurve.js`
+und wird per Test mit dem Backend verglichen, statt wie bisher per regulärem
+Ausdruck aus `main.js` gelesen zu werden. Formelfassung 4: Alle gemerkten
+XP-Werte werden beim nächsten Start einmal neu berechnet.
+
 ### Behoben: Level nach dem Neustart niedriger als vorher
 
 Meldung und Dashboard stufen ein Achievement auch nach seiner Stellung im
@@ -12,7 +43,7 @@ Silber (220 statt 528 XP). Das Overlay schrieb nach jeder Meldung den höheren
 Wert fort, der nächste Start rechnete wieder mit dem niedrigeren – das Level
 fiel scheinbar zurück.
 
-Jetzt laufen beide Wege durch dieselbe Einstufung (`stufeImSpiel` in
+Jetzt laufen beide Wege durch dieselbe Bewertung (`bewerteSpiel` in
 `scoring.js`). Ein Test prüft an einem solchen Spiel, dass die Levelberechnung
 genau die XP der Meldung zählt; mit dem alten Weg ergab er 330 statt 638 XP.
 Die gemerkten Werte je Spiel waren nach dem alten Weg gerechnet und werden

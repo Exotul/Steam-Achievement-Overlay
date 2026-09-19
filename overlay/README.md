@@ -69,7 +69,7 @@ Tonfolge spielt - danach beginnt der Balken von vorn.
 
 **Der XP-Stand wird nur EINMAL beim Start der App ermittelt.** Danach schreibt
 die App ihn selbst fort: Der Zuwachs eines Achievements ist eine bekannte
-Größe (Stufenfaktor × (100 − Prozentsatz)) und muss nicht bei Steam erfragt
+Größe (das Backend liefert die XP je Achievement fertig mit) und muss nicht bei Steam erfragt
 werden. Die ganze Bibliothek bei jedem Achievement neu durchzugehen wäre
 verschwendete Zeit und würde die Achievement-Erkennung ausbremsen.
 

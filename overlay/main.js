@@ -14,6 +14,7 @@ const autostart = require('./lib/autostart');
 const { lesbareSpanne } = require('./lib/zeitspanne');
 const vollbild = require('./lib/vollbild');
 const { overlayRechteck } = require('./lib/overlayFlaeche');
+const { levelAus } = require('./lib/levelKurve');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -129,34 +130,12 @@ let letzterStand = null; // { unlockedCount, totalCount } des verfolgten Spiels
 // Ein einzelnes Achievement bringt einen berechenbaren Zuwachs - dafuer
 // muss die Bibliothek nicht erneut durchgegangen werden.
 let xpStand = null; // { level, xpIntoLevel, xpForThisLevel, totalXp }
-// Gespiegelt aus backend/services/xpMath.js - bei Änderungen dort mitziehen.
-const TIER_MULTIPLIER = { Kupfer: 1, Silber: 2.5, Gold: 4, Platin: 6 };
-
+// XP bringt jedes Achievement fertig gerechnet vom Backend mit
+// (scoring.bewerteSpiel). Frueher stand die Formel hier ein weiteres Mal,
+// samt Kopie der Stufenfaktoren - und musste bei jeder Aenderung mitgezogen
+// werden.
 function xpFuer(achievement) {
-  return (TIER_MULTIPLIER[achievement.category] || 1) * (100 - achievement.globalPercent);
-}
-
-// Dieselbe Kurve wie im Backend und im Dashboard.
-function xpFuerLevel(level) {
-  return Math.round(400 * Math.pow(level, 0.7));
-}
-
-function levelAus(totalXp) {
-  let level = 1;
-  let verbraucht = 0;
-  while (true) {
-    const noetig = xpFuerLevel(level);
-    if (verbraucht + noetig > totalXp) {
-      return {
-        level,
-        xpIntoLevel: Math.round(totalXp - verbraucht),
-        xpForThisLevel: noetig,
-        totalXp: Math.round(totalXp),
-      };
-    }
-    verbraucht += noetig;
-    level += 1;
-  }
+  return typeof achievement.xp === 'number' ? achievement.xp : 0;
 }
 let localWatcher = null;
 let localWatchReady = false;
@@ -1593,10 +1572,11 @@ let testZaehler = 0;
 
 function handleTestAchievement() {
   const stufen = [
-    { category: 'Kupfer', globalPercent: 74.3, name: 'Erste Schritte' },
-    { category: 'Silber', globalPercent: 22.8, name: 'Auf halbem Weg' },
-    { category: 'Gold', globalPercent: 7.1, name: 'Meisterprüfung' },
-    { category: 'Platin', globalPercent: 1.4, name: 'Gegen alle Widerstände' },
+    // XP wie vom Backend fuer diese Anteile gerechnet (gleitende XP).
+    { category: 'Kupfer', globalPercent: 74.3, xp: 26, name: 'Erste Schritte' },
+    { category: 'Silber', globalPercent: 22.8, xp: 135, name: 'Auf halbem Weg' },
+    { category: 'Gold', globalPercent: 7.1, xp: 340, name: 'Meisterprüfung' },
+    { category: 'Platin', globalPercent: 1.4, xp: 553, name: 'Gegen alle Widerstände' },
   ];
   // Bei jedem Aufruf die naechste Stufe, damit sich alle vier pruefen lassen.
   const stufe = stufen[testZaehler % stufen.length];
@@ -1616,6 +1596,7 @@ function handleTestAchievement() {
       unlocked: true,
       globalPercent: stufe.globalPercent,
       category: stufe.category,
+      xp: stufe.xp,
     },
     true // nurTest: XP-Stand bleibt unveraendert
   );

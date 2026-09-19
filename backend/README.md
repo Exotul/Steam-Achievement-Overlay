@@ -51,9 +51,9 @@ Alle `/api/*`-Routen erfordern einen aktiven Login (Session-Cookie).
 
 ## Was hier schon eingebaut ist
 
-- **Kategorisierung**: `services/steamApi.js` → `categorize(percent)` setzt
-  jedes Achievement anhand des globalen Prozentsatzes auf
-  Kupfer (100–60 %) / Silber (<60–25 %) / Gold (<25–5 %) / Platin (<5–0 %).
+- **Kategorisierung**: `services/scoring.js` → `bewerteSpiel()` bestimmt für
+  jedes Achievement Stufe und XP (siehe „Wie die Trophäenstufen bestimmt
+  werden“ unten).
 - **Diamant-Status**: `buildEnrichedAchievements()` liefert `isDiamond: true`,
   sobald `unlockedCount === totalCount` eines Spiels.
 
@@ -114,3 +114,29 @@ Bewertung überhaupt greift; bei drei Achievements ist eine Verteilung
 bedeutungslos.
 
 Alle Werte sind über die `.env` einstellbar.
+
+## XP und Level
+
+**XP eines Achievements = Faktor × (100 − weltweiter Anteil).**
+
+Der Faktor gleitet stufenlos mit der Seltenheit (`xpFaktor` in
+`services/scoring.js`). In der Mitte jeder Stufe trifft er den Stufenfaktor
+(Kupfer 1, Silber 2,5, Gold 4, Platin 6), dazwischen gleitet er. Name und Farbe
+der Stufe springen weiterhin an den Grenzen, die XP nicht: Vorher gab 30,0 % als
+Kupfer 70 XP und 29,9 % als Silber 175 XP. Weil sich die weltweiten Anteile
+ständig bewegen, wanderte der Gesamtstand dadurch um Hunderte XP. An einer
+echten Sammlung (2.213 Trophäen) nachgemessen: Wackelt jeder Anteil zufällig um
+etwa 1 %, streute der Gesamtstand vorher über 825 XP, jetzt über 236 XP.
+
+Auch die Stellung im Spiel geht stufenlos ein: Rang, Obergrenzen und
+Mindestspreizung sind weich statt als harte Schalter umgesetzt.
+
+**Levelkurve: Treppe mit Deckel** (`services/xpMath.js`): Level 1–15 kosten je
+1.000 XP, Level 16–30 je 2.000 XP und ab Level 31 jedes Level 3.000 XP, ohne
+weitere Steigerung. So behält eine Trophäe ihr Gewicht, egal wie groß die
+Sammlung wird. Eine Platintrophäe füllt immer knapp ein Fünftel eines Levels.
+
+Die XP je Achievement liefert das Backend fertig mit (Feld `xp`). Overlay und
+Dashboard rechnen sie nicht selbst nach. Nur die Levelkurve liegt dreimal vor
+(Backend, `frontend/src/lib/xp.js`, `overlay/lib/levelKurve.js`), und Tests
+vergleichen die drei Kopien.
