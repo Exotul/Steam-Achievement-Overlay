@@ -1,6 +1,6 @@
 # Änderungen heute
 
-## Noch nicht veröffentlicht
+## 1.2.0 — 19.09.2026
 
 ### XP-Zuwachs direkt an der Meldung
 
