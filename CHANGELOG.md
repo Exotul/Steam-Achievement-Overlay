@@ -2,7 +2,15 @@
 
 ## Noch nicht veröffentlicht
 
-### Der Schrank reicht bis an alle Ränder
+### Der Schrank reicht bis an alle Ränder — außer zur Taskleiste
+
+Oben, links und rechts blieb viel Wand übrig; der Rand ist weg. Nur dort, wo
+die Taskleiste sitzt, bleibt Platz: Der Schrank liegt hinter ihr, und sie
+schnitt ihm unten ein Stück ab. Wie viel freizulassen ist, sagt Windows selbst
+(Bildschirm minus Arbeitsfläche) — das stimmt auch bei einer Leiste am linken
+Rand oder mit anderer Höhe. Auf diesem Rechner sind es 40 px.
+
+### Mehr Platz für die Fächer
 
 Oben, links und rechts blieb viel Wand übrig. Die Pokalreihe über dem Schrank
 entfällt — sie stand ohnehin doppelt da, seit es das Fach „Deine Trophäen"

@@ -229,6 +229,21 @@ function baue(daten) {
     }
   }
 
+  // Platz fuer die Taskleiste: Der Schrank liegt dahinter, sonst schnitte sie
+  // ihm unten ein Stueck ab. Die Werte kommen aus Windows selbst.
+  if (daten.raender) {
+    const r = daten.raender;
+    const stil = document.getElementById('raum').style;
+    stil.paddingTop = `${r.oben}px`;
+    stil.paddingBottom = `${r.unten}px`;
+    stil.paddingLeft = `${r.links}px`;
+    stil.paddingRight = `${r.rechts}px`;
+    // Die Hinweiszeile schwebt - sie muss den Rand selbst beachten, sonst
+    // steht sie hinter der Taskleiste.
+    hinweisEl.style.bottom = `${r.unten + 6}px`;
+    hinweisEl.style.right = `${r.rechts + 14}px`;
+  }
+
   const faecher = daten.faecher || [];
   if (!faecher.length) {
     hinweisEl.textContent = hinweisZu(daten.grund);

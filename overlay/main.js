@@ -444,6 +444,27 @@ function schliesseSchrank() {
 }
 
 /** Schrankinhalt holen und hineinreichen. */
+/**
+ * Wie viel Rand die Taskleiste belegt.
+ *
+ * Der Schrank nimmt den GANZEN Bildschirm ein - im Hintergrundmodus liegt er
+ * hinter allem, also auch hinter der Taskleiste, und die schnitt ihm unten
+ * ein Stueck ab. Windows sagt selbst, wo seine Leisten sitzen: Die
+ * "Arbeitsflaeche" ist der Bildschirm ohne sie. Die Differenz ist der Rand,
+ * den der Schrank frei laesst - das stimmt auch bei einer Leiste am linken
+ * Rand oder bei anderer Hoehe.
+ */
+function schrankRaender(anzeige) {
+  const b = anzeige.bounds;
+  const a = anzeige.workArea;
+  return {
+    oben: Math.max(0, a.y - b.y),
+    unten: Math.max(0, b.y + b.height - (a.y + a.height)),
+    links: Math.max(0, a.x - b.x),
+    rechts: Math.max(0, b.x + b.width - (a.x + a.width)),
+  };
+}
+
 async function sendeSchrankDaten() {
   if (!schrankWindow || schrankWindow.isDestroyed()) return;
   if (!steamClient) {
@@ -454,7 +475,11 @@ async function sendeSchrankDaten() {
   }
   try {
     const daten = await steamClient.schrank();
-    schrankWindow.webContents.send('schrank:daten', { ...daten, farben: schrankFarben.laden() });
+    schrankWindow.webContents.send('schrank:daten', {
+      ...daten,
+      farben: schrankFarben.laden(),
+      raender: schrankRaender(schrankBildschirm()),
+    });
     logger.info(`Schrank: ${daten.anzahlSpiele} Spiele in ${daten.faecher.length} Faechern`);
   } catch (err) {
     logger.warn('Schrank konnte nicht geladen werden: ' + err.message);
