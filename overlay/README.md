@@ -128,9 +128,12 @@ damit heller Text darauf lesbar bleibt. Gefundene Farben werden in
 Bilder, danach keines mehr. Das Titelbild selbst kommt erst, wenn der Zeiger
 eine Packung herauszieht.
 
+Der Schrank reicht bis an alle Bildschirmränder; der gewonnene Platz geht an
+die Fächer, die dadurch zwei Böden übereinander bekommen.
+
 **Drei Fächer gehören nicht der Bibliothek:** das eigene Level mit XP-Balken,
-das gerade laufende Spiel mit seinem Achievement-Fortschritt und — oben auf dem
-Schrank — die fünf Trophäenstufen mit ihrer Anzahl samt Diamanten. Diese Zahlen
+das gerade laufende Spiel mit seinem Achievement-Fortschritt und das Fach
+„Deine Trophäen" mit den fünf Stufen samt Diamanten. Diese Zahlen
 fallen in der Levelberechnung ohnehin an (sie geht durch jede einzelne Trophäe)
 und werden dort mitgezählt; sie getrennt zu erheben hieße, die ganze Bibliothek
 erneut abzufragen.

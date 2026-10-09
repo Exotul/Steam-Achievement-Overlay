@@ -13,7 +13,6 @@
  */
 
 const korpus = document.getElementById('korpus');
-const aufsatz = document.getElementById('aufsatz');
 const hinweisEl = document.getElementById('hinweis');
 
 // Die fuenf Stufen in ihrer Wertigkeit, mit den Farben aus den Meldungen.
@@ -102,9 +101,16 @@ function fuelleZeilen(bedarf, regalBreite, zeilenZahl, boeden, ruecken) {
     summe = 0;
   };
 
+  // Die Abstaende ZWISCHEN den Faechern gehoeren mitgerechnet. Ohne sie wird
+  // jede Zeile um ein paar Pixel zu voll, muss beim Strecken also schrumpfen -
+  // und dann passen die Spiele nicht mehr hinein. Das Ergebnis war: "Der
+  // Schrank passt auf diesem Bildschirm nicht."
+  const abstaende = (anzahl) => SPALT * Math.max(0, anzahl - 1);
+
   for (const eintrag of bedarf) {
-    const dazu = summe + eintrag.breite + (zeile.length ? SPALT : 0);
-    if (zeile.length && dazu > regalBreite) abschliessen();
+    if (zeile.length && summe + eintrag.breite + abstaende(zeile.length + 1) > regalBreite) {
+      abschliessen();
+    }
     zeile.push({ ...eintrag });
     summe += eintrag.breite;
   }
@@ -152,6 +158,9 @@ function planeRegal(faecher, sonderFaecher) {
         ersteZeile.push(e);
         belegt += e.breite + SPALT;
       }
+      // Nichts von den Sammlungen passt mehr in die erste Zeile? Dann ist das
+      // kein Grund aufzugeben - die uebrigen Zeilen koennen es trotzdem.
+
 
       const rest = fuelleZeilen(bedarf, breite, zeilenZahl - 1, boeden, ruecken);
       if (!rest) {
@@ -634,41 +643,6 @@ function baueDekoFach(nummer) {
   return el;
 }
 
-/**
- * Oben auf dem Schrank: die Trophaeen je Stufe mit ihrer Anzahl.
- *
- * Die Zahlen kommen aus derselben Berechnung, die auch das Level ermittelt -
- * sie faellt beim Durchgehen der Bibliothek ohnehin an.
- */
-function baueAufsatz() {
-  aufsatz.innerHTML = '';
-  if (!stand || !stand.stufen) return;
-
-  for (const [name, farbe] of STUFEN) {
-    const anzahl = stand.stufen[name] || 0;
-    const el = document.createElement('div');
-    el.className = 'pokal';
-    el.style.setProperty('--pokal', farbe);
-    el.innerHTML = `
-      <span class="pokal__koerper"></span>
-      <span class="pokal__zahl">${zahl(anzahl)}</span>
-      <span class="pokal__name">${name}</span>
-    `;
-    aufsatz.appendChild(el);
-  }
-
-  if (Number.isFinite(stand.diamanten)) {
-    const d = document.createElement('div');
-    d.className = 'pokal pokal--diamant';
-    d.innerHTML = `
-      <span class="pokal__koerper"></span>
-      <span class="pokal__zahl">${zahl(stand.diamanten)}</span>
-      <span class="pokal__name">Diamant</span>
-    `;
-    aufsatz.appendChild(d);
-  }
-}
-
 const zahl = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('de-DE') : '–');
 
 /**
@@ -750,8 +724,10 @@ if (window.schrankAPI) {
       if (wert !== undefined && wert !== null) ergaenzt[feld] = wert;
     }
     stand = ergaenzt;
-    baueAufsatz();
-    if (letzteDaten && vorher !== stand.level) baue(letzteDaten);
+    // Kommen die Stufenzahlen erst jetzt, fehlt das Trophaeenfach noch -
+    // dann muss das Regal neu aufgeteilt werden.
+    const trophaeenFehlen = stand.stufen && !korpus.querySelector('.fach--trophaeen');
+    if (letzteDaten && (vorher !== stand.level || trophaeenFehlen)) baue(letzteDaten);
     else aktualisiereLevelFach();
   });
   window.schrankAPI.onSpiel((spiel) => {

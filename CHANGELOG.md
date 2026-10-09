@@ -2,6 +2,14 @@
 
 ## Noch nicht veröffentlicht
 
+### Der Schrank reicht bis an alle Ränder
+
+Oben, links und rechts blieb viel Wand übrig. Die Pokalreihe über dem Schrank
+entfällt — sie stand ohnehin doppelt da, seit es das Fach „Deine Trophäen"
+gibt — und der Rand ist weg. Der gewonnene Platz geht an die Fächer: Sie haben
+jetzt zwei Böden übereinander statt einem, die Rücken sind breiter und die
+Titel damit lesbar.
+
 ### Behoben: Schrank ging beim Start nicht auf
 
 Die Einstellung war an, der Schrank blieb trotzdem zu - er erschien erst, wenn
@@ -46,7 +54,7 @@ ausschaltbar, mit Auswahl des Bildschirms; standardmäßig aus.
   Durchschnitt) und wird gemerkt. Nur der erste Start lädt Bilder; das
   Titelbild selbst kommt erst beim Herausziehen.
 - **Drei besondere Fächer:** das eigene Level mit XP-Balken, das laufende Spiel
-  mit Achievement-Fortschritt und oben auf dem Schrank die fünf Stufen mit ihrer
+  mit Achievement-Fortschritt und ein Fach „Deine Trophäen" mit den fünf Stufen samt ihrer
   Anzahl samt Diamanten. Diese Zahlen zählt jetzt die Levelberechnung mit — sie
   geht ohnehin durch jede einzelne Trophäe. Dafür rechnet sie die Bibliothek
   beim nächsten Start einmal neu durch.
