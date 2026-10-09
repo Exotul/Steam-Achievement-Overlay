@@ -14,6 +14,7 @@ const els = {};
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
  'sitzungsbilanz', 'schrankAktiv', 'schrankBildschirm', 'schrankRuheImSpiel',
+ 'schrankHintergrund',
  // aus dem Tray-Menue hierher gezogen
  'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
  'updates', 'beenden', 'diagnose', 'keycheck', 'protokoll', 'protokollordner', 'aufzeichnung',
@@ -37,6 +38,7 @@ const SCHALTER = [
   'sitzungsbilanz',
   'schrankAktiv',
   'schrankRuheImSpiel',
+  'schrankHintergrund',
 ];
 
 let werte = null;

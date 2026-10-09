@@ -94,6 +94,10 @@ function standard() {
     // Waehrend ein Spiel laeuft, haelt der Schrank seine Animationen an -
     // er soll keine Bilder pro Sekunde kosten.
     schrankRuheImSpiel: true,
+    // Hinter die Desktop-Symbole haengen, wie ein Hintergrundbild. Nicht die
+    // Vorgabe: Es ist ein Eingriff ins Fenstersystem, der je nach Rechner
+    // (anderes Hintergrundprogramm, abgewandelter Explorer) scheitern kann.
+    schrankHintergrund: false,
   };
 }
 
@@ -157,6 +161,8 @@ function bereinige(roh) {
         : null,
     schrankRuheImSpiel:
       e.schrankRuheImSpiel === undefined ? s.schrankRuheImSpiel : !!e.schrankRuheImSpiel,
+    schrankHintergrund:
+      e.schrankHintergrund === undefined ? s.schrankHintergrund : !!e.schrankHintergrund,
     sitzungsbilanz: e.sitzungsbilanz === undefined ? s.sitzungsbilanz : !!e.sitzungsbilanz,
   };
 }

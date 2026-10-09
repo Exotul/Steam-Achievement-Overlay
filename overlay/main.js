@@ -16,6 +16,7 @@ const vollbild = require('./lib/vollbild');
 const { overlayRechteck } = require('./lib/overlayFlaeche');
 const { levelAus } = require('./lib/levelKurve');
 const schrankFarben = require('./lib/schrankFarben');
+const hintergrund = require('./lib/hintergrund');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -399,15 +400,38 @@ function createSchrankWindow() {
   schrankWindow.once('ready-to-show', () => {
     // showInactive: anzeigen, ohne den Fokus zu nehmen.
     schrankWindow.showInactive();
-    // Nach dem Anzeigen nach ganz unten - sonst liegt er ueber allem, was
-    // beim Start schon offen war.
     setTimeout(() => {
-      if (schrankWindow && !schrankWindow.isDestroyed()) schrankWindow.setBounds({ ...b });
+      if (!schrankWindow || schrankWindow.isDestroyed()) return;
+      if (einstellungen.schrankHintergrund) haengeSchrankInDenHintergrund(anzeige);
+      else schrankWindow.setBounds({ ...b });
     }, 200);
   });
   schrankWindow.on('closed', () => {
     schrankWindow = null;
   });
+}
+
+/**
+ * Den Schrank hinter die Desktop-Symbole haengen.
+ *
+ * Danach zaehlen die Koordinaten nicht mehr vom Hauptbildschirm, sondern vom
+ * Hintergrundfenster, das alle Bildschirme zusammen abdeckt - deshalb die
+ * Umrechnung. Scheitert das Umhaengen (anderes Hintergrundprogramm,
+ * abgewandelter Explorer), bleibt der Schrank ein normales Fenster; er ist
+ * dann sichtbar, nur eben vor den Symbolen.
+ */
+async function haengeSchrankInDenHintergrund(anzeige) {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
+  const antwort = await hintergrund.nachHinten(schrankWindow.getNativeWindowHandle());
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
+
+  if (!antwort.ok) {
+    logger.warn(`Schrank bleibt ein normales Fenster (${antwort.grund})`);
+    schrankWindow.setBounds({ ...anzeige.bounds });
+    return;
+  }
+  schrankWindow.setBounds(hintergrund.lageImHintergrund(anzeige, screen.getAllDisplays()));
+  logger.info('Schrank liegt jetzt hinter den Desktop-Symbolen');
 }
 
 function schliesseSchrank() {
@@ -472,11 +496,16 @@ function wendeSchrankAn(vorher) {
   const bildschirmGewechselt =
     vorher && vorher.schrankBildschirm !== einstellungen.schrankBildschirm;
 
+  const hintergrundGewechselt =
+    vorher && vorher.schrankHintergrund !== einstellungen.schrankHintergrund;
+
   if (!soll) {
     schliesseSchrank();
     return;
   }
-  if (schrankWindow && !bildschirmGewechselt) return;
+  // Das Umhaengen laesst sich im laufenden Fenster nicht sauber rueckgaengig
+  // machen - ein neues Fenster ist der ehrlichere Weg.
+  if (schrankWindow && !bildschirmGewechselt && !hintergrundGewechselt) return;
 
   schliesseSchrank();
   createSchrankWindow();
@@ -2197,7 +2226,8 @@ function wendeEinstellungenAn(vorher) {
   if (
     !vorher ||
     vorher.schrankAktiv !== einstellungen.schrankAktiv ||
-    vorher.schrankBildschirm !== einstellungen.schrankBildschirm
+    vorher.schrankBildschirm !== einstellungen.schrankBildschirm ||
+    vorher.schrankHintergrund !== einstellungen.schrankHintergrund
   ) {
     wendeSchrankAn(vorher);
   }
