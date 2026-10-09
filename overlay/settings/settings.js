@@ -13,7 +13,7 @@ const els = {};
  'statusAbzeichen', 'position', 'ton-name', 'ton-waehlen', 'ton-entfernen',
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
- 'sitzungsbilanz',
+ 'sitzungsbilanz', 'schrankAktiv', 'schrankBildschirm', 'schrankRuheImSpiel',
  // aus dem Tray-Menue hierher gezogen
  'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
  'updates', 'beenden', 'diagnose', 'keycheck', 'protokoll', 'protokollordner', 'aufzeichnung',
@@ -31,7 +31,13 @@ const REGLER = {
 };
 
 // Einstellungen, die nur an oder aus kennen.
-const SCHALTER = ['merklisteAktiv', 'panelBeiSteamOverlay', 'sitzungsbilanz'];
+const SCHALTER = [
+  'merklisteAktiv',
+  'panelBeiSteamOverlay',
+  'sitzungsbilanz',
+  'schrankAktiv',
+  'schrankRuheImSpiel',
+];
 
 let werte = null;
 let bestaetigungTimer = null;
@@ -56,6 +62,8 @@ function zeigeWerte(w) {
 
   els.statusAbzeichen.value = w.statusAbzeichen;
   els.bildschirm.value = w.bildschirm === null ? 'haupt' : String(w.bildschirm);
+  els.schrankBildschirm.value =
+    w.schrankBildschirm === null ? 'auto' : String(w.schrankBildschirm);
 
   els.position.querySelectorAll('.ecke').forEach((knopf) => {
     knopf.setAttribute('aria-checked', String(knopf.dataset.wert === w.position));
@@ -72,22 +80,41 @@ function zeigeWerte(w) {
   }
 }
 
-function zeigeBildschirme(liste, gewaehlt) {
-  els.bildschirm.innerHTML = '';
+function zeigeBildschirme(liste, gewaehlt, gewaehltSchrank) {
+  fuelleBildschirmliste(
+    els.bildschirm,
+    liste,
+    'haupt',
+    'Hauptbildschirm (folgt der Einstellung von Windows)',
+    gewaehlt
+  );
+  // Der Schrank hat seine eigene Auswahl: Er gehoert auf einen ANDEREN
+  // Bildschirm als die Meldungen, deshalb ist seine Vorgabe nicht
+  // "Hauptbildschirm", sondern "automatisch".
+  fuelleBildschirmliste(
+    els.schrankBildschirm,
+    liste,
+    'auto',
+    'Automatisch (ein anderer als für die Meldungen)',
+    gewaehltSchrank
+  );
+}
 
-  const haupt = document.createElement('option');
-  haupt.value = 'haupt';
-  haupt.textContent = 'Hauptbildschirm (folgt der Einstellung von Windows)';
-  els.bildschirm.appendChild(haupt);
+function fuelleBildschirmliste(feld, liste, ersterWert, ersterText, gewaehlt) {
+  feld.innerHTML = '';
+  const erster = document.createElement('option');
+  erster.value = ersterWert;
+  erster.textContent = ersterText;
+  feld.appendChild(erster);
 
   liste.forEach((s) => {
     const o = document.createElement('option');
     o.value = String(s.id);
     o.textContent = `${s.name} — ${s.breite} × ${s.hoehe}${s.istHaupt ? ' (aktuell Hauptbildschirm)' : ''}`;
-    els.bildschirm.appendChild(o);
+    feld.appendChild(o);
   });
 
-  els.bildschirm.value = gewaehlt === null ? 'haupt' : String(gewaehlt);
+  feld.value = gewaehlt === null || gewaehlt === undefined ? ersterWert : String(gewaehlt);
 }
 
 function zeigeSchluessel(vorhanden) {
@@ -175,6 +202,11 @@ els.bildschirm.addEventListener('change', () => {
   aendere({ bildschirm: v === 'haupt' ? null : Number(v) });
 });
 
+els.schrankBildschirm.addEventListener('change', () => {
+  const v = els.schrankBildschirm.value;
+  aendere({ schrankBildschirm: v === 'auto' ? null : Number(v) });
+});
+
 els.position.querySelectorAll('.ecke').forEach((knopf) => {
   knopf.addEventListener('click', () => aendere({ position: knopf.dataset.wert }));
 });
@@ -230,7 +262,7 @@ els.schliessen.addEventListener('click', () => window.settingsAPI.schliessen());
 // --- Start ------------------------------------------------------------------
 
 window.settingsAPI.laden().then(({ einstellungen, bildschirme, schluesselVorhanden, programm }) => {
-  zeigeBildschirme(bildschirme, einstellungen.bildschirm);
+  zeigeBildschirme(bildschirme, einstellungen.bildschirm, einstellungen.schrankBildschirm);
   zeigeWerte(einstellungen);
   zeigeSchluessel(schluesselVorhanden);
   zeigeProgramm(programm);

@@ -184,3 +184,23 @@ test('Speichern legt fehlende Ordner an und lässt keine Nebendatei zurück', ()
 
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+// --- Spieleschrank ------------------------------------------------------------
+
+test('Der Spieleschrank ist standardmäßig aus', () => {
+  // Er belegt einen ganzen Bildschirm. So etwas bekommt niemand ungefragt
+  // vorgesetzt, schon gar nicht nach einem Update.
+  const s = E.standard();
+  assert.strictEqual(s.schrankAktiv, false);
+  assert.strictEqual(s.schrankBildschirm, null);
+  assert.strictEqual(s.schrankRuheImSpiel, true);
+});
+
+test('Unsinnige Schrank-Werte werden zurechtgerückt', () => {
+  const w = E.bereinige({ schrankAktiv: 'ja', schrankBildschirm: 'zweiter', schrankRuheImSpiel: 0 });
+  assert.strictEqual(w.schrankAktiv, true);
+  // Eine Bildschirmkennung ist eine Zahl; alles andere heißt "automatisch".
+  assert.strictEqual(w.schrankBildschirm, null);
+  assert.strictEqual(w.schrankRuheImSpiel, false);
+  assert.strictEqual(E.bereinige({ schrankBildschirm: 2528732444 }).schrankBildschirm, 2528732444);
+});

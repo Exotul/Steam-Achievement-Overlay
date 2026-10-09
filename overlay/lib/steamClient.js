@@ -140,6 +140,11 @@ class SteamClient {
   }
 
   /** Zeigt den Login sichtbar an; löst auf, sobald die Session steht. */
+  /** Der Spieleschrank: Faecher aus den Steam-Sammlungen. */
+  async schrank() {
+    return this._fetch('/api/schrank');
+  }
+
   async login() {
     this._ensureWindow();
     this.window.setTitle('Bei Steam anmelden');

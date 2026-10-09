@@ -15,6 +15,7 @@ const { lesbareSpanne } = require('./lib/zeitspanne');
 const vollbild = require('./lib/vollbild');
 const { overlayRechteck } = require('./lib/overlayFlaeche');
 const { levelAus } = require('./lib/levelKurve');
+const schrankFarben = require('./lib/schrankFarben');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -331,6 +332,169 @@ function createPanelWindow() {
   panelWindow.loadFile(path.join(__dirname, 'panel', 'panel.html'));
 }
 
+/* ==========================================================================
+   Spieleschrank
+   ==========================================================================
+   Ein Fenster, das einen ganzen Bildschirm einnimmt und die Bibliothek als
+   Regal zeigt. Es ist KEIN Overlay: Es liegt nicht oben, sondern unten, und
+   es nimmt nie den Fokus. Wer es anklickt, soll weiterarbeiten koennen, als
+   haette er auf den Desktop geklickt.
+
+   Weil es nicht fokussierbar ist und ganz unten liegt, erreichen es auch
+   keine Mausereignisse. Die Zeigerposition meldet deshalb der Hauptprozess
+   (siehe zeigerTakt unten) - genau das macht Wallpaper Engine auch.
+   ========================================================================== */
+
+let schrankWindow = null;
+let schrankZeiger = null;
+let schrankDatenTimer = null;
+let letzterZeiger = '';
+
+/**
+ * Auf welchem Bildschirm der Schrank steht.
+ *
+ * Ohne Einstellung: ein ANDERER als der, auf dem die Meldungen erscheinen -
+ * der Schrank gehoert auf den Nebenbildschirm, sonst liegt er unter dem
+ * Spiel. Gibt es nur einen, bekommt der ihn.
+ */
+function schrankBildschirm() {
+  const alle = screen.getAllDisplays();
+  const gewaehlt = alle.find((d) => d.id === einstellungen.schrankBildschirm);
+  if (gewaehlt) return gewaehlt;
+
+  const meldungen = gewaehlterBildschirm();
+  return alle.find((d) => d.id !== meldungen.id) || meldungen;
+}
+
+function createSchrankWindow() {
+  const anzeige = schrankBildschirm();
+  const b = anzeige.bounds;
+
+  schrankWindow = new BrowserWindow({
+    x: b.x,
+    y: b.y,
+    width: b.width,
+    height: b.height,
+    show: false,
+    frame: false,
+    transparent: false,
+    backgroundColor: '#171310',
+    resizable: false,
+    movable: false,
+    // Wie Overlay und Uebersicht: Ein Fenster, das den Fokus nimmt, wuerde
+    // ein laufendes Spiel auf dem anderen Bildschirm minimieren.
+    focusable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'schrank', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  // Ausdruecklich NICHT oben: Der Schrank ist ein Hintergrund.
+  schrankWindow.setAlwaysOnTop(false);
+  schrankWindow.loadFile(path.join(__dirname, 'schrank', 'schrank.html'));
+  schrankWindow.once('ready-to-show', () => {
+    // showInactive: anzeigen, ohne den Fokus zu nehmen.
+    schrankWindow.showInactive();
+    // Nach dem Anzeigen nach ganz unten - sonst liegt er ueber allem, was
+    // beim Start schon offen war.
+    setTimeout(() => {
+      if (schrankWindow && !schrankWindow.isDestroyed()) schrankWindow.setBounds({ ...b });
+    }, 200);
+  });
+  schrankWindow.on('closed', () => {
+    schrankWindow = null;
+  });
+}
+
+function schliesseSchrank() {
+  clearInterval(schrankZeiger);
+  clearInterval(schrankDatenTimer);
+  schrankZeiger = null;
+  schrankDatenTimer = null;
+  if (schrankWindow && !schrankWindow.isDestroyed()) schrankWindow.destroy();
+  schrankWindow = null;
+}
+
+/** Schrankinhalt holen und hineinreichen. */
+async function sendeSchrankDaten() {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
+  if (!steamClient) {
+    // Beim Start steht das Fenster manchmal vor der Anmeldung. Kein Fehler -
+    // gleich noch einmal versuchen.
+    setTimeout(sendeSchrankDaten, 3000);
+    return;
+  }
+  try {
+    const daten = await steamClient.schrank();
+    schrankWindow.webContents.send('schrank:daten', { ...daten, farben: schrankFarben.laden() });
+    logger.info(`Schrank: ${daten.anzahlSpiele} Spiele in ${daten.faecher.length} Faechern`);
+  } catch (err) {
+    logger.warn('Schrank konnte nicht geladen werden: ' + err.message);
+  }
+}
+
+/**
+ * Die Zeigerposition melden.
+ *
+ * 25-mal je Sekunde reicht fuer ein Herausziehen, das sich sofort anfuehlt,
+ * und kostet praktisch nichts. Geschickt wird nur, was sich geaendert hat -
+ * ein stehender Zeiger erzeugt keine einzige Nachricht.
+ */
+function starteZeigerTakt() {
+  clearInterval(schrankZeiger);
+  schrankZeiger = setInterval(() => {
+    if (!schrankWindow || schrankWindow.isDestroyed()) return;
+    const b = schrankWindow.getBounds();
+    const p = screen.getCursorScreenPoint();
+    const drin = p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+    const nachricht = drin ? { x: p.x - b.x, y: p.y - b.y } : null;
+    const schluessel = drin ? `${nachricht.x},${nachricht.y}` : 'weg';
+    if (schluessel === letzterZeiger) return;
+    letzterZeiger = schluessel;
+    schrankWindow.webContents.send('schrank:zeiger', nachricht);
+  }, 40);
+}
+
+/** Waehrend ein Spiel laeuft, haelt der Schrank still. */
+function schrankRuhe(ruhe) {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
+  if (!einstellungen.schrankRuheImSpiel) ruhe = false;
+  schrankWindow.webContents.send('schrank:ruhe', ruhe);
+}
+
+/** Schrank an die Einstellungen anpassen - an, aus, anderer Bildschirm. */
+function wendeSchrankAn(vorher) {
+  const soll = einstellungen.schrankAktiv;
+  const bildschirmGewechselt =
+    vorher && vorher.schrankBildschirm !== einstellungen.schrankBildschirm;
+
+  if (!soll) {
+    schliesseSchrank();
+    return;
+  }
+  if (schrankWindow && !bildschirmGewechselt) return;
+
+  schliesseSchrank();
+  createSchrankWindow();
+  starteZeigerTakt();
+  // Alle zehn Minuten nachsehen: Sammlungen aendern sich selten, aber die
+  // Spielzeiten tun es - danach sortiert sich ein Fach neu.
+  schrankDatenTimer = setInterval(sendeSchrankDaten, 10 * 60 * 1000);
+}
+
+// Das Fenster meldet sich, sobald seine Seite steht.
+ipcMain.on('schrank:bereit', () => sendeSchrankDaten());
+
+// Gefundene Rueckenfarben sichern, damit der naechste Start sofort farbig ist.
+ipcMain.on('schrank:farben', (_e, farben) => {
+  const dazu = schrankFarben.ergaenze(farben);
+  if (dazu > 0) logger.debug(`Schrank: ${dazu} neue Rueckenfarben gemerkt`);
+});
+
 /** Groesse und Lage der Uebersicht - mittig auf dem gewaehlten Bildschirm. */
 function panelMasse(anzeige) {
   const b = anzeige.bounds;
@@ -595,6 +759,9 @@ async function checkPresence() {
 async function startAchievementTracking(appId, gameName) {
   trackedAppId = appId;
   trackedGameName = gameName;
+  // Der Schrank haelt still, solange gespielt wird - er soll keine Bilder
+  // pro Sekunde kosten.
+  schrankRuhe(true);
   unlockedBaseline = null;
   achievementIndex = new Map();
 
@@ -945,6 +1112,7 @@ function stopLocalWatcher() {
 
 function stopAchievementTracking() {
   clearTimeout(vollbildPruefTimer);
+  schrankRuhe(false);
   // Keine Verfolgung, keine Sitzung. zeigeSitzungsbilanz() raeumt selbst auf
   // und wird VOR dieser Funktion gerufen - hier steht es noch einmal, damit
   // die Regel nicht an der Aufrufreihenfolge haengt. Ueber stopPolling()
@@ -1964,6 +2132,14 @@ function wendeEinstellungenAn(vorher) {
   // haben kann - neu aufsetzen, aber nur wenn gerade ein Spiel verfolgt wird.
   if (vorher && vorher.statusAbzeichen !== einstellungen.statusAbzeichen && trackedAppId !== null) {
     starteStatusAbzeichen();
+  }
+
+  if (
+    !vorher ||
+    vorher.schrankAktiv !== einstellungen.schrankAktiv ||
+    vorher.schrankBildschirm !== einstellungen.schrankBildschirm
+  ) {
+    wendeSchrankAn(vorher);
   }
 }
 

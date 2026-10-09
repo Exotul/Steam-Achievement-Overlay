@@ -1,0 +1,341 @@
+/*
+ * Der Spieleschrank.
+ *
+ * Vorbild ist ein Regal aus quadratischen Faechern mit unregelmaessigem
+ * Raster: ein paar Faecher doppelt so breit, dazwischen versetzte
+ * Durchblicke. Gezeichnet wird alles mit Verlaeufen - kein einziges Bild,
+ * damit der Schrank auf jedem Bildschirm scharf bleibt und nichts nachladen
+ * muss.
+ *
+ * Das Ganze haengt den ganzen Tag auf einem Bildschirm. Deshalb: ruhige
+ * Farben, keine Dauerbewegung, Animationen nur dort, wo der Zeiger ist.
+ */
+
+:root {
+  --holz-hell: #c89a63;
+  --holz: #a97b4a;
+  --holz-dunkel: #7c5733;
+  --holz-tief: #4a3420;
+  --fach-schatten: rgba(20, 12, 5, 0.75);
+  --raum: #171310;
+
+  /* Tiefe des Schranks - davon haengt ab, wie weit eine Packung heraussteht. */
+  --tiefe: 46px;
+  --rahmen: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--raum);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #f1e6d8;
+  user-select: none;
+  cursor: default;
+}
+
+/* Der Raum hinter dem Schrank: eine Wand mit Licht von oben. */
+#raum {
+  position: relative;
+  height: 100%;
+  padding: 2.2vh 2.2vw;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(255, 214, 160, 0.16), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(0, 0, 0, 0.55), transparent 70%),
+    linear-gradient(180deg, #221b15, #141010 70%);
+}
+
+.schrank {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.6));
+}
+
+/* ---------- Der Aufsatz: was oben auf dem Schrank steht ---------- */
+
+.schrank__aufsatz {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2.4vw;
+  padding: 0 3vw 10px;
+  min-height: 11vh;
+}
+
+/* ---------- Der Korpus: das Raster der Faecher ---------- */
+
+.schrank__korpus {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: var(--rahmen);
+  padding: var(--rahmen);
+  border-radius: 6px;
+  /* Das Holz des Korpus: senkrechte Maserung, oben heller beleuchtet. */
+  background:
+    linear-gradient(180deg, rgba(255, 230, 190, 0.18), rgba(0, 0, 0, 0.25) 55%),
+    repeating-linear-gradient(
+      90deg,
+      var(--holz) 0 7px,
+      var(--holz-hell) 7px 9px,
+      var(--holz-dunkel) 9px 16px
+    );
+  box-shadow:
+    inset 0 2px 0 rgba(255, 236, 205, 0.35),
+    inset 0 -6px 14px rgba(0, 0, 0, 0.5),
+    0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- Ein Fach ---------- */
+
+.fach {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 10px 10px 0;
+  border-radius: 3px;
+  /* NICHT abschneiden: Die herausgezogene Packung ragt aus dem Fach heraus -
+     genau das ist der Punkt. */
+  overflow: visible;
+  /* Die Rueckwand liegt im Schatten, der Boden faengt Licht. */
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.12) 38%, rgba(0, 0, 0, 0.5) 100%),
+    repeating-linear-gradient(
+      90deg,
+      var(--holz-dunkel) 0 11px,
+      var(--holz-tief) 11px 13px,
+      var(--holz-dunkel) 13px 22px
+    );
+  box-shadow:
+    inset 0 10px 18px -6px var(--fach-schatten),
+    inset 0 -14px 16px -10px rgba(0, 0, 0, 0.8),
+    inset 6px 0 12px -8px rgba(0, 0, 0, 0.9),
+    inset -6px 0 12px -8px rgba(0, 0, 0, 0.9);
+}
+
+/* Ein offener Durchblick statt eines Fachs - wie im Vorbild. */
+.fach--leer {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.55));
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.9);
+}
+
+/* Das Schild am Fachboden. */
+.fach__schild {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  max-width: 86%;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #d9b887, #b0864f);
+  color: #3a2614;
+  font-size: clamp(9px, 0.62vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  z-index: 3;
+}
+
+.fach__schild-zahl {
+  opacity: 0.65;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+/* Die Reihe der Packungen im Fach. */
+.fach__reihe {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: calc(100% - 26px);
+  padding: 0 2px;
+  perspective: 900px;
+}
+
+/* ---------- Eine Spielepackung ---------- */
+
+.packung {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 7px;
+  max-width: 34px;
+  height: 92%;
+  transform-origin: bottom center;
+  transform-style: preserve-3d;
+  transition: transform 0.26s cubic-bezier(0.22, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* Der Ruecken: das Einzige, was man im Regal normalerweise sieht. */
+.packung__ruecken {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px 2px 1px 1px;
+  background: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.45) 0%,
+    var(--spine, #5a4a6a) 22%,
+    color-mix(in srgb, var(--spine, #5a4a6a) 75%, #ffffff) 48%,
+    var(--spine, #5a4a6a) 70%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -8px 10px -6px rgba(0, 0, 0, 0.8),
+    1px 0 2px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* Der Titel laeuft hochkant ueber den Ruecken. */
+.packung__titel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 0 18px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: clamp(7px, 0.52vw, 11px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: rgba(255, 252, 245, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Kopf- und Fussstreifen wie bei einer echten Huelle. */
+.packung__ruecken::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 -5px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Das Titelbild - sichtbar, sobald die Packung herausgezogen ist. */
+.packung__front {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background-size: cover;
+  background-position: center;
+  /* Deckend, auch solange das Bild noch laedt - sonst sieht man das Regal
+     durch die Packung hindurch. */
+  background-color: #141010;
+  opacity: 0;
+  transform: rotateY(-78deg) translateZ(1px);
+  transform-origin: left center;
+  transition: opacity 0.2s ease, transform 0.26s cubic-bezier(0.22, 1, 0.3, 1);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+/*
+ * Herausgezogen: Die Packung kommt nach vorn, hebt sich aus der Reihe und
+ * dreht sich dem Betrachter zu - dabei wird aus dem schmalen Ruecken die
+ * ganze Vorderseite. Genau dieses Gefuehl soll der Schrank haben: etwas
+ * herausziehen und ansehen.
+ */
+.packung--heraus {
+  z-index: 20;
+  transform: translateY(-14%) scale(1.06);
+}
+
+.packung--heraus .packung__ruecken {
+  opacity: 0.25;
+}
+
+.packung--heraus .packung__front {
+  opacity: 1;
+  /* Aus dem Ruecken heraus auf Packungsbreite aufklappen: ein Deckel im
+     Verhaeltnis 2:3 wie die Steam-Bilder. Die Hoehe haengt am Fach, nicht an
+     festen Pixeln - sonst schwebt der Deckel auf grossen Bildschirmen weit
+     ueber dem Schrank statt in seinem Fach zu stehen. */
+  height: 116%;
+  width: auto;
+  aspect-ratio: 2 / 3;
+  inset: auto auto -3% 50%;
+  transform: translateX(-50%) rotate(-1.5deg);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 238, 210, 0.25);
+}
+
+.packung--favorit .packung__ruecken::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: #ffd36b;
+  box-shadow: 0 0 6px #ffd36b;
+}
+
+/* Der Name des herausgezogenen Spiels, lesbar quer. */
+.ausgabe {
+  position: absolute;
+  left: 50%;
+  bottom: 1.4vh;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 22px;
+  border-radius: 12px;
+  background: rgba(14, 11, 9, 0.9);
+  border: 1px solid rgba(214, 178, 128, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  font-size: clamp(13px, 1vw, 20px);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ausgabe--an {
+  opacity: 1;
+}
+
+.ausgabe__zeit {
+  color: #c9a978;
+  font-size: 0.78em;
+}
+
+.hinweis {
+  margin: 10px 0 0;
+  text-align: center;
+  color: #b49a7c;
+  font-size: clamp(11px, 0.8vw, 15px);
+  min-height: 1.2em;
+}
+
+/* Waehrend ein Spiel laeuft, haelt der Schrank still. */
+body.ruhe .packung,
+body.ruhe .packung__front {
+  transition: none;
+}

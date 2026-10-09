@@ -83,6 +83,17 @@ function standard() {
     // beim Beenden eines Spiels trotzdem lieber gar nichts sehen will,
     // schaltet es hier ab.
     sitzungsbilanz: true,
+
+    // --- Spieleschrank auf einem zweiten Bildschirm ---
+    // Standardmaessig AUS: Er belegt einen ganzen Bildschirm, das soll
+    // niemand ungefragt vorgesetzt bekommen.
+    schrankAktiv: false,
+    // null = automatisch: ein anderer Bildschirm als der, auf dem die
+    // Meldungen erscheinen. Wer nur einen hat, bekommt diesen.
+    schrankBildschirm: null,
+    // Waehrend ein Spiel laeuft, haelt der Schrank seine Animationen an -
+    // er soll keine Bilder pro Sekunde kosten.
+    schrankRuheImSpiel: true,
   };
 }
 
@@ -138,6 +149,14 @@ function bereinige(roh) {
     panelTaste: typeof e.panelTaste === 'string' ? e.panelTaste.trim() : s.panelTaste,
     panelBeiSteamOverlay:
       e.panelBeiSteamOverlay === undefined ? s.panelBeiSteamOverlay : !!e.panelBeiSteamOverlay,
+
+    schrankAktiv: e.schrankAktiv === undefined ? s.schrankAktiv : !!e.schrankAktiv,
+    schrankBildschirm:
+      Number.isFinite(Number(e.schrankBildschirm)) && e.schrankBildschirm !== null
+        ? Number(e.schrankBildschirm)
+        : null,
+    schrankRuheImSpiel:
+      e.schrankRuheImSpiel === undefined ? s.schrankRuheImSpiel : !!e.schrankRuheImSpiel,
     sitzungsbilanz: e.sitzungsbilanz === undefined ? s.sitzungsbilanz : !!e.sitzungsbilanz,
   };
 }

@@ -169,6 +169,52 @@
       </section>
 
       <!-- ---------------- Ton ---------------- -->
+      <!-- ---------------- Spieleschrank ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Spieleschrank</h2>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankAktiv">Spieleschrank anzeigen</label>
+            <p class="hilfe">
+              Zeigt deine Bibliothek als Regal auf einem Bildschirm — die Fächer sind
+              deine Steam-Sammlungen, die Spiele stehen darin als Packungen. Fährst du
+              mit der Maus darüber, rutscht eine Packung heraus. Das Fenster nimmt nie
+              den Fokus und stört damit kein laufendes Spiel.
+            </p>
+          </div>
+          <label class="schalter">
+            <input id="schrankAktiv" type="checkbox" />
+            <span class="schalter__bahn"></span>
+          </label>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankBildschirm">Bildschirm für den Schrank</label>
+            <p class="hilfe">
+              Am besten ein anderer als der, auf dem du spielst. Ohne Auswahl sucht die
+              App sich einen aus, auf dem die Meldungen nicht erscheinen.
+            </p>
+          </div>
+          <select id="schrankBildschirm" class="feld feld--auswahl"></select>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankRuheImSpiel">Im Spiel stillhalten</label>
+            <p class="hilfe">
+              Während ein Spiel läuft, hält der Schrank seine Animationen an. Er kostet
+              dann praktisch keine Rechenleistung.
+            </p>
+          </div>
+          <label class="schalter">
+            <input id="schrankRuheImSpiel" type="checkbox" />
+            <span class="schalter__bahn"></span>
+          </label>
+        </div>
+      </section>
+
       <section class="gruppe">
         <h2 class="gruppe__titel">Ton</h2>
 
