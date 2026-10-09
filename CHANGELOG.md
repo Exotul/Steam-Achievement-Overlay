@@ -1,5 +1,40 @@
 # Änderungen heute
 
+## Noch nicht veröffentlicht
+
+### Neu: Spieleschrank auf einem zweiten Bildschirm
+
+Die Bibliothek als Regal — ein unregelmäßiges Raster aus Fächern, darin die
+Spiele als Packungen mit Rücken. Die Maus darüber, und eine Packung rutscht
+heraus und klappt zu ihrem Titelbild auf. In den Einstellungen ein- und
+ausschaltbar, mit Auswahl des Bildschirms; standardmäßig aus.
+
+- **Die Fächer sind deine Steam-Sammlungen.** Steam legt sie als lesbare Datei
+  im Benutzerordner ab, das kostet keine einzige Steam-Abfrage. An der echten
+  Bibliothek: 36 Sammlungen, 609 von 622 Spielen, 31 Fächer. Die Store-Genres
+  braucht es damit gar nicht — „Horror" wäre dort ohnehin kein Genre, sondern
+  ein Nutzer-Schlagwort.
+- **Jedes Spiel steht genau einmal da**, in der kleinsten Sammlung, die es
+  enthält: Fallout 4 im Fallout-Fach, nicht im RPG-Fach. Verstecktes und
+  Programme bleiben draußen, Favoriten bekommen einen Punkt auf dem Rücken.
+- **Die Rückenfarbe** kommt aus dem Titelbild (die kräftigste Farbe, nicht der
+  Durchschnitt) und wird gemerkt. Nur der erste Start lädt Bilder; das
+  Titelbild selbst kommt erst beim Herausziehen.
+- **Drei besondere Fächer:** das eigene Level mit XP-Balken, das laufende Spiel
+  mit Achievement-Fortschritt und oben auf dem Schrank die fünf Stufen mit ihrer
+  Anzahl samt Diamanten. Diese Zahlen zählt jetzt die Levelberechnung mit — sie
+  geht ohnehin durch jede einzelne Trophäe. Dafür rechnet sie die Bibliothek
+  beim nächsten Start einmal neu durch.
+- **Hintergrundmodus:** Auf Wunsch hängt sich der Schrank hinter die
+  Desktop-Symbole, wie bei Wallpaper Engine. Am echten Rechner nachgemessen:
+  Elternfenster danach `WorkerW`, Lage exakt der zweite Bildschirm, volle Höhe
+  statt der um die Taskleiste gekürzten.
+- **Kosten gemessen** (4K, 609 Spiele): ruhig dastehend 0 % Prozessorlast, beim
+  Suchen 0,3 %. Während ein Spiel läuft, hält der Schrank zusätzlich still.
+- Das Fenster nimmt **nie den Fokus** — ein laufendes Spiel auf dem anderen
+  Monitor bleibt unberührt. Weil es dadurch keine Mausereignisse bekommt, meldet
+  der Hauptprozess 25-mal je Sekunde die Zeigerposition.
+
 ## 1.2.0 — 19.09.2026
 
 ### XP-Zuwachs direkt an der Meldung

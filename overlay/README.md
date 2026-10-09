@@ -82,6 +82,99 @@ Während der einmaligen Berechnung erscheint ein Ladebalken mit dem Fortschritt
 ("45 / 210 Spiele"). Das Ergebnis wird 12 Stunden zwischengespeichert und
 übersteht Neustarts, sodass der Balken meist gar nicht erst auftaucht.
 
+## Spieleschrank auf einem zweiten Bildschirm
+
+Zeigt die Bibliothek als Regal: ein unregelmäßiges Raster aus Fächern, darin
+die Spiele als Packungen mit sichtbarem Rücken. Fährt die Maus darüber, rutscht
+eine Packung heraus und klappt zu ihrem Titelbild auf. Einzuschalten in den
+Einstellungen unter *Spieleschrank*, samt Auswahl des Bildschirms.
+
+**Die Fächer sind die Steam-Sammlungen des Anwenders.** Steam legt sie als
+lesbare JSON-Datei im Benutzerordner ab:
+
+```
+<Steam>/userdata/<Kontonummer>/config/cloudstorage/cloud-storage-namespace-1.json
+```
+
+Das ist der lokale Spiegel der Steam-Cloud und damit auch dann aktuell, wenn die
+Sammlungen an einem anderen Rechner angelegt wurden. Der Weg kostet **keine
+einzige Steam-Abfrage**. Die Alternative wären die Genres aus dem Store gewesen:
+scharf gedrosselt (rund 200 Anfragen je 5 Minuten), grob ("Action, Indie") — und
+"Horror" ist dort überhaupt kein Genre, sondern ein Nutzer-Schlagwort.
+
+**Jedes Spiel steht genau einmal im Regal**, und zwar in der *kleinsten*
+Sammlung, die es enthält: "Fallout" ist die genauere Aussage als "RPG". Was in
+Steam versteckt ist, bleibt draußen; Sammlungen mit Namen wie "Programme" oder
+"Tools" ebenfalls. Favoriten bekommen kein eigenes Fach, sondern einen Punkt auf
+dem Rücken. Fächer mit weniger als drei Spielen werden zu "Verschiedenes"
+zusammengelegt, Spiele ohne Sammlung landen in "Unsortiert". An einer echten
+Bibliothek: 36 Sammlungen, 609 von 622 Spielen, 31 Fächer.
+
+**Die Rückenfarbe** kommt aus dem Titelbild — nicht der Durchschnitt (der ist
+bei jedem Bild ein mattes Braungrau), sondern die kräftigste Farbe, abgedunkelt,
+damit heller Text darauf lesbar bleibt. Gefundene Farben werden in
+`~/.trophaenschrank/schrank-farben.json` gemerkt: Nur der allererste Start lädt
+Bilder, danach keines mehr. Das Titelbild selbst kommt erst, wenn der Zeiger
+eine Packung herauszieht.
+
+**Drei Fächer gehören nicht der Bibliothek:** das eigene Level mit XP-Balken,
+das gerade laufende Spiel mit seinem Achievement-Fortschritt und — oben auf dem
+Schrank — die fünf Trophäenstufen mit ihrer Anzahl samt Diamanten. Diese Zahlen
+fallen in der Levelberechnung ohnehin an (sie geht durch jede einzelne Trophäe)
+und werden dort mitgezählt; sie getrennt zu erheben hieße, die ganze Bibliothek
+erneut abzufragen.
+
+### Warum der Schrank keine Mausereignisse bekommt
+
+Das Fenster ist **nicht fokussierbar** — ein Klick darauf darf ein Spiel auf dem
+anderen Monitor nicht minimieren, und im Hintergrundmodus liegt es ohnehin hinter
+den Desktop-Symbolen, die alle Klicks abfangen. Deshalb meldet der Hauptprozess
+dem Schrank 25-mal je Sekunde die Zeigerposition, und der rechnet selbst aus,
+über welcher Packung sie steht. Wallpaper Engine macht es genauso.
+
+### Hintergrundmodus (hinter den Desktop-Symbolen)
+
+Windows zeichnet den Desktop-Hintergrund in einem eigenen Fenster namens
+`WorkerW`. Es entsteht erst, wenn man `Progman` die undokumentierte Nachricht
+`0x052C` schickt; danach gibt es ein `WorkerW`, das hinter den Symbolen liegt.
+Hängt man sein eigenes Fenster dort hinein (`SetParent`), wird es zum
+Hintergrundbild. Umgesetzt über PowerShell (`lib/hintergrundFenster.ps1`), damit
+die App weiterhin ohne native Abhängigkeiten auskommt — denselben Weg nutzt
+schon die Vollbild-Erkennung.
+
+Nachgemessen: Elternfenster danach `WorkerW`, Fenster sichtbar, Lage exakt der
+zweite Bildschirm — und in **voller Höhe**, während ein gewöhnliches Fenster um
+die Taskleiste gekürzt wird.
+
+Drei Fallen, alle mit Test abgesichert:
+
+- `FindWindow('Progman', $null)` findet nichts. PowerShell macht aus `$null`
+  einen leeren Text, und der bedeutet "Fenster **ohne** Titel" — Progman heißt
+  aber "Program Manager". Richtig ist `[NullString]::Value`.
+- Der Erfolg lässt sich **nicht** am Rückgabewert von `SetParent` ablesen: Das
+  ist der vorherige Elternteil und bei einem Fenster ohne Eltern regulär 0. Ein
+  Erfolg sähe damit aus wie ein Fehlschlag. Gefragt wird stattdessen
+  `GetAncestor`.
+- PowerShell schiebt beim ersten Aufruf einen Fortschrittsbericht in XML auf die
+  Fehlerausgabe. Er stand *nach* der Antwort und galt als solche.
+
+Nach dem Umhängen zählen die Koordinaten vom Hintergrundfenster, das **alle**
+Bildschirme zusammen abdeckt. Wer einen Monitor links vom Hauptbildschirm stehen
+hat, dessen Koordinaten sind negativ — ohne Umrechnung läge der Schrank dann
+daneben.
+
+Scheitert das Umhängen (anderes Hintergrundprogramm, abgewandelter Explorer),
+bleibt der Schrank ein gewöhnliches Fenster und verdeckt die Symbole. Sichtbar
+ist er in beiden Fällen.
+
+### Was er kostet
+
+Am 4K-Bildschirm mit 609 Spielen gemessen: ruhig dastehend **0 %**
+Prozessorlast, während der Zeiger über die Packungen wandert **0,3 %**. Läuft
+ein Spiel, hält der Schrank zusätzlich seine Animationen an (abschaltbar).
+Arbeitsspeicher rund 370 MB — das ist im Wesentlichen die Bildfläche eines
+4K-Fensters.
+
 ## Test-Achievement
 
 *Einstellungen* -> "Testmeldung zeigen" (daneben "Diamant-Meldung zeigen"). Spielt die komplette Abfolge mit
