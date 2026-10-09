@@ -9,6 +9,7 @@ const completionTime = require('../services/completionTime');
 const xpSummary = require('../services/xpSummary');
 const queue = require('../services/steamQueue');
 const history = require('../services/history');
+const spieleschrank = require('../services/spieleschrank');
 
 const router = express.Router();
 router.use(ensureAuth);
@@ -115,6 +116,29 @@ router.get('/xp-summary', (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(502).json({ error: 'XP-Stand konnte nicht ermittelt werden.' });
+  }
+});
+
+/**
+ * Der Spieleschrank: Faecher aus den Steam-Sammlungen des Anwenders.
+ *
+ * Die Sammlungen kommen aus einer Datei des Steam-Clients auf diesem Rechner,
+ * kosten also keine Steam-Abfrage. Teuer ist nur die Bibliothek, und die liegt
+ * ohnehin im Zwischenspeicher. Trotzdem kurz gemerkt: Das Schrankfenster
+ * laeuft dauerhaft und fragt beim Oeffnen und nach jeder Aenderung nach.
+ */
+router.get('/schrank', async (req, res) => {
+  try {
+    const schrank = await cache.remember(
+      `schrank:${req.user.steamId}`,
+      60 * 1000,
+      () => spieleschrank.baueSchrank(req.user.steamId),
+      { persistent: false }
+    );
+    res.json(schrank);
+  } catch (err) {
+    logger.error('Schrank konnte nicht gebaut werden: ' + err.message);
+    res.status(502).json({ error: 'Spieleschrank konnte nicht geladen werden.' });
   }
 });
 
