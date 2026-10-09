@@ -20,7 +20,18 @@ const hinweisEl = document.getElementById('hinweis');
 // noch Striche - Horror hat 113 Spiele, die passen in kein Fach der Welt.
 const MAX_JE_FACH = 26;
 
+// Die fuenf Stufen in ihrer Wertigkeit, mit den Farben aus den Meldungen.
+const STUFEN = [
+  ['Kupfer', '#c07a42'],
+  ['Silber', '#b9c1cc'],
+  ['Gold', '#d3a13a'],
+  ['Platin', '#8b93e0'],
+  ['Blutig', '#d8323c'],
+];
+
 let ruht = false;
+let stand = null; // Level, XP, Trophaeen je Stufe
+let laufendesSpiel = null;
 let herausgezogen = null;
 const felder = []; // { el, spiel, rechteck }
 const farbspeicher = new Map(); // appId -> Ruecken-Farbe
@@ -41,9 +52,9 @@ let neueFarben = {};
  * doppelt so breit. Das ist nicht nur Zierde - in einem breiten Fach haben
  * die Ruecken mehr Platz und die Titel bleiben lesbar.
  */
-function planeRaster(faecher, spalten) {
+function planeRaster(faecher, spalten, vorbelegt = 0) {
   const plan = [];
-  let belegt = 0;
+  let belegt = vorbelegt;
   faecher.forEach((fach, i) => {
     const platzInZeile = spalten - (belegt % spalten);
     // Voll genug fuer ein breites Fach? Und passt es noch in die Zeile?
@@ -63,7 +74,34 @@ function spaltenFuer(anzahl) {
   return Math.max(4, Math.min(9, Math.round(Math.sqrt(anzahl * verhaeltnis))));
 }
 
+let letzteDaten = null;
+
+/** Nur die Zahlen im Level-Fach nachziehen, ohne das Raster neu zu legen. */
+function aktualisiereLevelFach() {
+  const fach = korpus.querySelector('.fach--level');
+  if (!fach || !stand) return;
+  fach.querySelector('.level__zahl').textContent = stand.level;
+  const anteil = stand.xpForThisLevel ? (stand.xpIntoLevel / stand.xpForThisLevel) * 100 : 0;
+  fach.querySelector('.level__balken span').style.width = `${Math.min(100, anteil).toFixed(1)}%`;
+  fach.querySelector('.level__rest').textContent =
+    `${zahl(stand.xpIntoLevel)} / ${zahl(stand.xpForThisLevel)} XP`;
+}
+
+function aktualisiereSpielFach() {
+  const fach = korpus.querySelector('.fach--spiel');
+  if (!fach || !laufendesSpiel) return;
+  const s = laufendesSpiel;
+  if (Number.isFinite(s.unlockedCount) && s.totalCount > 0) {
+    const anteil = (s.unlockedCount / s.totalCount) * 100;
+    const balken = fach.querySelector('.level__balken span');
+    if (balken) balken.style.width = `${anteil.toFixed(1)}%`;
+    const text = fach.querySelector('.level__rest');
+    if (text) text.textContent = `${s.unlockedCount} von ${s.totalCount} Achievements`;
+  }
+}
+
 function baue(daten) {
+  letzteDaten = daten;
   korpus.innerHTML = '';
   felder.length = 0;
 
@@ -81,9 +119,15 @@ function baue(daten) {
     return;
   }
 
-  const spalten = spaltenFuer(faecher.length);
-  const { plan, durchblicke } = planeRaster(faecher, spalten);
+  const sonder = (stand && Number.isFinite(stand.level) ? 1 : 0) + (laufendesSpiel ? 1 : 0);
+  const spalten = spaltenFuer(faecher.length + sonder);
+  const { plan, durchblicke } = planeRaster(faecher, spalten, sonder);
   korpus.style.gridTemplateColumns = `repeat(${spalten}, 1fr)`;
+
+  // Die beiden Sonderfaecher stehen vorn - sie gehoeren dem Anwender, nicht
+  // seiner Bibliothek.
+  if (stand && Number.isFinite(stand.level)) korpus.appendChild(baueLevelFach());
+  if (laufendesSpiel) korpus.appendChild(baueSpielFach());
 
   faecher.forEach((fach, i) => {
     const el = document.createElement('div');
@@ -261,6 +305,97 @@ function setzeHeraus(feld) {
 }
 
 /**
+ * Das Level-Fach.
+ *
+ * Kein Regal, sondern eine beleuchtete Vitrine: die Levelzahl gross, darunter
+ * der Balken bis zum naechsten Level. Dieselben Zahlen wie in der Begruessung
+ * und im Dashboard - der Hauptprozess schreibt sie nach jeder Trophaee fort.
+ */
+function baueLevelFach() {
+  const el = document.createElement('div');
+  el.className = 'fach fach--vitrine fach--level';
+  const anteil = stand.xpForThisLevel
+    ? Math.max(0, Math.min(100, (stand.xpIntoLevel / stand.xpForThisLevel) * 100))
+    : 0;
+  el.innerHTML = `
+    <div class="vitrine__inhalt">
+      <span class="level__wort">Level</span>
+      <span class="level__zahl">${stand.level}</span>
+      <div class="level__balken"><span style="width:${anteil.toFixed(1)}%"></span></div>
+      <span class="level__rest">${zahl(stand.xpIntoLevel)} / ${zahl(stand.xpForThisLevel)} XP</span>
+    </div>
+    <div class="fach__schild">Dein Stand</div>
+  `;
+  return el;
+}
+
+/**
+ * Das Fach fuer das laufende Spiel.
+ *
+ * Es gibt sich nur zu erkennen, solange wirklich gespielt wird - ein Fach,
+ * das "gerade nichts" anzeigt, waere die meiste Zeit ein Loch im Schrank.
+ */
+function baueSpielFach() {
+  const s = laufendesSpiel;
+  const el = document.createElement('div');
+  el.className = 'fach fach--vitrine fach--spiel';
+  const hat = Number.isFinite(s.unlockedCount) && Number.isFinite(s.totalCount) && s.totalCount > 0;
+  const anteil = hat ? (s.unlockedCount / s.totalCount) * 100 : 0;
+  el.innerHTML = `
+    <div class="spiel__bild" style="background-image:url('${s.libraryUrl}')"></div>
+    <div class="vitrine__inhalt spiel__inhalt">
+      <span class="spiel__laeuft">Läuft gerade</span>
+      <span class="spiel__name">${escape(s.name || '')}</span>
+      ${
+        hat
+          ? `<div class="level__balken"><span style="width:${anteil.toFixed(1)}%"></span></div>
+             <span class="level__rest">${s.unlockedCount} von ${s.totalCount} Achievements</span>`
+          : '<span class="level__rest">keine Achievements</span>'
+      }
+    </div>
+    <div class="fach__schild">Im Spiel</div>
+  `;
+  return el;
+}
+
+/**
+ * Oben auf dem Schrank: die Trophaeen je Stufe mit ihrer Anzahl.
+ *
+ * Die Zahlen kommen aus derselben Berechnung, die auch das Level ermittelt -
+ * sie faellt beim Durchgehen der Bibliothek ohnehin an.
+ */
+function baueAufsatz() {
+  aufsatz.innerHTML = '';
+  if (!stand || !stand.stufen) return;
+
+  for (const [name, farbe] of STUFEN) {
+    const anzahl = stand.stufen[name] || 0;
+    const el = document.createElement('div');
+    el.className = 'pokal';
+    el.style.setProperty('--pokal', farbe);
+    el.innerHTML = `
+      <span class="pokal__koerper"></span>
+      <span class="pokal__zahl">${zahl(anzahl)}</span>
+      <span class="pokal__name">${name}</span>
+    `;
+    aufsatz.appendChild(el);
+  }
+
+  if (Number.isFinite(stand.diamanten)) {
+    const d = document.createElement('div');
+    d.className = 'pokal pokal--diamant';
+    d.innerHTML = `
+      <span class="pokal__koerper"></span>
+      <span class="pokal__zahl">${zahl(stand.diamanten)}</span>
+      <span class="pokal__name">Diamant</span>
+    `;
+    aufsatz.appendChild(d);
+  }
+}
+
+const zahl = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('de-DE') : '–');
+
+/**
  * Das Titelbild der herausgezogenen Packung.
  *
  * Es wird erst hier geladen: Beim Darueberfahren braucht es einen Moment,
@@ -310,6 +445,28 @@ function hinweisZu(grund) {
 if (window.schrankAPI) {
   window.schrankAPI.onDaten((daten) => baue(daten));
   window.schrankAPI.onZeiger((p) => zeigerBei(p ? p.x : null, p ? p.y : null));
+  window.schrankAPI.onStand((neu) => {
+    const vorher = stand && stand.level;
+    // Nur ERGAENZEN, nie ueberschreiben: Nach einer Trophaee meldet der
+    // Hauptprozess sofort das neue Level, aber ohne Stufenzahlen - die
+    // stammen aus der grossen Berechnung. Ein schlichtes Zusammenfuehren
+    // wuerde die Zahlen oben auf dem Schrank dabei loeschen.
+    const ergaenzt = { ...(stand || {}) };
+    for (const [feld, wert] of Object.entries(neu || {})) {
+      if (wert !== undefined && wert !== null) ergaenzt[feld] = wert;
+    }
+    stand = ergaenzt;
+    baueAufsatz();
+    if (letzteDaten && vorher !== stand.level) baue(letzteDaten);
+    else aktualisiereLevelFach();
+  });
+  window.schrankAPI.onSpiel((spiel) => {
+    const vorher = !!laufendesSpiel;
+    laufendesSpiel = spiel;
+    // Kommt oder geht das Fach, muss das Raster neu gelegt werden.
+    if (letzteDaten && vorher !== !!spiel) baue(letzteDaten);
+    else if (spiel) aktualisiereSpielFach();
+  });
   window.schrankAPI.onRuhe((r) => {
     ruht = !!r;
     document.body.classList.toggle('ruhe', ruht);

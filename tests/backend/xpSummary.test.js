@@ -182,3 +182,31 @@ test('Die Levelberechnung stuft wie die Meldung ein - mit dem Zusammenhang des S
   const ergebnis = await xpSummary._berechneIntern('ich', {});
   assert.strictEqual(ergebnis.totalXp, erwartet);
 });
+
+test('Die Berechnung zählt Trophäenstufen und Diamanten mit', async () => {
+  // Der Spieleschrank zeigt diese Zahlen oben an. Sie hier mitzuzählen kostet
+  // nichts - die Schleife geht ohnehin durch jede einzelne Trophäe. Sie
+  // getrennt zu erheben hieße, die ganze Bibliothek erneut abzufragen.
+  const spielStand = [
+    { apiname: 'A', achieved: 1, prozent: 70 },
+    { apiname: 'B', achieved: 1, prozent: 18 },
+    { apiname: 'C', achieved: 1, prozent: 0.1 },
+  ];
+  const { xpSummary } = ladeMitAttrappen({ spiele: gespielt(1), spielStand });
+  const ergebnis = await xpSummary._berechneIntern('ich', {});
+
+  assert.deepStrictEqual(ergebnis.stufen, { Kupfer: 1, Silber: 1, Blutig: 1 });
+  // Alle drei Achievements des Spiels freigeschaltet: Diamant.
+  assert.strictEqual(ergebnis.diamanten, 1);
+});
+
+test('Ein unvollständiges Spiel ist kein Diamant', async () => {
+  const spielStand = [
+    { apiname: 'A', achieved: 1, prozent: 70 },
+    { apiname: 'B', achieved: 0, prozent: 18 },
+  ];
+  const { xpSummary } = ladeMitAttrappen({ spiele: gespielt(1), spielStand });
+  const ergebnis = await xpSummary._berechneIntern('ich', {});
+  assert.strictEqual(ergebnis.diamanten, 0);
+  assert.deepStrictEqual(ergebnis.stufen, { Kupfer: 1 });
+});

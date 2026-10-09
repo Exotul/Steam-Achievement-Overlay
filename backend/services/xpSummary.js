@@ -84,7 +84,13 @@ async function berechne(steamId, job) {
 }
 
 /**
- * Ermittelt den XP-Beitrag EINES Spiels - bewusst sparsam.
+ * Ermittelt den Beitrag EINES Spiels - bewusst sparsam.
+ *
+ * Mitgezaehlt werden auch die Trophaeen je Stufe und ob das Spiel komplett
+ * ist (Diamant). Beides faellt hier ohnehin an: Die Schleife geht durch jede
+ * einzelne Trophaee. Der Spieleschrank zeigt diese Zahlen oben an, und sie
+ * ein zweites Mal zu erheben hiesse, die ganze Bibliothek erneut bei Steam
+ * abzufragen.
  *
  * Der ursprüngliche Weg lief über buildEnrichedAchievements und machte damit
  * drei Steam-Abfragen je Spiel: Spielerstand, Schema (Namen, Beschreibungen,
@@ -113,8 +119,9 @@ async function spielXp(steamId, appId, spielzeit) {
   if (errungen.length === 0) {
     // Kein Achievement-System, privates Profil oder schlicht noch nichts
     // geholt - merken, damit nicht bei jedem Start erneut gefragt wird.
-    cache.set(schluessel, { xp: 0, spielzeit }, SPIEL_TTL_MS);
-    return 0;
+    const leer = { xp: 0, spielzeit, stufen: {}, diamant: false };
+    cache.set(schluessel, leer, SPIEL_TTL_MS);
+    return leer;
   }
 
   const percentages = await steamApi.getGlobalAchievementPercentages(appId);
@@ -124,14 +131,22 @@ async function spielXp(steamId, appId, spielzeit) {
   const bewerte = bewerteSpiel(playerAch, percentages);
 
   let xp = 0;
+  const stufen = {};
   errungen.forEach((a) => {
     const prozent = percentages[a.apiname];
     if (typeof prozent !== 'number') return;
-    xp += bewerte(prozent).xp;
+    const { xp: punkte, stufe } = bewerte(prozent);
+    xp += punkte;
+    stufen[stufe] = (stufen[stufe] || 0) + 1;
   });
 
-  cache.set(schluessel, { xp, spielzeit }, SPIEL_TTL_MS);
-  return xp;
+  // Diamant: alles freigeschaltet. playerAch enthaelt ALLE Achievements des
+  // Spiels, auch die offenen - der Vergleich kostet also nichts extra.
+  const diamant = playerAch.length > 0 && errungen.length === playerAch.length;
+
+  const ergebnis = { xp, spielzeit, stufen, diamant };
+  cache.set(schluessel, ergebnis, SPIEL_TTL_MS);
+  return ergebnis;
 }
 
 async function berechneIntern(steamId, job) {
@@ -142,8 +157,9 @@ async function berechneIntern(steamId, job) {
   job.phase = 'bibliothek';
   const games = await steamApi.getOwnedGames(steamId);
 
-  const { offen, sicher, xpSicher } = planeBerechnung(games, (appId) =>
-    cache.get(schluesselSpiel(steamId, appId))
+  const { offen, sicher, xpSicher, stufenSicher, diamantenSicher } = planeBerechnung(
+    games,
+    (appId) => cache.get(schluesselSpiel(steamId, appId))
   );
 
   job.phase = 'spiele';
@@ -153,6 +169,8 @@ async function berechneIntern(steamId, job) {
   job.uebersprungen = games.length - offen.length - sicher.length;
 
   let totalXp = xpSicher;
+  const stufen = { ...stufenSicher };
+  let diamanten = diamantenSicher;
   const warteschlange = [...offen];
 
   async function worker() {
@@ -169,8 +187,12 @@ async function berechneIntern(steamId, job) {
         //
         // Wer das "vereinfacht", macht den Fehler wieder rueckgaengig. Der
         // Test in tests/backend/xpSummary.test.js wird dann rot.
-        const xp = await spielXp(steamId, g.appid, g.playtime_forever || 0);
-        totalXp += xp;
+        const beitrag = await spielXp(steamId, g.appid, g.playtime_forever || 0);
+        totalXp += beitrag.xp;
+        for (const [stufe, anzahl] of Object.entries(beitrag.stufen)) {
+          stufen[stufe] = (stufen[stufe] || 0) + anzahl;
+        }
+        if (beitrag.diamant) diamanten += 1;
       } catch (err) {
         /* Spiel überspringen */
       }
@@ -182,14 +204,15 @@ async function berechneIntern(steamId, job) {
     Array.from({ length: Math.min(CONCURRENCY, warteschlange.length || 1) }, worker)
   );
 
-  const summary = { ...getLevelProgress(totalXp), berechnetAm: Date.now() };
+  const summary = { ...getLevelProgress(totalXp), stufen, diamanten, berechnetAm: Date.now() };
   cache.set(schluesselFrisch(steamId), summary, SUMMARY_TTL_MS);
   // Zusaetzlich langfristig merken: Dieser Wert erspart beim naechsten Start
   // das Warten, weil er sofort angezeigt werden kann.
   cache.set(schluesselLetzter(steamId), summary, LETZTER_TTL_MS);
 
   logger.info(
-    `XP-Berechnung fertig: Level ${summary.level}, ${offen.length} Spiele abgefragt, ` +
+    `XP-Berechnung fertig: Level ${summary.level}, ${diamanten} Diamanten, ` +
+      `${offen.length} Spiele abgefragt, ` +
       `${sicher.length} unverändert aus dem Speicher, ` +
       `${job.uebersprungen} nie gespielte übersprungen`
   );

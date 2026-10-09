@@ -483,11 +483,62 @@ function wendeSchrankAn(vorher) {
   starteZeigerTakt();
   // Alle zehn Minuten nachsehen: Sammlungen aendern sich selten, aber die
   // Spielzeiten tun es - danach sortiert sich ein Fach neu.
-  schrankDatenTimer = setInterval(sendeSchrankDaten, 10 * 60 * 1000);
+  schrankDatenTimer = setInterval(() => {
+    sendeSchrankDaten();
+    holeSchrankStand();
+  }, 10 * 60 * 1000);
+}
+
+/**
+ * Level, XP, Trophaeenzahlen und das laufende Spiel in den Schrank melden.
+ *
+ * Alles davon liegt im Hauptprozess ohnehin vor: Der XP-Stand wird nach jeder
+ * Meldung fortgeschrieben, die Stufenzahlen kommen aus derselben Berechnung
+ * (xpSummary zaehlt sie beim Durchgehen der Bibliothek mit), und welches
+ * Spiel laeuft, weiss die Achievement-Verfolgung.
+ */
+function sendeSchrankStand(summe) {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
+  schrankWindow.webContents.send('schrank:stand', {
+    ...(xpStand || {}),
+    stufen: summe && summe.stufen,
+    diamanten: summe && summe.diamanten,
+  });
+}
+
+function sendeSchrankSpiel() {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
+  schrankWindow.webContents.send(
+    'schrank:spiel',
+    trackedAppId
+      ? {
+          appId: trackedAppId,
+          name: trackedGameName,
+          unlockedCount: letzterStand ? letzterStand.unlockedCount : null,
+          totalCount: letzterStand ? letzterStand.totalCount : null,
+          libraryUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${trackedAppId}/library_600x900.jpg`,
+        }
+      : null
+  );
+}
+
+/** Die Trophaeenzahlen holen - sie stecken im XP-Stand des Backends. */
+async function holeSchrankStand() {
+  if (!schrankWindow || schrankWindow.isDestroyed() || !steamClient) return;
+  try {
+    const summe = await steamClient.xpSummary();
+    sendeSchrankStand(summe && summe.status === 'ready' ? summe : null);
+  } catch (err) {
+    sendeSchrankStand(null);
+  }
 }
 
 // Das Fenster meldet sich, sobald seine Seite steht.
-ipcMain.on('schrank:bereit', () => sendeSchrankDaten());
+ipcMain.on('schrank:bereit', () => {
+  sendeSchrankDaten();
+  holeSchrankStand();
+  sendeSchrankSpiel();
+});
 
 // Gefundene Rueckenfarben sichern, damit der naechste Start sofort farbig ist.
 ipcMain.on('schrank:farben', (_e, farben) => {
@@ -529,7 +580,12 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
     const vorher = xpStand;
     const nachher = levelAus(vorher.totalXp + zuwachs);
 
-    if (!nurTest) xpStand = nachher;
+    if (!nurTest) {
+      xpStand = nachher;
+      // Der Schrank zeigt Level und Fortschritt - er soll nicht zehn Minuten
+      // lang einen ueberholten Stand zeigen.
+      sendeSchrankStand(null);
+    }
 
     xpInfo = {
       zuwachs: Math.round(zuwachs),
@@ -773,6 +829,7 @@ async function startAchievementTracking(appId, gameName) {
     unlockedBaseline = new Set(result.achievements.filter((a) => a.unlocked).map((a) => a.apiName));
     achievementIndex = new Map(result.achievements.map((a) => [a.apiName, a]));
     letzterStand = { unlockedCount: result.unlockedCount, totalCount: result.totalCount };
+    sendeSchrankSpiel();
     if (result.isDiamond) diamondCelebrated.add(appId); // schon vorher komplett -> nicht feiern
   } catch (err) {
     // WICHTIG: hier NICHT auf ein leeres Set setzen. Sonst gaelten beim
@@ -1113,6 +1170,8 @@ function stopLocalWatcher() {
 function stopAchievementTracking() {
   clearTimeout(vollbildPruefTimer);
   schrankRuhe(false);
+  // Kein Spiel mehr - das Fach im Schrank raeumt sich selbst auf.
+  setTimeout(sendeSchrankSpiel, 0);
   // Keine Verfolgung, keine Sitzung. zeigeSitzungsbilanz() raeumt selbst auf
   // und wird VOR dieser Funktion gerufen - hier steht es noch einmal, damit
   // die Regel nicht an der Aufrufreihenfolge haengt. Ueber stopPolling()
@@ -1155,6 +1214,7 @@ async function checkAchievements() {
     );
 
     letzterStand = { unlockedCount: result.unlockedCount, totalCount: result.totalCount };
+    sendeSchrankSpiel();
 
     newlyUnlocked.forEach((a) => {
       unlockedBaseline.add(a.apiName);

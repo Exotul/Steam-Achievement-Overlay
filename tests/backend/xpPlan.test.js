@@ -16,7 +16,9 @@ const P = require('../../backend/services/xpPlan');
  * ist die Beschleunigung wirkungslos. Deshalb diese Tests.
  */
 
-const eintrag = (xp, spielzeit) => ({ xp, spielzeit });
+// Seit dem Spieleschrank gehoeren zu einem Eintrag auch die Trophaeen je
+// Stufe - ohne sie ist er nicht mehr vollstaendig.
+const eintrag = (xp, spielzeit, stufen = { Kupfer: 2 }) => ({ xp, spielzeit, stufen });
 
 // --- Wann darf ein gemerkter Wert weiterverwendet werden? --------------------
 
@@ -42,6 +44,13 @@ test('Fehlender oder unbrauchbarer Eintrag führt zur Abfrage', () => {
   assert.strictEqual(P.darfWiederverwenden({ xp: 5 }, 10), false, 'ohne Spielzeit unbeurteilbar');
   assert.strictEqual(P.darfWiederverwenden({ spielzeit: 10 }, 10), false, 'ohne XP wertlos');
   assert.strictEqual(P.darfWiederverwenden({ xp: NaN, spielzeit: 10 }, 10), false);
+  // Ohne die Stufenzaehlung waeren die Zahlen oben auf dem Schrank zu
+  // niedrig - also lieber einmal neu rechnen.
+  assert.strictEqual(
+    P.darfWiederverwenden({ xp: 5, spielzeit: 10 }, 10),
+    false,
+    'ohne Stufen unvollstaendig'
+  );
 });
 
 test('Werte aus einer älteren Fassung werden verworfen', () => {
@@ -113,6 +122,8 @@ test('Eine leere oder fehlende Bibliothek stürzt nicht ab', () => {
     offen: [],
     sicher: [],
     xpSicher: 0,
+    stufenSicher: {},
+    diamantenSicher: 0,
   });
   assert.strictEqual(P.planeBerechnung(undefined, () => undefined).offen.length, 0);
   assert.strictEqual(P.planeBerechnung(null, () => undefined).sicher.length, 0);

@@ -33,6 +33,10 @@ function darfWiederverwenden(eintrag, spielzeitJetzt) {
   if (!eintrag || typeof eintrag !== 'object') return false;
   if (typeof eintrag.xp !== 'number' || !Number.isFinite(eintrag.xp)) return false;
   if (typeof eintrag.spielzeit !== 'number') return false;
+  // Seit dem Spieleschrank zaehlt die Berechnung auch die Trophaeen je Stufe
+  // mit. Ein Eintrag aus der Zeit davor kennt sie nicht - er wuerde die
+  // Zahlen oben auf dem Schrank stillschweigend zu niedrig halten.
+  if (!eintrag.stufen || typeof eintrag.stufen !== 'object') return false;
 
   const jetzt = Number(spielzeitJetzt) || 0;
 
@@ -47,12 +51,14 @@ function darfWiederverwenden(eintrag, spielzeitJetzt) {
  *
  * @param {Array<{appid: number, playtime_forever: number}>} spiele
  * @param {(appId: number) => any} gemerkt - Zugriff auf den Zwischenspeicher
- * @returns {{offen: Array, sicher: Array, xpSicher: number}}
+ * @returns {{offen: Array, sicher: Array, xpSicher: number, stufenSicher: object, diamantenSicher: number}}
  */
 function planeBerechnung(spiele, gemerkt) {
   const offen = [];
   const sicher = [];
   let xpSicher = 0;
+  const stufenSicher = {};
+  let diamantenSicher = 0;
 
   for (const spiel of spiele || []) {
     // Nie gespielte Titel können keine Achievements haben. Sie zu
@@ -65,12 +71,16 @@ function planeBerechnung(spiele, gemerkt) {
     if (darfWiederverwenden(eintrag, spielzeit)) {
       sicher.push(spiel);
       xpSicher += eintrag.xp;
+      for (const [stufe, anzahl] of Object.entries(eintrag.stufen)) {
+        stufenSicher[stufe] = (stufenSicher[stufe] || 0) + anzahl;
+      }
+      if (eintrag.diamant) diamantenSicher += 1;
     } else {
       offen.push(spiel);
     }
   }
 
-  return { offen, sicher, xpSicher };
+  return { offen, sicher, xpSicher, stufenSicher, diamantenSicher };
 }
 
 module.exports = { darfWiederverwenden, planeBerechnung };
