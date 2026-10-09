@@ -85,19 +85,18 @@ function standard() {
     sitzungsbilanz: true,
 
     // --- Spieleschrank auf einem zweiten Bildschirm ---
-    // Standardmaessig AUS: Er belegt einen ganzen Bildschirm, das soll
-    // niemand ungefragt vorgesetzt bekommen.
-    schrankAktiv: false,
+    schrankAktiv: true,
     // null = automatisch: ein anderer Bildschirm als der, auf dem die
     // Meldungen erscheinen. Wer nur einen hat, bekommt diesen.
     schrankBildschirm: null,
     // Waehrend ein Spiel laeuft, haelt der Schrank seine Animationen an -
     // er soll keine Bilder pro Sekunde kosten.
     schrankRuheImSpiel: true,
-    // Hinter die Desktop-Symbole haengen, wie ein Hintergrundbild. Nicht die
-    // Vorgabe: Es ist ein Eingriff ins Fenstersystem, der je nach Rechner
-    // (anderes Hintergrundprogramm, abgewandelter Explorer) scheitern kann.
-    schrankHintergrund: false,
+    // Hinter die Desktop-Symbole haengen, wie ein Hintergrundbild. Klappt das
+    // auf einem Rechner nicht (anderes Hintergrundprogramm, abgewandelter
+    // Explorer), bleibt der Schrank ein gewoehnliches Fenster - sichtbar ist
+    // er in beiden Faellen.
+    schrankHintergrund: true,
   };
 }
 

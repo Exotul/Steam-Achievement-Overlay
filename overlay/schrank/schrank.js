@@ -62,10 +62,7 @@ function planeRaster(faecher, spalten, vorbelegt = 0) {
     plan.push(breit ? 2 : 1);
     belegt += breit ? 2 : 1;
   });
-  // Was in der letzten Zeile uebrig bleibt, wird zum offenen Durchblick -
-  // besser als eine Luecke, die wie ein Fehler aussieht.
-  const rest = (spalten - (belegt % spalten)) % spalten;
-  return { plan, durchblicke: rest };
+  return { plan };
 }
 
 function spaltenFuer(anzahl) {
@@ -119,20 +116,26 @@ function baue(daten) {
     return;
   }
 
-  const sonder = (stand && Number.isFinite(stand.level) ? 1 : 0) + (laufendesSpiel ? 1 : 0);
+  // Die Sonderfaecher stehen vorn - sie gehoeren dem Anwender, nicht seiner
+  // Bibliothek. Das Trophaeenfach ist doppelt breit: Sechs Zahlen in einem
+  // schmalen Kasten waeren nicht zu lesen.
+  const sonderFaecher = [];
+  if (stand && Number.isFinite(stand.level)) sonderFaecher.push({ el: baueLevelFach(), breit: 1 });
+  if (stand && stand.stufen) sonderFaecher.push({ el: baueTrophaeenFach(), breit: 2 });
+  if (laufendesSpiel) sonderFaecher.push({ el: baueSpielFach(), breit: 1 });
+
+  const sonder = sonderFaecher.reduce((s, f) => s + f.breit, 0);
   const spalten = spaltenFuer(faecher.length + sonder);
-  const { plan, durchblicke } = planeRaster(faecher, spalten, sonder);
+  const { plan } = planeRaster(faecher, spalten, sonder);
   korpus.style.gridTemplateColumns = `repeat(${spalten}, 1fr)`;
 
-  // Die beiden Sonderfaecher stehen vorn - sie gehoeren dem Anwender, nicht
-  // seiner Bibliothek.
-  if (stand && Number.isFinite(stand.level)) korpus.appendChild(baueLevelFach());
-  if (laufendesSpiel) korpus.appendChild(baueSpielFach());
+  // Erst alle Faecher sammeln, dann einraeumen: Nur so laesst sich am Ende
+  // sagen, wie viel in der letzten Zeile uebrig bleibt.
+  const zellen = sonderFaecher.map((f) => ({ el: f.el, breit: f.breit }));
 
   faecher.forEach((fach, i) => {
     const el = document.createElement('div');
     el.className = 'fach';
-    if (plan[i] === 2) el.style.gridColumn = 'span 2';
 
     const reihe = document.createElement('div');
     reihe.className = 'fach__reihe';
@@ -149,14 +152,30 @@ function baue(daten) {
 
     el.appendChild(reihe);
     el.appendChild(schild);
-    korpus.appendChild(el);
+    zellen.push({ el, breit: plan[i] });
   });
 
-  for (let i = 0; i < durchblicke; i++) {
-    const leer = document.createElement('div');
-    leer.className = 'fach fach--leer';
-    korpus.appendChild(leer);
+  // Zwei Abstellplaetze mitten ins Regal, nicht nur ans Ende: Ein Schrank,
+  // in dem der Krimskrams nur in der letzten Ecke steht, sieht aus, als waere
+  // dort etwas uebrig geblieben.
+  let deko = 0;
+  for (const stelle of [Math.round(zellen.length * 0.45), Math.round(zellen.length * 0.78)]) {
+    zellen.splice(stelle + deko, 0, { el: baueDekoFach(deko), breit: 1 });
+    deko += 1;
   }
+
+  // Die letzte Zeile IMMER voll machen. Sonst steht dort ein halbes Brett,
+  // und das sieht aus wie ein Fehler statt wie ein Regal.
+  const belegt = zellen.reduce((s, z) => s + z.breit, 0);
+  const luecke = (spalten - (belegt % spalten)) % spalten;
+  for (let i = 0; i < luecke; i++) {
+    zellen.push({ el: baueDekoFach(deko + i), breit: 1 });
+  }
+
+  zellen.forEach((z) => {
+    if (z.breit === 2) z.el.style.gridColumn = 'span 2';
+    korpus.appendChild(z.el);
+  });
 
   hinweisEl.textContent = `${daten.anzahlSpiele} Spiele in ${faecher.length} Fächern · aus deinen Steam-Sammlungen`;
   // Erst messen, wenn das Raster wirklich steht.
@@ -355,6 +374,115 @@ function baueSpielFach() {
     </div>
     <div class="fach__schild">Im Spiel</div>
   `;
+  return el;
+}
+
+/**
+ * Das Trophaeenfach: fuenf Stufen mit ihrer Anzahl, dazu die Diamanten.
+ *
+ * Es steht im Regal und nicht nur oben auf dem Schrank: Oben ist Platz fuer
+ * drei, vier Dinge, aber nicht fuer sechs Zahlen, die man lesen koennen soll.
+ */
+function baueTrophaeenFach() {
+  const el = document.createElement('div');
+  el.className = 'fach fach--vitrine fach--trophaeen';
+
+  const eintraege = STUFEN.map(([name, farbe]) => ({
+    name,
+    farbe,
+    anzahl: (stand.stufen && stand.stufen[name]) || 0,
+    diamant: false,
+  }));
+  if (Number.isFinite(stand.diamanten)) {
+    eintraege.push({ name: 'Diamant', farbe: '#5fd3e8', anzahl: stand.diamanten, diamant: true });
+  }
+
+  el.innerHTML = `
+    <div class="trophaeen">
+      ${eintraege
+        .map(
+          (e) => `
+        <div class="trophaee" style="--pokal:${e.farbe}">
+          <span class="pokal__koerper${e.diamant ? ' pokal__koerper--diamant' : ''}"></span>
+          <span class="trophaee__zahl">${zahl(e.anzahl)}</span>
+          <span class="trophaee__name">${e.name}</span>
+        </div>`
+        )
+        .join('')}
+    </div>
+    <div class="fach__schild">Deine Trophäen</div>
+  `;
+  return el;
+}
+
+/**
+ * Was in einem leeren Fach steht.
+ *
+ * Ein Regal, in dem Faecher einfach leer bleiben, sieht unfertig aus. Hier
+ * steht deshalb Krimskrams, wie er sich in einem echten Schrank ansammelt -
+ * gezeichnet, nicht geladen. Die Auswahl haengt an der Stelle im Raster und
+ * ist damit bei jedem Start dieselbe; ein Schrank, der sich jedes Mal anders
+ * einrichtet, waere unruhig.
+ */
+const DEKO = [
+  // Ein Stapel liegender Huellen
+  `<svg viewBox="0 0 100 100" class="deko__bild">
+     <g stroke="rgba(0,0,0,.45)" stroke-width="1">
+       <rect x="18" y="74" width="64" height="9" rx="2" fill="#7a5436"/>
+       <rect x="21" y="65" width="58" height="9" rx="2" fill="#8d6243"/>
+       <rect x="17" y="56" width="66" height="9" rx="2" fill="#6d4a30"/>
+       <rect x="24" y="47" width="52" height="9" rx="2" fill="#9a6e4b"/>
+     </g>
+   </svg>`,
+  // Eine Topfpflanze
+  `<svg viewBox="0 0 100 100" class="deko__bild">
+     <path d="M50 62 C40 50 34 36 36 22 C46 28 52 40 52 54" fill="#4c7a4a"/>
+     <path d="M50 64 C62 54 70 42 70 28 C58 32 52 44 50 58" fill="#5c8f58"/>
+     <path d="M50 66 C44 58 32 54 22 56 C30 66 40 70 50 70" fill="#416b40"/>
+     <path d="M34 70 H66 L62 90 H38 Z" fill="#8a4a32"/>
+     <rect x="32" y="66" width="36" height="6" rx="2" fill="#9c553a"/>
+   </svg>`,
+  // Ein Gamepad
+  `<svg viewBox="0 0 100 100" class="deko__bild">
+     <path d="M26 44 H74 C84 44 90 52 88 62 L85 74 C83 82 74 84 69 78 L62 70 H38 L31 78
+              C26 84 17 82 15 74 L12 62 C10 52 16 44 26 44 Z" fill="#3b3f49"/>
+     <rect x="27" y="56" width="14" height="4" rx="2" fill="#aab2c0"/>
+     <rect x="32" y="51" width="4" height="14" rx="2" fill="#aab2c0"/>
+     <circle cx="64" cy="55" r="3.4" fill="#d8323c"/>
+     <circle cx="72" cy="62" r="3.4" fill="#d3a13a"/>
+     <circle cx="64" cy="69" r="3.4" fill="#8b93e0"/>
+     <circle cx="56" cy="62" r="3.4" fill="#6bd39a"/>
+   </svg>`,
+  // Schraeg stehende Buecher
+  `<svg viewBox="0 0 100 100" class="deko__bild">
+     <g stroke="rgba(0,0,0,.4)" stroke-width="1">
+       <rect x="22" y="34" width="12" height="52" rx="2" fill="#6b4a6e"/>
+       <rect x="35" y="30" width="10" height="56" rx="2" fill="#4a5c7a"/>
+       <rect x="46" y="38" width="13" height="48" rx="2" fill="#7a5436"/>
+       <g transform="rotate(16 66 86)">
+         <rect x="60" y="40" width="11" height="46" rx="2" fill="#5c7a4a"/>
+       </g>
+     </g>
+   </svg>`,
+  // Eine Kerze auf einem Teller
+  `<svg viewBox="0 0 100 100" class="deko__bild">
+     <ellipse cx="50" cy="86" rx="22" ry="5" fill="#6d5b48"/>
+     <rect x="41" y="46" width="18" height="38" rx="3" fill="#e8dcc4"/>
+     <path d="M50 46 C46 40 46 34 50 28 C54 34 54 40 50 46 Z" fill="#ffc46b"/>
+     <circle cx="50" cy="36" r="7" fill="#ffb347" opacity=".35"/>
+   </svg>`,
+];
+
+function baueDekoFach(nummer) {
+  const el = document.createElement('div');
+  // Jedes dritte Fach bleibt wirklich leer - sonst wirkt der Schrank
+  // vollgestellt, und die Durchblicke waren ja Absicht.
+  if (nummer % 3 === 2) {
+    el.className = 'fach fach--leer';
+    return el;
+  }
+  el.className = 'fach fach--deko';
+  el.innerHTML = `<div class="deko">${DEKO[nummer % DEKO.length]}</div>`;
   return el;
 }
 

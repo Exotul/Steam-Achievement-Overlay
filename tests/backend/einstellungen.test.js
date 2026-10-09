@@ -187,11 +187,12 @@ test('Speichern legt fehlende Ordner an und lässt keine Nebendatei zurück', ()
 
 // --- Spieleschrank ------------------------------------------------------------
 
-test('Der Spieleschrank ist standardmäßig aus', () => {
-  // Er belegt einen ganzen Bildschirm. So etwas bekommt niemand ungefragt
-  // vorgesetzt, schon gar nicht nach einem Update.
+test('Der Spieleschrank ist standardmäßig an - auf dem zweiten Bildschirm', () => {
   const s = E.standard();
-  assert.strictEqual(s.schrankAktiv, false);
+  assert.strictEqual(s.schrankAktiv, true);
+  assert.strictEqual(s.schrankHintergrund, true);
+  // null heißt: ein anderer Bildschirm als der, auf dem die Meldungen
+  // erscheinen. Eine feste Kennung wäre falsch - Monitore kommen und gehen.
   assert.strictEqual(s.schrankBildschirm, null);
   assert.strictEqual(s.schrankRuheImSpiel, true);
 });

@@ -79,18 +79,28 @@ body {
   flex: 1;
   min-height: 0;
   display: grid;
+  /* Alle Zeilen gleich hoch. Ohne das richtet sich eine Zeile nach ihrem
+     Inhalt - und Faecher, in denen nur Buchruecken stehen, haben keinen:
+     Sie fielen auf wenige Pixel zusammen, waehrend die Zeile mit der
+     Topfpflanze die ganze Hoehe bekam. */
+  grid-auto-rows: 1fr;
   gap: var(--rahmen);
   padding: var(--rahmen);
   border-radius: 6px;
-  /* Das Holz des Korpus: senkrechte Maserung, oben heller beleuchtet. */
+  /*
+   * Das Holz des Korpus.
+   *
+   * Vorher waren das harte senkrechte Streifen - ueberall, auch quer ueber
+   * die waagerechten Boeden. Das sah nach Strichmuster aus, nicht nach Holz.
+   * Jetzt: feine, unregelmaessige Maserung aus Rauschen (einmal gezeichnet,
+   * in eine Richtung gestreckt), darueber ein ruhiger Farbverlauf und ein
+   * schwacher Lichtschein von oben.
+   */
   background:
-    linear-gradient(180deg, rgba(255, 230, 190, 0.18), rgba(0, 0, 0, 0.25) 55%),
-    repeating-linear-gradient(
-      90deg,
-      var(--holz) 0 7px,
-      var(--holz-hell) 7px 9px,
-      var(--holz-dunkel) 9px 16px
-    );
+    linear-gradient(180deg, rgba(255, 232, 196, 0.16), rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0.3) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9 0.012' numOctaves='3' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.07 0 0 0 0 0.03 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E"),
+    linear-gradient(92deg, var(--holz-dunkel), var(--holz) 35%, var(--holz-hell) 55%, var(--holz) 78%, var(--holz-dunkel));
+  background-size: auto, 100% 100%, auto;
   box-shadow:
     inset 0 2px 0 rgba(255, 236, 205, 0.35),
     inset 0 -6px 14px rgba(0, 0, 0, 0.5),
@@ -110,19 +120,40 @@ body {
      genau das ist der Punkt. */
   overflow: visible;
   /* Die Rueckwand liegt im Schatten, der Boden faengt Licht. */
+  /* Die Rueckwand: senkrechte Bretter, aber weich - sie liegt im Schatten
+     und soll nicht mit den Spielrueckens um Aufmerksamkeit streiten. */
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.12) 38%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.15) 40%, rgba(0, 0, 0, 0.55) 100%),
     repeating-linear-gradient(
       90deg,
-      var(--holz-dunkel) 0 11px,
-      var(--holz-tief) 11px 13px,
-      var(--holz-dunkel) 13px 22px
-    );
+      rgba(255, 255, 255, 0.035) 0 1px,
+      rgba(0, 0, 0, 0) 1px 3px,
+      rgba(0, 0, 0, 0.14) 3px 4px,
+      rgba(0, 0, 0, 0) 4px 26px
+    ),
+    linear-gradient(180deg, var(--holz-tief), #3c2a19);
   box-shadow:
     inset 0 10px 18px -6px var(--fach-schatten),
     inset 0 -14px 16px -10px rgba(0, 0, 0, 0.8),
     inset 6px 0 12px -8px rgba(0, 0, 0, 0.9),
     inset -6px 0 12px -8px rgba(0, 0, 0, 0.9);
+}
+
+/*
+ * Die Vorderkante des Bodens, auf dem die Spiele stehen. Ohne sie schwebt
+ * alles im Fach; mit ihr sieht man, dass es ein Brett gibt - und genau das
+ * macht aus einem Kasten ein Regal.
+ */
+.fach::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  background: linear-gradient(180deg, var(--holz-hell), var(--holz) 40%, var(--holz-dunkel));
+  box-shadow: 0 -3px 6px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 240, 210, 0.5);
+  z-index: 1;
 }
 
 /* Ein offener Durchblick statt eines Fachs - wie im Vorbild. */
@@ -164,8 +195,8 @@ body {
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  height: calc(100% - 26px);
-  padding: 0 2px;
+  height: calc(100% - 30px);
+  padding: 0 4px 5px;
   perspective: 900px;
 }
 
@@ -192,8 +223,10 @@ body {
     100deg,
     rgba(0, 0, 0, 0.45) 0%,
     var(--spine, #5a4a6a) 22%,
-    color-mix(in srgb, var(--spine, #5a4a6a) 75%, #ffffff) 48%,
-    var(--spine, #5a4a6a) 70%,
+    /* Nur ein Hauch Licht auf der Kante - mit mehr Weiss sehen die Ruecken
+       aus wie Bonbons statt wie Pappe. */
+    color-mix(in srgb, var(--spine, #5a4a6a) 88%, #ffffff) 46%,
+    var(--spine, #5a4a6a) 68%,
     rgba(0, 0, 0, 0.55) 100%
   );
   box-shadow:
@@ -487,4 +520,78 @@ body.ruhe .packung__front {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #a98f6e;
+}
+
+/* ---------- Das Trophäenfach ---------- */
+
+.trophaeen {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 10px;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.trophaee {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.trophaee__zahl {
+  font-family: 'Oswald', 'Inter', sans-serif;
+  font-size: clamp(12px, 1.05vw, 22px);
+  line-height: 1;
+  color: #ffeccd;
+  margin-left: auto;
+}
+
+.trophaee__name {
+  font-size: clamp(7px, 0.5vw, 11px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a98f6e;
+  min-width: 3.6em;
+}
+
+/* Im Fach stehen die Pokale kleiner als oben auf dem Schrank. */
+.trophaee .pokal__koerper {
+  width: clamp(10px, 0.85vw, 17px);
+  height: clamp(13px, 1.05vw, 21px);
+}
+
+.pokal__koerper--diamant {
+  background: linear-gradient(145deg, #bff3fb, #5fd3e8 45%, #9a8cf2);
+  clip-path: polygon(50% 0, 100% 36%, 50% 100%, 0 36%);
+}
+
+/* ---------- Krimskrams in den leeren Fächern ---------- */
+
+/*
+ * Ein Regal, in dem Fächer einfach leer bleiben, sieht unfertig aus. Hier
+ * steht Zeug, wie es sich in einem echten Schrank ansammelt: ein Stapel
+ * Hüllen, eine Pflanze, ein Gamepad, Bücher, eine Kerze. Alles gezeichnet,
+ * damit es auf jedem Bildschirm scharf bleibt.
+ */
+.fach--deko {
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 7px;
+}
+
+.deko {
+  position: relative;
+  z-index: 2;
+  width: 68%;
+  max-width: 150px;
+  opacity: 0.82;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.6));
+}
+
+.deko__bild {
+  display: block;
+  width: 100%;
+  height: auto;
 }

@@ -52,7 +52,11 @@ const SPIEL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
  * bleiben deshalb gueltig. Die naechste Summe entsteht fast vollstaendig aus
  * ihnen - schnell, ohne die ganze Bibliothek neu bei Steam zu erfragen.
  */
-const SUMMEN_FASSUNG = 2;
+// 3: Seit dem Spieleschrank enthaelt die Summe auch die Trophaeen je Stufe
+//    und die Diamanten. Eine Summe aus der Zeit davor haette sie nicht - der
+//    Schrank zeigte dann oben eine leere Zeile, und zwar so lange, bis die
+//    Summe nach Stunden von selbst ablaeuft.
+const SUMMEN_FASSUNG = 3;
 
 const schluesselSpiel = (steamId, appId) => `xp-spiel:v${FORMEL_VERSION}:${steamId}:${appId}`;
 const schluesselFrisch = (steamId) =>
