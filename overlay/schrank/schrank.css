@@ -164,7 +164,6 @@ body {
   justify-content: flex-start;
   gap: 2px;
   padding: 0 7px 7px;
-  perspective: 900px;
 }
 
 /*
@@ -227,7 +226,13 @@ body {
   width: calc(var(--ruecken-breite, 12px) - 2px);
   height: calc(100% - 7px);
   transform-origin: bottom center;
-  transform-style: preserve-3d;
+  /*
+   * Bewusst FLACH, kein preserve-3d mit perspective am Brett.
+   *
+   * In einem 3D-Zusammenhang entscheidet die Tiefe darueber, was vorn liegt -
+   * nicht der z-index. Das herausgezogene Titelbild verschwand dadurch hinter
+   * den Rueckens der Nachbarn, obwohl es einen hoeheren z-index hatte.
+   */
   transition: transform 0.26s cubic-bezier(0.22, 1, 0.3, 1);
   will-change: transform;
 }
@@ -298,9 +303,10 @@ body {
      durch die Packung hindurch. */
   background-color: #141010;
   opacity: 0;
-  transform: rotateY(-78deg) translateZ(1px);
-  transform-origin: left center;
-  transition: opacity 0.2s ease, transform 0.26s cubic-bezier(0.22, 1, 0.3, 1);
+  /* Klappt aus dem Ruecken heraus auf: erst schmal, dann in voller Breite. */
+  transform: translateX(-50%) scaleX(0.08);
+  transform-origin: center bottom;
+  transition: opacity 0.18s ease, transform 0.26s cubic-bezier(0.22, 1, 0.3, 1);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
   pointer-events: none;
 }
@@ -326,11 +332,9 @@ body {
      Verhaeltnis 2:3 wie die Steam-Bilder. Die Hoehe haengt am Fach, nicht an
      festen Pixeln - sonst schwebt der Deckel auf grossen Bildschirmen weit
      ueber dem Schrank statt in seinem Fach zu stehen. */
-  height: 116%;
-  width: auto;
-  aspect-ratio: 2 / 3;
+  /* Groesse setzt schrank.js in Pixeln - siehe massDeckel(). */
   inset: auto auto -3% 50%;
-  transform: translateX(-50%) rotate(-1.5deg);
+  transform: translateX(-50%) scaleX(1) rotate(-1.5deg);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 238, 210, 0.25);
 }
 
@@ -616,4 +620,21 @@ body.ruhe .packung__front {
   flex: 1 1 0;
   min-height: 0;
   gap: var(--rahmen);
+}
+
+/*
+ * Ein Fach, aus dem gerade eine Packung heraussteht, liegt vor allen anderen -
+ * samt seiner Zeile. Ohne das verschwindet das Titelbild hinter den Rückens
+ * der Nachbarfächer, weil die später gezeichnet werden.
+ */
+.regal-zeile {
+  position: relative;
+}
+
+.fach--vorn {
+  z-index: 40;
+}
+
+.regal-zeile--vorn {
+  z-index: 40;
 }

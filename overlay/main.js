@@ -2763,6 +2763,12 @@ app.whenReady().then(async () => {
   createOverlayWindow();
   createPanelWindow();
   createTray();
+  // Den Schrank beim Start aufstellen, wenn er eingeschaltet ist.
+  //
+  // Das fehlte: wendeEinstellungenAn() laeuft nur, wenn jemand etwas AENDERT.
+  // Beim Start wurde es nie gerufen - der Schrank ging deshalb erst auf,
+  // wenn man den Schalter in den Einstellungen einmal umlegte.
+  wendeSchrankAn(null);
 
   // Aufloesung geaendert, Monitor ab- oder angesteckt, Skalierung umgestellt:
   // Das Overlay muss mitwandern. Kurz verzoegert, weil Windows diese Meldungen
@@ -2770,7 +2776,15 @@ app.whenReady().then(async () => {
   let bildschirmTimer = null;
   const beiBildschirmAenderung = () => {
     clearTimeout(bildschirmTimer);
-    bildschirmTimer = setTimeout(passeFensterAnBildschirmAn, 300);
+    bildschirmTimer = setTimeout(() => {
+      passeFensterAnBildschirmAn();
+      // Der Schrank haengt an einem bestimmten Bildschirm - wird der
+      // abgezogen oder anders aufgeloest, muss er neu aufgestellt werden.
+      if (einstellungen.schrankAktiv) {
+        schliesseSchrank();
+        wendeSchrankAn(null);
+      }
+    }, 300);
   };
   screen.on('display-metrics-changed', beiBildschirmAenderung);
   screen.on('display-added', beiBildschirmAenderung);

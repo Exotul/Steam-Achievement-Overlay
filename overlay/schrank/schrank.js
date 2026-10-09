@@ -429,9 +429,28 @@ function zeigerBei(x, y) {
 
 let ausgabeEl = null;
 
+/**
+ * Die herausgezogene Packung ganz nach vorn holen.
+ *
+ * Es reicht NICHT, der Packung selbst einen hohen z-index zu geben: Sie liegt
+ * in ihrem Fach und ihrer Zeile, und ein Fach weiter rechts oder eine Zeile
+ * weiter unten wird spaeter gezeichnet - das Titelbild verschwand dadurch
+ * hinter den Rueckens der Nachbarn. Deshalb wandern Fach UND Zeile mit nach
+ * vorn, solange die Packung heraussteht.
+ */
+function hebeHervor(feld, hervor) {
+  const fach = feld.el.closest('.fach');
+  const zeile = feld.el.closest('.regal-zeile');
+  if (fach) fach.classList.toggle('fach--vorn', hervor);
+  if (zeile) zeile.classList.toggle('regal-zeile--vorn', hervor);
+}
+
 function setzeHeraus(feld) {
   if (herausgezogen === feld) return;
-  if (herausgezogen) herausgezogen.el.classList.remove('packung--heraus');
+  if (herausgezogen) {
+    herausgezogen.el.classList.remove('packung--heraus');
+    hebeHervor(herausgezogen, false);
+  }
   herausgezogen = feld;
   if (!ausgabeEl) {
     ausgabeEl = document.createElement('div');
@@ -443,6 +462,8 @@ function setzeHeraus(feld) {
     return;
   }
   feld.el.classList.add('packung--heraus');
+  hebeHervor(feld, true);
+  massDeckel(feld);
   zeigeDeckel(feld);
   const std = Math.round(feld.spiel.spielzeitMin / 60);
   ausgabeEl.innerHTML = `<span>${escape(feld.spiel.name)}</span><span class="ausgabe__zeit">${
@@ -649,6 +670,24 @@ function baueAufsatz() {
 }
 
 const zahl = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('de-DE') : '–');
+
+/**
+ * Die Groesse des aufgeklappten Deckels.
+ *
+ * In Pixeln gerechnet, nicht im CSS: Dort stand `height: 116%` zusammen mit
+ * `aspect-ratio: 2/3` und `width: auto`. Die Hoehe kam richtig heraus, die
+ * Breite aber blieb bei 3 px - der Browser leitet sie bei einem absolut
+ * gesetzten Kasten nicht aus dem Verhaeltnis ab. Das Titelbild war dadurch
+ * ein Streifen hinter den Nachbar-Rueckens, genau der gemeldete Fehler.
+ */
+function massDeckel(feld) {
+  const front = feld.el.querySelector('.packung__front');
+  if (!front) return;
+  const hoehe = feld.el.getBoundingClientRect().height * 1.18;
+  front.style.height = `${Math.round(hoehe)}px`;
+  // Steams hochformatige Bilder haben das Verhaeltnis 2:3.
+  front.style.width = `${Math.round((hoehe * 2) / 3)}px`;
+}
 
 /**
  * Das Titelbild der herausgezogenen Packung.

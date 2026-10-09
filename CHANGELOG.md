@@ -2,6 +2,24 @@
 
 ## Noch nicht veröffentlicht
 
+### Behoben: Schrank ging beim Start nicht auf
+
+Die Einstellung war an, der Schrank blieb trotzdem zu - er erschien erst, wenn
+man den Schalter einmal umlegte. Grund: Die Einstellungen werden nur
+angewendet, wenn sich etwas ÄNDERT; beim Start wurde das nie gerufen. Ein Test
+hält das jetzt fest. Nebenbei: Wird der Monitor abgezogen oder anders
+aufgelöst, stellt sich der Schrank neu auf.
+
+### Behoben: Titelbild verschwand hinter den Nachbarn
+
+Beim Darüberfahren verschwand das aufgeklappte Titelbild hinter den Rücken der
+Nachbarfächer. Zwei Ursachen: Das Fach arbeitete mit räumlicher Darstellung
+(`perspective`), und dort entscheidet die Tiefe darüber, was vorn liegt - nicht
+die Ebene. Die Darstellung ist jetzt flach, und Fach und Regalzeile wandern mit
+nach vorn, solange eine Packung heraussteht. Außerdem leitete der Browser die
+Breite des Deckels nicht aus dem Seitenverhältnis ab (3 px statt 77); sie wird
+jetzt in Pixeln gerechnet.
+
 ### Neu: Spieleschrank auf einem zweiten Bildschirm
 
 Die Bibliothek als Regal — ein unregelmäßiges Raster aus Fächern, darin die

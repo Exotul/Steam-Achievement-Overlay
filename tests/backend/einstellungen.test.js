@@ -205,3 +205,27 @@ test('Unsinnige Schrank-Werte werden zurechtgerückt', () => {
   assert.strictEqual(w.schrankRuheImSpiel, false);
   assert.strictEqual(E.bereinige({ schrankBildschirm: 2528732444 }).schrankBildschirm, 2528732444);
 });
+
+/**
+ * Eine Einstellung nützt nichts, wenn sie nur beim ÄNDERN wirkt.
+ *
+ * Genau das war der Fall: `wendeEinstellungenAn()` wird aus dem
+ * Einstellungsfenster gerufen, beim Start aber nie. Der Spieleschrank war
+ * eingeschaltet und ging trotzdem nicht auf - er erschien erst, wenn man den
+ * Schalter einmal umlegte. Der Test liest den Quelltext, weil main.js sich
+ * hier nicht laden lässt (es zieht Electron nach).
+ */
+test('Der Schrank wird beim Start aufgestellt, nicht erst beim Umschalten', () => {
+  const fs = require('node:fs');
+  const quelle = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'overlay', 'main.js'),
+    'utf8'
+  );
+  const start = quelle.indexOf('app.whenReady()');
+  assert.ok(start > 0, 'app.whenReady() muss es geben');
+  const beimStart = quelle.slice(start, start + 4000);
+  assert.ok(
+    /wendeSchrankAn\(/.test(beimStart),
+    'wendeSchrankAn() muss beim Start gerufen werden'
+  );
+});
