@@ -102,6 +102,17 @@ einzige Steam-Abfrage**. Die Alternative wären die Genres aus dem Store gewesen
 scharf gedrosselt (rund 200 Anfragen je 5 Minuten), grob ("Action, Indie") — und
 "Horror" ist dort überhaupt kein Genre, sondern ein Nutzer-Schlagwort.
 
+**Die Breite eines Fachs folgt seiner Spielzahl**, und es zeigt immer ALLE
+Spiele. Das Regal besteht aus Zeilen gleicher Höhe; je Zeile ergibt sich
+daraus, wie viele Böden ein Fach übereinander hat. Die Breite ist dann
+`(Spiele / Böden) × Rückenbreite`, und zum Schluss wird jede Zeile genau auf
+die Regalbreite gestreckt. Gesucht wird die Aufteilung mit den breitesten
+Rücken, in die alles passt.
+
+Ein Zellenraster hatte das nicht hergegeben: Jedes Fach muss dort ganze Zellen
+belegen, sieben Spiele in einer Zelle für 24 verschenken zwei Drittel der
+Fläche, und bei 31 Fächern blieben nur noch 7 px breite Rücken übrig.
+
 **Jedes Spiel steht genau einmal im Regal**, und zwar in der *kleinsten*
 Sammlung, die es enthält: "Fallout" ist die genauere Aussage als "RPG". Was in
 Steam versteckt ist, bleibt draußen; Sammlungen mit Namen wie "Programme" oder

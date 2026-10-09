@@ -16,10 +16,6 @@ const korpus = document.getElementById('korpus');
 const aufsatz = document.getElementById('aufsatz');
 const hinweisEl = document.getElementById('hinweis');
 
-// Wie viele Packungen in einem Fach ueberhaupt Platz finden. Mehr waeren nur
-// noch Striche - Horror hat 113 Spiele, die passen in kein Fach der Welt.
-const MAX_JE_FACH = 26;
-
 // Die fuenf Stufen in ihrer Wertigkeit, mit den Farben aus den Meldungen.
 const STUFEN = [
   ['Kupfer', '#c07a42'],
@@ -39,36 +35,150 @@ let neueFarben = {};
 
 // --- Aufbau ------------------------------------------------------------------
 
-/**
- * Das unregelmaessige Raster.
+/*
+ * WIE DAS REGAL AUFGETEILT WIRD
  *
- * Vorbild ist ein Regal, bei dem einzelne Faecher doppelt so breit sind und
- * dazwischen Durchblicke offen bleiben. Die Verteilung ist bewusst NICHT
- * zufaellig: Der Schrank steht den ganzen Tag da, und ein Raster, das sich
- * bei jedem Start anders anordnet, wirkt unruhig. Dieselbe Bibliothek ergibt
- * deshalb immer denselben Schrank.
+ * Erste Fassung: festes Zellenraster, 26 Spiele je Fach, der Rest stand als
+ * "26 von 113" auf dem Schild. Doppelt falsch - der Schrank soll die GANZE
+ * Sammlung zeigen, und ein Fach mit 7 Spielen war so breit wie eines mit 44.
  *
- * Die Breite richtet sich nach dem Inhalt: Ein Fach mit vielen Spielen wird
- * doppelt so breit. Das ist nicht nur Zierde - in einem breiten Fach haben
- * die Ruecken mehr Platz und die Titel bleiben lesbar.
+ * Zweiter Versuch: Zellenraster mit mehreren Zellen je Fach. Ging auch nicht
+ * auf, weil jedes Fach ganze Zellen belegen muss: Sieben Spiele in einer
+ * Zelle, die 24 fasst, verschenken zwei Drittel der Flaeche - bei 31 Faechern
+ * summiert sich das, und am Ende bleiben nur noch Ruecken von 7 px uebrig.
+ *
+ * Jetzt: BRETTER UND ZEILEN, wie in einem echten Regal.
+ *
+ *   - Das Regal hat einige Zeilen gleicher Hoehe. Je Zeile ergibt sich
+ *     daraus, wie viele Boeden ein Fach uebereinander hat.
+ *   - Die BREITE eines Fachs folgt direkt seiner Spielzahl:
+ *         Breite = (Spiele / Boeden) * Rueckenbreite + Rand
+ *   - Die Faecher werden der Reihe nach in die Zeile gelegt, bis sie voll
+ *     ist; dann wird die Zeile genau auf die Regalbreite gestreckt.
+ *
+ * So ist ein Fach mit 44 Spielen sichtbar breiter als eines mit 7, und es
+ * bleibt kein Platz ungenutzt. Gesucht wird die Aufteilung mit den BREITESTEN
+ * Ruecken, bei der alle Faecher in die vorhandenen Zeilen passen.
  */
-function planeRaster(faecher, spalten, vorbelegt = 0) {
-  const plan = [];
-  let belegt = vorbelegt;
-  faecher.forEach((fach, i) => {
-    const platzInZeile = spalten - (belegt % spalten);
-    // Voll genug fuer ein breites Fach? Und passt es noch in die Zeile?
-    const breit = fach.anzahl >= 18 && platzInZeile >= 2;
-    plan.push(breit ? 2 : 1);
-    belegt += breit ? 2 : 1;
-  });
-  return { plan };
+
+// Masse, bezogen auf einen 1000 px hohen Schrank; groessere wachsen mit.
+const RUECKEN_BREITEN = [16, 14, 12, 10, 8];
+const BODEN_MIN = 88; // darunter ist ein Ruecken nicht mehr zu lesen
+const SCHILD_HOEHE = 26;
+const FACH_RAND = 20; // Innenrand eines Fachs, links und rechts zusammen
+const FACH_MIN = 70; // so schmal darf ein Fach hoechstens werden
+const SPALT = 14; // Abstand zwischen den Faechern
+
+function massstab() {
+  return Math.max(0.72, Math.min(2.2, korpus.clientHeight / 1000));
 }
 
-function spaltenFuer(anzahl) {
-  // So viele Spalten, dass die Faecher moeglichst quadratisch bleiben.
-  const verhaeltnis = window.innerWidth / Math.max(1, window.innerHeight * 0.86);
-  return Math.max(4, Math.min(9, Math.round(Math.sqrt(anzahl * verhaeltnis))));
+/**
+ * Teilt die Faecher in Zeilen auf - so, dass jede Zeile genau voll wird.
+ *
+ * @returns {Array<Array<{fach, breite, jeBoden}>>|null}
+ */
+function fuelleZeilen(bedarf, regalBreite, zeilenZahl, boeden, ruecken) {
+  const zeilen = [];
+  let zeile = [];
+  let summe = 0;
+
+  const abschliessen = (letzte = false) => {
+    // Die Zeile genau auf die Regalbreite strecken. Nach oben ist das
+    // unbedenklich (ein Fach bekommt mehr Luft, als es braucht), nach unten
+    // nur wenig - sonst passen die Spiele nicht mehr hinein.
+    //
+    // Die LETZTE Zeile nur begrenzt: Sonst wuerde ein einzelnes Fach mit vier
+    // Spielen ueber das halbe Regal gezogen. Was uebrig bleibt, bekommt
+    // Krimskrams.
+    const verfuegbar = regalBreite - SPALT * (zeile.length - 1);
+    const faktor = letzte ? Math.min(verfuegbar / summe, 1.25) : verfuegbar / summe;
+    zeile.forEach((e) => {
+      e.breite = e.breite * faktor;
+      e.jeBoden = Math.max(1, Math.floor((e.breite - FACH_RAND) / ruecken));
+    });
+    zeilen.push(zeile);
+    zeile = [];
+    summe = 0;
+  };
+
+  for (const eintrag of bedarf) {
+    const dazu = summe + eintrag.breite + (zeile.length ? SPALT : 0);
+    if (zeile.length && dazu > regalBreite) abschliessen();
+    zeile.push({ ...eintrag });
+    summe += eintrag.breite;
+  }
+  if (zeile.length) abschliessen(true);
+
+  // Nach dem Strecken muss jedes Fach seine Spiele noch fassen koennen.
+  for (const z of zeilen) {
+    for (const e of z) {
+      if (e.jeBoden * boeden < e.fach.anzahl) return null;
+    }
+  }
+  return zeilen.length <= zeilenZahl ? zeilen : null;
+}
+
+/**
+ * Sucht die Aufteilung mit den breitesten Rueckens, in der alles Platz hat.
+ */
+function planeRegal(faecher, sonderFaecher) {
+  const faktor = massstab();
+  const hoehe = korpus.clientHeight - 28;
+  const breite = korpus.clientWidth - 28;
+  const sonderBreite = sonderFaecher.reduce((s, f) => s + f.breite + SPALT, 0);
+
+  for (const rohRuecken of RUECKEN_BREITEN) {
+    const ruecken = rohRuecken * faktor;
+    for (let zeilenZahl = 4; zeilenZahl <= 9; zeilenZahl++) {
+      const zeilenHoehe = (hoehe - SPALT * (zeilenZahl - 1)) / zeilenZahl;
+      const boeden = Math.floor((zeilenHoehe - SCHILD_HOEHE * faktor) / (BODEN_MIN * faktor));
+      if (boeden < 1) continue;
+
+      // Die Sonderfaecher stehen in der ersten Zeile; der Rest dieser Zeile
+      // steht den Sammlungen zur Verfuegung.
+      const bedarf = faecher.map((fach) => ({
+        fach,
+        breite: Math.max(
+          FACH_MIN * faktor,
+          Math.ceil(fach.anzahl / boeden) * ruecken + FACH_RAND
+        ),
+      }));
+
+      const ersteZeile = [];
+      let belegt = sonderBreite;
+      while (bedarf.length && belegt + bedarf[0].breite + SPALT <= breite) {
+        const e = bedarf.shift();
+        ersteZeile.push(e);
+        belegt += e.breite + SPALT;
+      }
+
+      const rest = fuelleZeilen(bedarf, breite, zeilenZahl - 1, boeden, ruecken);
+      if (!rest) {
+        // Zurueck in den Topf - die naechste Runde rechnet neu.
+        bedarf.unshift(...ersteZeile);
+        continue;
+      }
+
+      // Die erste Zeile auf volle Breite bringen, zusammen mit den
+      // Sonderfaechern.
+      const alleErsten = [...sonderFaecher, ...ersteZeile];
+      const summe = alleErsten.reduce((s, e) => s + e.breite, 0);
+      const faktorErste = (breite - SPALT * (alleErsten.length - 1)) / summe;
+      alleErsten.forEach((e) => {
+        e.breite *= faktorErste;
+        if (e.fach) e.jeBoden = Math.max(1, Math.floor((e.breite - FACH_RAND) / ruecken));
+      });
+      const passtErste = alleErsten.every((e) => !e.fach || e.jeBoden * boeden >= e.fach.anzahl);
+      if (!passtErste) {
+        bedarf.unshift(...ersteZeile);
+        continue;
+      }
+
+      return { zeilen: [alleErsten, ...rest], boeden, ruecken, zeilenHoehe };
+    }
+  }
+  return null;
 }
 
 let letzteDaten = null;
@@ -117,69 +227,87 @@ function baue(daten) {
   }
 
   // Die Sonderfaecher stehen vorn - sie gehoeren dem Anwender, nicht seiner
-  // Bibliothek. Das Trophaeenfach ist doppelt breit: Sechs Zahlen in einem
-  // schmalen Kasten waeren nicht zu lesen.
+  // Bibliothek. Ihre Breite ist fest; der Rest der Zeile gehoert den
+  // Sammlungen.
+  const faktor = massstab();
   const sonderFaecher = [];
-  if (stand && Number.isFinite(stand.level)) sonderFaecher.push({ el: baueLevelFach(), breit: 1 });
-  if (stand && stand.stufen) sonderFaecher.push({ el: baueTrophaeenFach(), breit: 2 });
-  if (laufendesSpiel) sonderFaecher.push({ el: baueSpielFach(), breit: 1 });
-
-  const sonder = sonderFaecher.reduce((s, f) => s + f.breit, 0);
-  const spalten = spaltenFuer(faecher.length + sonder);
-  const { plan } = planeRaster(faecher, spalten, sonder);
-  korpus.style.gridTemplateColumns = `repeat(${spalten}, 1fr)`;
-
-  // Erst alle Faecher sammeln, dann einraeumen: Nur so laesst sich am Ende
-  // sagen, wie viel in der letzten Zeile uebrig bleibt.
-  const zellen = sonderFaecher.map((f) => ({ el: f.el, breit: f.breit }));
-
-  faecher.forEach((fach, i) => {
-    const el = document.createElement('div');
-    el.className = 'fach';
-
-    const reihe = document.createElement('div');
-    reihe.className = 'fach__reihe';
-
-    const sichtbar = fach.spiele.slice(0, MAX_JE_FACH);
-    sichtbar.forEach((spiel) => reihe.appendChild(baueKarton(spiel)));
-
-    const schild = document.createElement('div');
-    schild.className = 'fach__schild';
-    const rest = fach.anzahl - sichtbar.length;
-    schild.innerHTML = `${escape(fach.name)}<span class="fach__schild-zahl">${
-      rest > 0 ? `${sichtbar.length} von ${fach.anzahl}` : fach.anzahl
-    }</span>`;
-
-    el.appendChild(reihe);
-    el.appendChild(schild);
-    zellen.push({ el, breit: plan[i] });
-  });
-
-  // Zwei Abstellplaetze mitten ins Regal, nicht nur ans Ende: Ein Schrank,
-  // in dem der Krimskrams nur in der letzten Ecke steht, sieht aus, als waere
-  // dort etwas uebrig geblieben.
-  let deko = 0;
-  for (const stelle of [Math.round(zellen.length * 0.45), Math.round(zellen.length * 0.78)]) {
-    zellen.splice(stelle + deko, 0, { el: baueDekoFach(deko), breit: 1 });
-    deko += 1;
+  if (stand && Number.isFinite(stand.level)) {
+    sonderFaecher.push({ el: baueLevelFach(), breite: 200 * faktor });
+  }
+  if (stand && stand.stufen) {
+    sonderFaecher.push({ el: baueTrophaeenFach(), breite: 430 * faktor });
+  }
+  if (laufendesSpiel) {
+    sonderFaecher.push({ el: baueSpielFach(), breite: 260 * faktor });
   }
 
-  // Die letzte Zeile IMMER voll machen. Sonst steht dort ein halbes Brett,
-  // und das sieht aus wie ein Fehler statt wie ein Regal.
-  const belegt = zellen.reduce((s, z) => s + z.breit, 0);
-  const luecke = (spalten - (belegt % spalten)) % spalten;
-  for (let i = 0; i < luecke; i++) {
-    zellen.push({ el: baueDekoFach(deko + i), breit: 1 });
+  const regal = planeRegal(faecher, sonderFaecher);
+  if (!regal) {
+    hinweisEl.textContent = 'Der Schrank passt auf diesem Bildschirm nicht.';
+    return;
   }
+  korpus.style.setProperty('--ruecken-breite', `${regal.ruecken}px`);
 
-  zellen.forEach((z) => {
-    if (z.breit === 2) z.el.style.gridColumn = 'span 2';
-    korpus.appendChild(z.el);
+  regal.zeilen.forEach((eintraege, nummer) => {
+    const zeile = document.createElement('div');
+    zeile.className = 'regal-zeile';
+
+    eintraege.forEach((e) => {
+      const el = e.el || baueFach(e, regal.boeden);
+      el.style.flex = `0 0 ${e.breite}px`;
+      zeile.appendChild(el);
+    });
+
+    // Bleibt am Ende der letzten Zeile etwas uebrig, kommt Krimskrams hinein -
+    // ein halb leeres Brett saehe aus wie ein Fehler.
+    if (nummer === regal.zeilen.length - 1) {
+      const deko = baueDekoFach(nummer);
+      deko.style.flex = '1 1 0';
+      zeile.appendChild(deko);
+    }
+
+    korpus.appendChild(zeile);
   });
 
   hinweisEl.textContent = `${daten.anzahlSpiele} Spiele in ${faecher.length} Fächern · aus deinen Steam-Sammlungen`;
-  // Erst messen, wenn das Raster wirklich steht.
+  // Erst messen, wenn das Regal wirklich steht.
   requestAnimationFrame(() => requestAnimationFrame(messeFelder));
+}
+
+/**
+ * Ein Fach mit ALLEN seinen Spielen - auf seine Boeden verteilt.
+ *
+ * Die Spiele stehen nach Spielzeit sortiert; der oberste Boden bekommt die
+ * meistgespielten. Jeder Boden hat seine eigene Vorderkante, wie ein
+ * eingezogenes Zwischenbrett.
+ */
+function baueFach({ fach, jeBoden }, boeden) {
+  const el = document.createElement('div');
+  el.className = 'fach';
+
+  const kasten = document.createElement('div');
+  kasten.className = 'fach__boeden';
+
+  // Gleichmaessig auf die Boeden verteilen statt den ersten vollzustopfen:
+  // Ein Regal, in dem oben alles steht und unten drei Spiele, sieht aus wie
+  // ein Versehen.
+  const noetig = Math.max(1, Math.ceil(fach.anzahl / jeBoden));
+  const proBoden = Math.ceil(fach.anzahl / Math.min(boeden, noetig));
+
+  for (let i = 0; i < fach.spiele.length; i += proBoden) {
+    const brett = document.createElement('div');
+    brett.className = 'brett';
+    fach.spiele.slice(i, i + proBoden).forEach((spiel) => brett.appendChild(baueKarton(spiel)));
+    kasten.appendChild(brett);
+  }
+
+  const schild = document.createElement('div');
+  schild.className = 'fach__schild';
+  schild.innerHTML = `${escape(fach.name)}<span class="fach__schild-zahl">${fach.anzahl}</span>`;
+
+  el.appendChild(kasten);
+  el.appendChild(schild);
+  return el;
 }
 
 function baueKarton(spiel) {
@@ -338,7 +466,6 @@ function baueLevelFach() {
     : 0;
   el.innerHTML = `
     <div class="vitrine__inhalt">
-      <span class="level__wort">Level</span>
       <span class="level__zahl">${stand.level}</span>
       <div class="level__balken"><span style="width:${anteil.toFixed(1)}%"></span></div>
       <span class="level__rest">${zahl(stand.xpIntoLevel)} / ${zahl(stand.xpForThisLevel)} XP</span>

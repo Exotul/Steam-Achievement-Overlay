@@ -9,6 +9,13 @@ Spiele als Packungen mit Rücken. Die Maus darüber, und eine Packung rutscht
 heraus und klappt zu ihrem Titelbild auf. In den Einstellungen ein- und
 ausschaltbar, mit Auswahl des Bildschirms; standardmäßig aus.
 
+- **Jedes Fach ist so breit wie seine Sammlung groß ist**, und es zeigt ALLE
+  Spiele. Ein starres Zellenraster gab das nicht her: Sieben Spiele in einer
+  Zelle, die 24 fasst, verschenken zwei Drittel der Fläche — bei 31 Fächern
+  blieben am Ende Rücken von 7 px übrig, und auf dem Schild stand „26 von 113".
+  Jetzt rechnet die App: Zeilen gleicher Höhe, darin Fächer, deren Breite sich
+  direkt aus der Spielzahl ergibt, mit mehreren Böden übereinander. Gesucht
+  wird die Aufteilung mit den breitesten Rücken, in die alles passt.
 - **Die Fächer sind deine Steam-Sammlungen.** Steam legt sie als lesbare Datei
   im Benutzerordner ab, das kostet keine einzige Steam-Abfrage. An der echten
   Bibliothek: 36 Sammlungen, 609 von 622 Spielen, 31 Fächer. Die Store-Genres
