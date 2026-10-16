@@ -82,6 +82,27 @@ Während der einmaligen Berechnung erscheint ein Ladebalken mit dem Fortschritt
 ("45 / 210 Spiele"). Das Ergebnis wird 12 Stunden zwischengespeichert und
 übersteht Neustarts, sodass der Balken meist gar nicht erst auftaucht.
 
+## Meldungen im Stream (OBS)
+
+Einzuschalten unter *Einstellungen → Stream & OBS*. Jede freigeschaltete Trophäe geht dann
+zusätzlich an ein Overlay-Programm, das sie im Stream zeigt.
+
+**Warum nicht einfach die Meldung abfilmen:** Das Overlay liegt über dem Spiel. Wer es in den Stream
+holen will, müsste den ganzen Bildschirm abgreifen – samt Taskleiste, Mauszeiger und allem, was sonst
+noch aufpoppt. Stattdessen geht nur das Ereignis als Text hinaus (`POST` mit Name, Stufe, Prozent,
+XP), und das Overlay-Programm zeichnet es in seinem eigenen Stil und an seiner eigenen Stelle.
+
+**Bewusst einseitig:** Die App schickt und vergisst. Läuft das Overlay nicht, antwortet es nicht oder
+ist der Rechner weg, läuft die Achievement-Erkennung unbeirrt weiter – nach zwei Sekunden bricht der
+Versuch ab, und im Protokoll steht eine Notiz. Ein Spiel wartet auf kein Stream-Programm.
+
+Geschickt werden drei Arten: `achievement` (mit Stufe, Seltenheit, XP), `level` beim Aufstieg und
+`diamant`, wenn ein Spiel vollständig ist. Der Knopf **Testmeldung senden** probiert die ganze Kette
+und sagt im Klartext, woran es liegt – unbrauchbare Adresse, keine Antwort oder angekommen.
+
+Das Gegenstück liegt im Overlay-Projekt (`E:\Pokemon_OBS_overlay`): Browserquelle `/trophaeen`,
+Einstellungen im Steuerpult unter *Trophäen*.
+
 ## Spieleschrank auf einem zweiten Bildschirm
 
 Zeigt die Bibliothek als Regal: ein unregelmäßiges Raster aus Fächern, darin

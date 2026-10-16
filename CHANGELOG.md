@@ -2,6 +2,22 @@
 
 ## Noch nicht veröffentlicht
 
+### Neu: Meldungen im Stream (OBS)
+
+Trophäen erscheinen auf Wunsch auch im Stream — nicht als abgefilmtes Overlay, sondern als eigene
+Meldung im Stream-Overlay. Einzuschalten unter *Einstellungen → Stream & OBS*.
+
+- Es geht **nur Text** hinaus (Name, Spiel, Stufe, Seltenheit, XP), kein Bild des Bildschirms.
+  Gezeichnet wird im Overlay-Programm, in dessen Stil und an dessen Stelle.
+- **Einseitig und ohne Wartezeit:** Läuft das Overlay nicht, bricht der Versuch nach zwei Sekunden ab
+  und die Achievement-Erkennung läuft unbeirrt weiter. Ein Spiel wartet auf kein Stream-Programm.
+- Drei Arten: freigeschaltete Trophäe, Levelaufstieg und Diamant-Status.
+- Ein **Testknopf** probiert die ganze Kette und sagt im Klartext, woran es liegt.
+- Das Gegenstück im Overlay-Projekt (`E:\Pokemon_OBS_overlay`): neue Browserquelle `/trophaeen`,
+  Einstellungen im Steuerpult unter *Trophäen* — Lage, Größe, Dauer und **ab welcher Stufe**
+  gemeldet wird. Letzteres hält den Stream ruhig: Vierzig Kupfertrophäen an einem Abend sollen nicht
+  vierzig Meldungen werden.
+
 ### Der Schrank reicht bis an alle Ränder — außer zur Taskleiste
 
 Oben, links und rechts blieb viel Wand übrig; der Rand ist weg. Nur dort, wo

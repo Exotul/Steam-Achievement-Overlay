@@ -169,6 +169,47 @@
       </section>
 
       <!-- ---------------- Ton ---------------- -->
+      <!-- ---------------- Stream &amp; OBS ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Stream &amp; OBS</h2>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="streamAktiv">Meldungen ins Stream-Overlay schicken</label>
+            <p class="hilfe">
+              Schickt jede freigeschaltete Trophäe an dein Overlay-Programm, das sie im
+              Stream in seinem eigenen Stil zeigt. Das Overlay selbst wird dabei nicht
+              abgefilmt — es geht nur der Text hinaus, kein Bild deines Bildschirms.
+            </p>
+          </div>
+          <label class="schalter">
+            <input id="streamAktiv" type="checkbox" />
+            <span class="schalter__bahn"></span>
+          </label>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="streamUrl">Adresse des Overlays</label>
+            <p class="hilfe">
+              Läuft das Overlay auf demselben Rechner, passt die Vorgabe. Auf einem
+              anderen Rechner im Heimnetz dessen Adresse eintragen.
+            </p>
+          </div>
+          <input id="streamUrl" class="feld" type="text" spellcheck="false" />
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label>Verbindung prüfen</label>
+            <p class="hilfe" id="stream-status">
+              Schickt eine Testmeldung. Sie erscheint im Stream-Overlay, nicht hier.
+            </p>
+          </div>
+          <button id="stream-test" class="knopf" type="button">Testmeldung senden</button>
+        </div>
+      </section>
+
       <!-- ---------------- Spieleschrank ---------------- -->
       <section class="gruppe">
         <h2 class="gruppe__titel">Spieleschrank</h2>

@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('settingsAPI', {
    * weder einstellen noch ueberhaupt einmal in Ruhe ansehen.
    */
   testDiamant: () => ipcRenderer.invoke('einst:test-diamant'),
+  streamTest: () => ipcRenderer.invoke('einst:stream-test'),
 
   // --- aus dem Tray-Menue hierher gezogen ---------------------------------
   // Alle geben den neuen Programmstand zurueck oder true, damit das Fenster

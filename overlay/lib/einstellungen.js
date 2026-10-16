@@ -97,6 +97,14 @@ function standard() {
     // Explorer), bleibt der Schrank ein gewoehnliches Fenster - sichtbar ist
     // er in beiden Faellen.
     schrankHintergrund: true,
+
+    // --- Meldungen im Stream (OBS) ---
+    // Standardmaessig aus: Es geht etwas ueber das Netz hinaus, und das
+    // schaltet man selbst ein.
+    streamAktiv: false,
+    // Das Gegenstueck im Overlay-Programm. Voreingestellt auf den Rechner,
+    // auf dem auch die App laeuft - der haeufigste Fall.
+    streamUrl: 'http://127.0.0.1:6660/api/trophaee',
   };
 }
 
@@ -162,6 +170,12 @@ function bereinige(roh) {
       e.schrankRuheImSpiel === undefined ? s.schrankRuheImSpiel : !!e.schrankRuheImSpiel,
     schrankHintergrund:
       e.schrankHintergrund === undefined ? s.schrankHintergrund : !!e.schrankHintergrund,
+
+    streamAktiv: e.streamAktiv === undefined ? s.streamAktiv : !!e.streamAktiv,
+    // Ein leerer Text heisst "Vorgabe" - sonst liesse sich die Adresse durch
+    // Loeschen unbrauchbar machen, ohne dass es auffaellt.
+    streamUrl:
+      typeof e.streamUrl === 'string' && e.streamUrl.trim() ? e.streamUrl.trim() : s.streamUrl,
     sitzungsbilanz: e.sitzungsbilanz === undefined ? s.sitzungsbilanz : !!e.sitzungsbilanz,
   };
 }

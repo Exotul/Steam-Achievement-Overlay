@@ -14,7 +14,7 @@ const els = {};
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
  'sitzungsbilanz', 'schrankAktiv', 'schrankBildschirm', 'schrankRuheImSpiel',
- 'schrankHintergrund',
+ 'schrankHintergrund', 'streamAktiv', 'streamUrl', 'stream-test', 'stream-status',
  // aus dem Tray-Menue hierher gezogen
  'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
  'updates', 'beenden', 'diagnose', 'keycheck', 'protokoll', 'protokollordner', 'aufzeichnung',
@@ -39,6 +39,7 @@ const SCHALTER = [
   'schrankAktiv',
   'schrankRuheImSpiel',
   'schrankHintergrund',
+  'streamAktiv',
 ];
 
 let werte = null;
@@ -61,6 +62,7 @@ function zeigeWerte(w) {
   // Nur schreiben, wenn das Feld gerade nicht bearbeitet wird - sonst
   // springt der Cursor beim Tippen ans Ende.
   if (document.activeElement !== els.panelTaste) els.panelTaste.value = w.panelTaste || '';
+  if (document.activeElement !== els.streamUrl) els.streamUrl.value = w.streamUrl || '';
 
   els.statusAbzeichen.value = w.statusAbzeichen;
   els.bildschirm.value = w.bildschirm === null ? 'haupt' : String(w.bildschirm);
@@ -196,6 +198,23 @@ SCHALTER.forEach((name) => {
 // Erst beim Verlassen des Feldes uebernehmen: Waehrend des Tippens waere
 // jede Zwischenstufe eine ungueltige Tastenkombination, und der
 // Hauptprozess wuerde sie reihenweise vergeblich zu belegen versuchen.
+els.streamUrl.addEventListener('change', () => aendere({ streamUrl: els.streamUrl.value }));
+els.streamUrl.addEventListener('blur', () => aendere({ streamUrl: els.streamUrl.value }));
+
+els['stream-test'].addEventListener('click', async () => {
+  els['stream-status'].textContent = 'Wird geschickt…';
+  const antwort = await window.settingsAPI.streamTest();
+  // Im Klartext, was passiert ist: Beim Einrichten ist "nichts zu sehen" die
+  // nutzloseste aller Antworten.
+  els['stream-status'].textContent = antwort && antwort.ok
+    ? 'Angekommen. Die Meldung läuft jetzt im Stream-Overlay.'
+    : antwort && antwort.grund === 'adresse'
+      ? 'Die Adresse ist unbrauchbar — sie muss mit http:// beginnen.'
+      : antwort && antwort.grund === 'zeit'
+        ? 'Keine Antwort. Läuft das Overlay-Programm?'
+        : `Nicht angekommen (${(antwort && (antwort.grund || antwort.status)) || 'unbekannt'}). Läuft das Overlay-Programm?`;
+});
+
 els.panelTaste.addEventListener('change', () => aendere({ panelTaste: els.panelTaste.value }));
 els.panelTaste.addEventListener('blur', () => aendere({ panelTaste: els.panelTaste.value }));
 

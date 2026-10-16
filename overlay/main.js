@@ -17,6 +17,7 @@ const { overlayRechteck } = require('./lib/overlayFlaeche');
 const { levelAus } = require('./lib/levelKurve');
 const schrankFarben = require('./lib/schrankFarben');
 const hintergrund = require('./lib/hintergrund');
+const streamBruecke = require('./lib/streamBruecke');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -690,6 +691,27 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
     });
   }
 
+  // Ins Stream-Overlay, wenn es eingeschaltet ist. Auch Tests gehen hinaus -
+  // wer sein Overlay einrichtet, will die Meldung sehen, ohne erst eine
+  // Trophaee erspielen zu muessen.
+  streamBruecke.melde(einstellungen, 'achievement', {
+    name: achievement.name,
+    beschreibung: achievement.description,
+    spiel: trackedGameName || '',
+    stufe: achievement.category,
+    prozent: achievement.globalPercent,
+    xp: xpInfo ? xpInfo.zuwachs : null,
+    symbol: achievement.icon,
+    level: xpInfo ? xpInfo.level : null,
+  });
+  if (xpInfo && xpInfo.levelUp) {
+    streamBruecke.melde(einstellungen, 'level', {
+      level: xpInfo.level,
+      xpIntoLevel: xpInfo.xpIntoLevel,
+      xpForThisLevel: xpInfo.xpForThisLevel,
+    });
+  }
+
   // Fuer die Bilanz am Ende der Sitzung mitschreiben. Tests zaehlen nicht -
   // sonst stuende am Abend eine Trophaee in der Bilanz, die es nie gab.
   if (!nurTest && sitzung) {
@@ -829,6 +851,10 @@ function sendCompletionTimeToOverlay(payload) {
 }
 
 function sendDiamondToOverlay(payload) {
+  streamBruecke.melde(einstellungen, 'diamant', {
+    spiel: payload && payload.gameName,
+    symbol: payload && payload.icon,
+  });
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
   overlayWindow.webContents.send('game-diamond-unlocked', payload);
 }
@@ -2501,6 +2527,32 @@ function zeigeEinstellungen() {
     'einst:test-diamant': () => {
       handleTestDiamant();
       return true;
+    },
+
+    // Probe aufs Exempel: Kommt die Meldung im Stream-Overlay an?
+    //
+    // Ohne diesen Knopf muesste man zum Einrichten eine Trophaee erspielen -
+    // und wuesste bei ausbleibender Anzeige immer noch nicht, ob es an der
+    // Adresse, am Overlay oder an der eigenen Szene liegt. Deshalb kommt hier
+    // das Ergebnis des Versuchs zurueck, im Klartext.
+    'einst:stream-test': async () => {
+      const antwort = await streamBruecke.sende(
+        einstellungen.streamUrl,
+        streamBruecke.baueMeldung('achievement', {
+          name: 'Testmeldung aus dem Trophäenschrank',
+          beschreibung: 'Wenn du das im Stream siehst, steht die Verbindung.',
+          spiel: trackedGameName || 'Beispielspiel',
+          stufe: 'Gold',
+          prozent: 7.1,
+          xp: 340,
+          level: xpStand ? xpStand.level : null,
+        })
+      );
+      logger.info(
+        `Stream-Test an ${einstellungen.streamUrl}: ` +
+          (antwort.ok ? 'angekommen' : `fehlgeschlagen (${antwort.grund || antwort.status})`)
+      );
+      return antwort;
     },
 
     'einst:diagnose': async () => {
