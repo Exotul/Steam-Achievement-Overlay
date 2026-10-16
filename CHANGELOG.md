@@ -37,8 +37,9 @@ Meldung im Stream-Overlay. Einzuschalten unter *Einstellungen → Stream & OBS*.
 - Drei Arten: freigeschaltete Trophäe, Levelaufstieg und Diamant-Status.
 - Ein **Testknopf** probiert die ganze Kette und sagt im Klartext, woran es liegt.
 - Das Gegenstück im Overlay-Projekt (`E:\Pokemon_OBS_overlay`): neue Browserquelle `/trophaeen`,
-  Einstellungen im Steuerpult unter *Trophäen* — Lage, Größe, Dauer und **ab welcher Stufe**
-  gemeldet wird. Letzteres hält den Stream ruhig: Vierzig Kupfertrophäen an einem Abend sollen nicht
+  Einstellungen im Steuerpult unter *Trophäen* — Größe, Dauer, **ab welcher Stufe** gemeldet wird und
+  **wo genau** die Meldung im Bild steht: frei ziehbar statt vier fester Ecken, weil in jedem
+  Stream-Layout woanders Chat oder Webcam liegen. Letzteres hält den Stream ruhig: Vierzig Kupfertrophäen an einem Abend sollen nicht
   vierzig Meldungen werden.
 
 ### Der Schrank reicht bis an alle Ränder — außer zur Taskleiste

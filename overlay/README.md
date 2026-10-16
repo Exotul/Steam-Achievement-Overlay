@@ -101,7 +101,8 @@ Geschickt werden drei Arten: `achievement` (mit Stufe, Seltenheit, XP), `level` 
 und sagt im Klartext, woran es liegt – unbrauchbare Adresse, keine Antwort oder angekommen.
 
 Das Gegenstück liegt im Overlay-Projekt (`E:\Pokemon_OBS_overlay`): Browserquelle `/trophaeen`,
-Einstellungen im Steuerpult unter *Trophäen*.
+Einstellungen im Steuerpult unter *Trophäen* — dort wird auch eingestellt, **wo genau** im Bild die
+Meldung erscheint (frei ziehbar, nicht nur vier Ecken), wie lange sie steht und ab welcher Stufe.
 
 ## Spieleschrank auf einem zweiten Bildschirm
 
