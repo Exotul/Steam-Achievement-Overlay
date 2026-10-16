@@ -496,17 +496,39 @@ async function sendeSchrankDaten() {
  */
 function starteZeigerTakt() {
   clearInterval(schrankZeiger);
-  schrankZeiger = setInterval(() => {
+
+  // Zwei Takte statt einem.
+  //
+  // Der Zeiger ist die meiste Zeit gar nicht auf dem Schrank - dann genuegt
+  // viermal je Sekunde, um zu merken, dass er angekommen ist. Erst dort wird
+  // auf 25-mal je Sekunde umgeschaltet, damit sich das Herausziehen sofort
+  // anfuehlt. Das spart den Grossteil der Aufwachvorgaenge, ohne dass man
+  // etwas davon sieht.
+  const SCHNELL = 40;
+  const LANGSAM = 250;
+  let takt = LANGSAM;
+
+  const pruefen = () => {
     if (!schrankWindow || schrankWindow.isDestroyed()) return;
     const b = schrankWindow.getBounds();
     const p = screen.getCursorScreenPoint();
     const drin = p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+
+    const gewuenscht = drin ? SCHNELL : LANGSAM;
+    if (gewuenscht !== takt) {
+      takt = gewuenscht;
+      clearInterval(schrankZeiger);
+      schrankZeiger = setInterval(pruefen, takt);
+    }
+
     const nachricht = drin ? { x: p.x - b.x, y: p.y - b.y } : null;
     const schluessel = drin ? `${nachricht.x},${nachricht.y}` : 'weg';
     if (schluessel === letzterZeiger) return;
     letzterZeiger = schluessel;
     schrankWindow.webContents.send('schrank:zeiger', nachricht);
-  }, 40);
+  };
+
+  schrankZeiger = setInterval(pruefen, takt);
 }
 
 /** Waehrend ein Spiel laeuft, haelt der Schrank still. */

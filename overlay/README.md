@@ -204,9 +204,34 @@ ist er in beiden Fällen.
 
 ### Was er kostet
 
-Am 4K-Bildschirm mit 609 Spielen gemessen: ruhig dastehend **0 %**
-Prozessorlast, während der Zeiger über die Packungen wandert **0,3 %**. Läuft
-ein Spiel, hält der Schrank zusätzlich seine Animationen an (abschaltbar).
+Am 4K-Bildschirm mit 609 Spielen gemessen, über **alle** beteiligten Prozesse
+(Zeichnen, Grafik, Hauptprozess — die erste Messung sah nur den Zeichenprozess
+und war deshalb zu gut):
+
+| Zustand | vorher | jetzt |
+|---|---|---|
+| ruhig dastehend | 0,1 % | **0,1 %** |
+| Zeiger wandert über die Packungen | 12,9 % | **0,14 %** |
+| erster Start (alle Farben fehlen) | — | 9 % für 4 Sekunden |
+
+Die 12,9 % kamen daher, dass beim Herausziehen das ganze Fach **samt Regalzeile
+nach vorn gehoben** wurde, damit das Titelbild nicht hinter den Nachbarn
+verschwindet. Jede Mausbewegung ordnete so große Teile eines 4K-Bildes neu.
+Drei Änderungen haben das beseitigt:
+
+- Das Titelbild liegt jetzt in **einer eigenen Schicht** über dem Regal. Das
+  Regal selbst wird beim Darüberfahren nicht mehr angefasst.
+- Der Deckel wird **nur verschoben und skaliert** (`transform`), nicht über
+  `left`/`top` gesetzt — Letzteres erzwingt jedes Mal eine neue
+  Seitenberechnung samt Neuzeichnen.
+- Der Schlagschatten über dem **ganzen** Schrank ist weg; der Korpus hat seinen
+  eigenen.
+
+Dazu: Die Zeigerposition wird nur **viermal je Sekunde** abgefragt, solange die
+Maus woanders ist, und erst auf dem Schrank 25-mal. Beim ersten Start werden
+die Rückenfarben **sechs Bilder auf einmal** ermittelt statt 609 gleichzeitig.
+
+Läuft ein Spiel, hält der Schrank zusätzlich seine Animationen an (abschaltbar).
 Arbeitsspeicher rund 370 MB — das ist im Wesentlichen die Bildfläche eines
 4K-Fensters.
 

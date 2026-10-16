@@ -63,7 +63,9 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.6));
+  /* Kein drop-shadow ueber den ganzen Schrank: Es faellt ueber den gesamten
+     Inhalt und zwingt bei 4K zu grossflaechigem Neuzeichnen. Der Korpus hat
+     ohnehin seinen eigenen Schatten. */
 }
 
 /* ---------- Der Korpus: das Raster der Faecher ---------- */
@@ -285,50 +287,49 @@ body {
   box-shadow: 0 -5px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* Das Titelbild - sichtbar, sobald die Packung herausgezogen ist. */
-.packung__front {
-  position: absolute;
-  inset: 0;
-  border-radius: 2px;
-  background-size: cover;
-  background-position: center;
-  /* Deckend, auch solange das Bild noch laedt - sonst sieht man das Regal
-     durch die Packung hindurch. */
-  background-color: #141010;
-  opacity: 0;
-  /* Klappt aus dem Ruecken heraus auf: erst schmal, dann in voller Breite. */
-  transform: translateX(-50%) scaleX(0.08);
-  transform-origin: center bottom;
-  transition: opacity 0.18s ease, transform 0.26s cubic-bezier(0.22, 1, 0.3, 1);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
-  pointer-events: none;
-}
-
 /*
- * Herausgezogen: Die Packung kommt nach vorn, hebt sich aus der Reihe und
- * dreht sich dem Betrachter zu - dabei wird aus dem schmalen Ruecken die
- * ganze Vorderseite. Genau dieses Gefuehl soll der Schrank haben: etwas
- * herausziehen und ansehen.
+ * Herausgezogen: Die Packung rutscht nach vorn - mehr passiert im Regal
+ * nicht. Das Titelbild liegt in einer eigenen Schicht darueber (.deckel),
+ * damit beim Darueberfahren nicht das halbe Regal neu gezeichnet wird.
  */
 .packung--heraus {
-  z-index: 20;
-  transform: translateY(-14%) scale(1.06);
+  z-index: 5;
+  transform: translateY(-12%) scale(1.04);
 }
 
 .packung--heraus .packung__ruecken {
-  opacity: 0.25;
+  box-shadow: 0 0 0 1px rgba(255, 240, 210, 0.3), 0 8px 16px -6px rgba(0, 0, 0, 0.8);
 }
 
-.packung--heraus .packung__front {
-  opacity: 1;
-  /* Aus dem Ruecken heraus auf Packungsbreite aufklappen: ein Deckel im
-     Verhaeltnis 2:3 wie die Steam-Bilder. Die Hoehe haengt am Fach, nicht an
-     festen Pixeln - sonst schwebt der Deckel auf grossen Bildschirmen weit
-     ueber dem Schrank statt in seinem Fach zu stehen. */
-  /* Groesse setzt schrank.js in Pixeln - siehe massDeckel(). */
-  inset: auto auto -3% 50%;
-  transform: translateX(-50%) scaleX(1) rotate(-1.5deg);
+/* ---------- Das Titelbild der herausgezogenen Packung ---------- */
+
+.deckel {
+  position: fixed;
+  /* Grundmass; die wirkliche Groesse macht die Skalierung in schrank.js. */
+  left: 0;
+  top: 0;
+  width: 133px;
+  height: 200px;
+  transform-origin: top left;
+  z-index: 60;
+  border-radius: 3px;
+  background-size: cover;
+  background-position: center;
+  background-color: #141010;
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 238, 210, 0.25);
+  opacity: 0;
+  /* Kein Uebergang auf der Verschiebung: Der Deckel springt von Packung zu
+     Packung, und ein Nachziehen ueber das halbe Regal saehe aus wie ein
+     Fehler. Nur das Erscheinen wird weich. */
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+  /* Eigene Ebene: So bewegt sich nur dieser Kasten, statt das Regal
+     darunter neu zu zeichnen. */
+  will-change: transform, opacity;
+}
+
+.deckel--an {
+  opacity: 1;
 }
 
 .packung--favorit .packung__ruecken::before {
@@ -588,19 +589,7 @@ body.ruhe .packung__front {
   gap: var(--rahmen);
 }
 
-/*
- * Ein Fach, aus dem gerade eine Packung heraussteht, liegt vor allen anderen -
- * samt seiner Zeile. Ohne das verschwindet das Titelbild hinter den Rückens
- * der Nachbarfächer, weil die später gezeichnet werden.
- */
 .regal-zeile {
   position: relative;
 }
 
-.fach--vorn {
-  z-index: 40;
-}
-
-.regal-zeile--vorn {
-  z-index: 40;
-}

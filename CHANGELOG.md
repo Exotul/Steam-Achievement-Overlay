@@ -2,6 +2,29 @@
 
 ## Noch nicht veröffentlicht
 
+### Der Spieleschrank kostet fast keine Rechenleistung mehr
+
+Gemeldet: Der Hintergrund lässt den Rechner schnaufen. Nachgemessen über alle
+beteiligten Prozesse — die frühere Messung sah nur den Zeichenprozess und war
+deshalb zu gut:
+
+| Zustand | vorher | jetzt |
+|---|---|---|
+| ruhig dastehend | 0,1 % | 0,1 % |
+| Zeiger wandert über die Packungen | **12,9 %** | **0,14 %** |
+
+Ursache war das Herausziehen: Damit das Titelbild nicht hinter den Nachbarn
+verschwindet, wurde das ganze Fach samt Regalzeile nach vorn gehoben. Jede
+Mausbewegung ordnete damit große Teile eines 4K-Bildes neu — 5 % allein fürs
+Zusammensetzen des Bildes, 7 % fürs Zeichnen.
+
+Jetzt liegt das Titelbild in einer eigenen Schicht über dem Regal, wird nur
+verschoben und skaliert statt über `left`/`top` gesetzt, und der Schlagschatten
+über dem ganzen Schrank ist weg. Dazu wird die Zeigerposition nur noch viermal
+je Sekunde abgefragt, solange die Maus woanders ist, und beim ersten Start
+werden die Rückenfarben sechs Bilder auf einmal ermittelt statt 609
+gleichzeitig (ein Schub von 9 % für 4 Sekunden, danach nie wieder).
+
 ### Neu: Meldungen im Stream (OBS)
 
 Trophäen erscheinen auf Wunsch auch im Stream — nicht als abgefilmtes Overlay, sondern als eigene

@@ -340,7 +340,6 @@ function baueKarton(spiel) {
   el.style.setProperty('--spine', farbspeicher.get(spiel.appId) || notfarbe(spiel.appId));
   el.innerHTML = `
     <div class="packung__ruecken"><span class="packung__titel">${escape(spiel.name)}</span></div>
-    <div class="packung__front"></div>
   `;
   felder.push({ el, spiel, rechteck: null });
   // Ein Bild NUR laden, wenn die Farbe noch fehlt. Beim ersten Start sind das
@@ -358,8 +357,28 @@ function baueKarton(spiel) {
  * den Ruecken nehmen wuerde. Deshalb werden die Bildpunkte nach Buntheit
  * gewichtet und zu dunkle wie zu blasse uebergangen.
  */
+// Beim allerersten Start fehlen ALLE Farben. Ohne Bremse laedt der Schrank
+// dann 609 Bilder gleichzeitig, entschluesselt sie und wertet sie aus - der
+// Rechner schnauft hoerbar, und zwar genau in dem Moment, in dem man ihn
+// gerade eingeschaltet hat. Deshalb: sechs auf einmal, der Rest wartet.
+const farbSchlange = [];
+let farbLaeuft = 0;
+const FARBEN_GLEICHZEITIG = 6;
+
+function naechsteFarbe() {
+  while (farbLaeuft < FARBEN_GLEICHZEITIG && farbSchlange.length) {
+    farbLaeuft += 1;
+    farbSchlange.shift()();
+  }
+}
+
 function bestimmeFarbe(spiel, el) {
   if (farbspeicher.has(spiel.appId)) return;
+  farbSchlange.push(() => ladeFarbe(spiel, el));
+  naechsteFarbe();
+}
+
+function ladeFarbe(spiel, el) {
   const bild = new Image();
   bild.crossOrigin = 'anonymous';
   bild.referrerPolicy = 'no-referrer';
@@ -376,10 +395,20 @@ function bestimmeFarbe(spiel, el) {
     farbspeicher.set(spiel.appId, wert);
     neueFarben[spiel.appId] = wert;
     el.style.setProperty('--spine', wert);
+    farbLaeuft -= 1;
+    naechsteFarbe();
   };
   bild.onerror = () => {
     // Kein hochformatiges Bild - dann das breite Kopfbild versuchen.
-    if (bild.src !== spiel.headerUrl) bild.src = spiel.headerUrl;
+    if (bild.src !== spiel.headerUrl) {
+      bild.src = spiel.headerUrl;
+      return;
+    }
+    // Auch das nicht: Notfarbe merken, sonst versucht es der naechste Start
+    // wieder - und der Platz in der Schlange wird frei.
+    farbspeicher.set(spiel.appId, notfarbe(spiel.appId));
+    farbLaeuft -= 1;
+    naechsteFarbe();
   };
   bild.src = spiel.libraryUrl;
 }
@@ -436,15 +465,34 @@ function messeFelder() {
  *
  * Der Fangbereich ist etwas breiter als der Ruecken: Bei 10 px Breite waere
  * er sonst kaum zu treffen, und der Schrank soll sich grosszuegig anfuehlen.
+ *
+ * Gerechnet wird erst im naechsten Bild: Der Hauptprozess meldet den Zeiger
+ * oefter, als der Bildschirm neu zeichnet. Ohne das Sammeln suchen wir
+ * mehrmals je Bild durch 600 Packungen und werfen das Ergebnis weg.
  */
+let zeigerWartet = null;
+let zeigerGeplant = false;
+
 function zeigerBei(x, y) {
-  if (ruht || x === null) return setzeHeraus(null);
+  zeigerWartet = x === null ? null : { x, y };
+  if (zeigerGeplant) return;
+  zeigerGeplant = true;
+  requestAnimationFrame(() => {
+    zeigerGeplant = false;
+    werteZeigerAus();
+  });
+}
+
+function werteZeigerAus() {
+  const punkt = zeigerWartet;
+  if (ruht || !punkt) return setzeHeraus(null);
+
   let treffer = null;
   for (const f of felder) {
     const r = f.rechteck;
     if (!r) continue;
-    if (y < r.top - 6 || y > r.bottom + 6) continue;
-    if (x < r.left - 5 || x > r.right + 5) continue;
+    if (punkt.y < r.top - 6 || punkt.y > r.bottom + 6) continue;
+    if (punkt.x < r.left - 5 || punkt.x > r.right + 5) continue;
     treffer = f;
     break;
   }
@@ -452,47 +500,102 @@ function zeigerBei(x, y) {
 }
 
 let ausgabeEl = null;
+let ausgabeName = null;
+let ausgabeZeit = null;
 
 /**
- * Die herausgezogene Packung ganz nach vorn holen.
+ * Das Titelbild liegt in EINER eigenen Schicht ueber dem Regal.
  *
- * Es reicht NICHT, der Packung selbst einen hohen z-index zu geben: Sie liegt
- * in ihrem Fach und ihrer Zeile, und ein Fach weiter rechts oder eine Zeile
- * weiter unten wird spaeter gezeichnet - das Titelbild verschwand dadurch
- * hinter den Rueckens der Nachbarn. Deshalb wandern Fach UND Zeile mit nach
- * vorn, solange die Packung heraussteht.
+ * Vorher steckte es in der Packung, und damit es nicht hinter den Nachbarn
+ * verschwand, wurden Fach UND Regalzeile nach vorn gehoben. Das kostete:
+ * Jede Bewegung der Maus ordnete grosse Teile des 4K-Bildes neu und liess
+ * den Rechner hoerbar arbeiten - gemessen 12,9 % Prozessorlast, davon 5 %
+ * allein fuers Zusammensetzen des Bildes.
+ *
+ * Jetzt bewegt sich beim Darueberfahren nur noch dieser eine kleine Kasten.
+ * Das Regal selbst wird nicht mehr angefasst.
  */
-function hebeHervor(feld, hervor) {
-  const fach = feld.el.closest('.fach');
-  const zeile = feld.el.closest('.regal-zeile');
-  if (fach) fach.classList.toggle('fach--vorn', hervor);
-  if (zeile) zeile.classList.toggle('regal-zeile--vorn', hervor);
+let deckelEl = null;
+
+function holeDeckel() {
+  if (deckelEl) return deckelEl;
+  deckelEl = document.createElement('div');
+  deckelEl.className = 'deckel';
+  document.getElementById('raum').appendChild(deckelEl);
+  return deckelEl;
+}
+
+// Einmal geladene Titelbilder: Wer zweimal ueber dieselbe Packung faehrt,
+// soll kein zweites Mal warten.
+const bildspeicher = new Map();
+
+// Grundmass des Deckels. Die tatsaechliche Groesse entsteht durch Skalieren -
+// siehe zeigeDeckel().
+const DECKEL_HOEHE = 200;
+
+function zeigeDeckel(feld) {
+  const deckel = holeDeckel();
+  const r = feld.rechteck || feld.el.getBoundingClientRect();
+  const hoehe = r.height * 1.18;
+  // Steams hochformatige Bilder haben das Verhaeltnis 2:3.
+  const breite = (hoehe * 2) / 3;
+
+  // NUR verschieben und skalieren, keine Groessen setzen: left/top/width/height
+  // zwingen den Browser zu einer neuen Seitenberechnung samt Neuzeichnen -
+  // bei jeder Mausbewegung. Eine Verschiebung erledigt die Grafikkarte.
+  const x = Math.round(r.left + r.width / 2 - breite / 2);
+  const y = Math.round(r.bottom - hoehe + r.height * 0.1);
+  const massstab = hoehe / DECKEL_HOEHE;
+  deckel.style.transform = `translate(${x}px, ${y}px) scale(${massstab.toFixed(3)}) rotate(-1.5deg)`;
+
+  const gemerkt = bildspeicher.get(feld.spiel.appId);
+  deckel.style.backgroundImage = gemerkt ? `url("${gemerkt}")` : 'none';
+  deckel.classList.add('deckel--an');
+
+  if (gemerkt) return;
+  // Erst beim Darueberfahren laden: 609 Titelbilder auf Vorrat waeren Unfug.
+  const bild = new Image();
+  bild.referrerPolicy = 'no-referrer';
+  bild.onload = () => {
+    bildspeicher.set(feld.spiel.appId, bild.src);
+    // Nur setzen, wenn immer noch dieselbe Packung heraussteht - sonst
+    // springt das Bild einer laengst verlassenen Packung ins Bild.
+    if (herausgezogen === feld) deckel.style.backgroundImage = `url("${bild.src}")`;
+  };
+  bild.onerror = () => {
+    if (bild.src !== feld.spiel.headerUrl) bild.src = feld.spiel.headerUrl;
+  };
+  bild.src = feld.spiel.libraryUrl;
 }
 
 function setzeHeraus(feld) {
   if (herausgezogen === feld) return;
-  if (herausgezogen) {
-    herausgezogen.el.classList.remove('packung--heraus');
-    hebeHervor(herausgezogen, false);
-  }
+  if (herausgezogen) herausgezogen.el.classList.remove('packung--heraus');
   herausgezogen = feld;
+
   if (!ausgabeEl) {
     ausgabeEl = document.createElement('div');
     ausgabeEl.className = 'ausgabe';
+    ausgabeName = document.createElement('span');
+    ausgabeZeit = document.createElement('span');
+    ausgabeZeit.className = 'ausgabe__zeit';
+    ausgabeEl.append(ausgabeName, ausgabeZeit);
     document.getElementById('raum').appendChild(ausgabeEl);
   }
   if (!feld) {
     ausgabeEl.classList.remove('ausgabe--an');
+    if (deckelEl) deckelEl.classList.remove('deckel--an');
     return;
   }
+
   feld.el.classList.add('packung--heraus');
-  hebeHervor(feld, true);
-  massDeckel(feld);
   zeigeDeckel(feld);
+
+  // Nur die Texte austauschen, nicht die Elemente neu bauen: innerHTML wirft
+  // bei jeder Mausbewegung zwei Knoten weg und legt zwei neue an.
   const std = Math.round(feld.spiel.spielzeitMin / 60);
-  ausgabeEl.innerHTML = `<span>${escape(feld.spiel.name)}</span><span class="ausgabe__zeit">${
-    std > 0 ? `${std} Std gespielt` : 'noch nie gespielt'
-  }</span>`;
+  ausgabeName.textContent = feld.spiel.name;
+  ausgabeZeit.textContent = std > 0 ? `${std} Std gespielt` : 'noch nie gespielt';
   ausgabeEl.classList.add('ausgabe--an');
 }
 
@@ -659,47 +762,6 @@ function baueDekoFach(nummer) {
 }
 
 const zahl = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('de-DE') : '–');
-
-/**
- * Die Groesse des aufgeklappten Deckels.
- *
- * In Pixeln gerechnet, nicht im CSS: Dort stand `height: 116%` zusammen mit
- * `aspect-ratio: 2/3` und `width: auto`. Die Hoehe kam richtig heraus, die
- * Breite aber blieb bei 3 px - der Browser leitet sie bei einem absolut
- * gesetzten Kasten nicht aus dem Verhaeltnis ab. Das Titelbild war dadurch
- * ein Streifen hinter den Nachbar-Rueckens, genau der gemeldete Fehler.
- */
-function massDeckel(feld) {
-  const front = feld.el.querySelector('.packung__front');
-  if (!front) return;
-  const hoehe = feld.el.getBoundingClientRect().height * 1.18;
-  front.style.height = `${Math.round(hoehe)}px`;
-  // Steams hochformatige Bilder haben das Verhaeltnis 2:3.
-  front.style.width = `${Math.round((hoehe * 2) / 3)}px`;
-}
-
-/**
- * Das Titelbild der herausgezogenen Packung.
- *
- * Es wird erst hier geladen: Beim Darueberfahren braucht es einen Moment,
- * bis es da ist, und genau solange zeigt die Packung ihre Rueckenfarbe -
- * das sieht aus wie eine Packung, die sich zum Betrachter dreht, und nicht
- * wie ein Ladevorgang.
- */
-function zeigeDeckel(feld) {
-  const front = feld.el.querySelector('.packung__front');
-  if (!front || front.dataset.geladen) return;
-  front.dataset.geladen = '1';
-  const bild = new Image();
-  bild.onload = () => {
-    front.style.backgroundImage = `url("${bild.src}")`;
-  };
-  bild.onerror = () => {
-    if (bild.src !== feld.spiel.headerUrl) bild.src = feld.spiel.headerUrl;
-  };
-  bild.referrerPolicy = 'no-referrer';
-  bild.src = feld.spiel.libraryUrl;
-}
 
 // --- Kleinkram ----------------------------------------------------------------
 
