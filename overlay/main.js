@@ -594,6 +594,9 @@ function schliesseSchrank() {
   schrankDatenTimer = null;
   if (schrankWindow && !schrankWindow.isDestroyed()) schrankWindow.destroy();
   schrankWindow = null;
+  // Kein Schrank, kein Klickfaenger - sonst bliebe ein unsichtbares Fenster
+  // stehen, das Klicks auf den Desktop schluckt.
+  schliesseKlickFenster();
 }
 
 /** Schrankinhalt holen und hineinreichen. */
@@ -773,6 +776,132 @@ ipcMain.on('schrank:bereit', () => {
 ipcMain.on('schrank:farben', (_e, farben) => {
   const dazu = schrankFarben.ergaenze(farben);
   if (dazu > 0) logger.debug(`Schrank: ${dazu} neue Rueckenfarben gemerkt`);
+});
+
+/* ==========================================================================
+   Ein Spiel aus dem Schrank starten
+   ==========================================================================
+   NACHGEMESSEN, nicht vermutet: Ein Fenster hinter den Desktop-Symbolen
+   bekommt Mausbewegungen, aber KEINE Klicks - die gehen an den Desktop. Drei
+   gleiche Fenster an derselben Stelle, einmal gewoehnlich, einmal wie der
+   Schrank und einmal umgehaengt:
+
+       gewoehnlich              move 7, down 1, click 1
+       wie der Schrank          move 7, down 1, click 1
+       Schrank im Hintergrund   move 1, down 0, click 0
+
+   Der Schrank kann Klicks also nicht selbst annehmen, solange er
+   Hintergrundbild ist. Stattdessen legt der Hauptprozess ein winziges,
+   unsichtbares Fenster ueber genau die Packung, die gerade heraussteht - dort
+   kommen Klicks an. Es wandert mit und verschwindet, sobald der Zeiger den
+   Schrank verlaesst.
+
+   Es ist absichtlich nicht groesser als das Titelbild: Ein Fenster ueber dem
+   ganzen Schrank wuerde saemtliche Klicks auf den Desktop schlucken.
+   ========================================================================== */
+
+let klickFenster = null;
+// Welches Spiel unter dem Faenger liegt. Die appId kommt NICHT aus dem
+// Klickfenster - der Hauptprozess weiss sie, weil er das Fenster dorthin
+// gelegt hat.
+let klickSpiel = null;
+
+function createKlickFenster() {
+  if (klickFenster && !klickFenster.isDestroyed()) return klickFenster;
+  klickFenster = new BrowserWindow({
+    width: 10,
+    height: 10,
+    show: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    movable: false,
+    // Wie alle Fenster dieser App: Es darf den Fokus nicht nehmen, sonst
+    // minimiert es ein laufendes Spiel. Klicks kommen trotzdem an - genau das
+    // zeigt die Messung oben in Zeile zwei.
+    focusable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'schrank', 'klick-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  klickFenster.setAlwaysOnTop(true, 'screen-saver', 1);
+  klickFenster.loadFile(path.join(__dirname, 'schrank', 'klick.html'));
+  klickFenster.on('closed', () => {
+    klickFenster = null;
+  });
+  return klickFenster;
+}
+
+function schliesseKlickFenster() {
+  klickSpiel = null;
+  if (klickFenster && !klickFenster.isDestroyed()) klickFenster.destroy();
+  klickFenster = null;
+}
+
+/**
+ * Den Faenger ueber die herausgezogene Packung legen - oder wegnehmen.
+ *
+ * @param {{appId:number, name:string, x:number, y:number, breite:number, hoehe:number}|null} ziel
+ *        Lage in Fensterkoordinaten des Schranks.
+ */
+function setzeKlickziel(ziel) {
+  if (!schrankWindow || schrankWindow.isDestroyed() || !ziel) {
+    klickSpiel = null;
+    if (klickFenster && !klickFenster.isDestroyed()) klickFenster.hide();
+    return;
+  }
+
+  // Waehrend ein Spiel laeuft, geht hier gar nichts auf. Ein neues Fenster
+  // ueber einem Vollbildspiel minimiert es - das ist die Regel, an der auch
+  // die Uebersicht haengt.
+  if (trackedAppId !== null) {
+    klickSpiel = null;
+    if (klickFenster && !klickFenster.isDestroyed()) klickFenster.hide();
+    return;
+  }
+
+  const b = schrankWindow.getBounds();
+  const fenster = createKlickFenster();
+  klickSpiel = { appId: ziel.appId, name: ziel.name };
+
+  // Der Schrank meldet Fensterkoordinaten; der Faenger braucht
+  // Bildschirmkoordinaten. Mindestens 40 px, damit ein Doppelklick auch bei
+  // einer sehr kleinen Packung trifft.
+  fenster.setBounds({
+    x: Math.round(b.x + ziel.x),
+    y: Math.round(b.y + ziel.y),
+    width: Math.max(40, Math.round(ziel.breite)),
+    height: Math.max(40, Math.round(ziel.hoehe)),
+  });
+  if (!fenster.isVisible()) fenster.showInactive();
+  fenster.setAlwaysOnTop(true, 'screen-saver', 1);
+}
+
+ipcMain.on('schrank:klickziel', (_e, ziel) => setzeKlickziel(ziel));
+
+/**
+ * Doppelklick auf eine Packung: Steam startet das Spiel.
+ *
+ * steam://rungameid ist der Weg, den Steam selbst benutzt - damit laeuft
+ * alles so, als haette man in der Bibliothek auf "Spielen" geklickt,
+ * einschliesslich Cloud-Abgleich und Startoptionen.
+ */
+ipcMain.on('schrank:starten', () => {
+  const spiel = klickSpiel;
+  if (!spiel) return;
+  // Einmal pro Doppelklick: Der Faenger verschwindet sofort, sonst startet
+  // ein zweiter Doppelklick dasselbe Spiel noch einmal, waehrend Steam schon
+  // laedt.
+  setzeKlickziel(null);
+  logger.info(`Schrank: ${spiel.name} wird über Steam gestartet (AppID ${spiel.appId})`);
+  shell.openExternal(`steam://rungameid/${spiel.appId}`).catch((err) => {
+    logger.warn(`Konnte ${spiel.name} nicht starten: ${err.message}`);
+  });
 });
 
 /** Groesse und Lage der Uebersicht - mittig auf dem gewaehlten Bildschirm. */

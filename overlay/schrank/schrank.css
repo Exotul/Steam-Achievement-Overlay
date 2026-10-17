@@ -211,6 +211,32 @@ body {
   font-weight: 600;
 }
 
+/*
+ * Die Spiegelfaecher: "Fast geschafft" und "Zuletzt gespielt".
+ *
+ * Sie zeigen Spiele, die ZUSAETZLICH in ihrem Sammlungsfach stehen. Das darf
+ * man sehen - sonst sucht jemand die Packung zweimal und haelt es fuer einen
+ * Fehler. Deshalb ein anderes Schild (gruenlich statt Messing) und eine
+ * schwache Aufhellung im Fach, wie ein eigener Strahler.
+ */
+.fach__schild--spiegel {
+  background: linear-gradient(180deg, #a8c48c, #789a5c);
+  color: #23300f;
+  /*
+   * Diese Faecher sind oft schmal - "Fast geschafft" hat an guten Tagen nur
+   * vier Spiele. Beim normalen Schild stand dann "FAST GESCHA…", und
+   * ausgerechnet hier traegt die Beschriftung die ganze Bedeutung. Also mehr
+   * Breite, weniger Sperrung, knapperer Rand.
+   */
+  max-width: 98%;
+  padding: 2px 5px;
+  letter-spacing: 0.01em;
+}
+
+.fach--spiegel .fach__boeden {
+  box-shadow: inset 0 0 36px rgba(168, 196, 140, 0.14);
+}
+
 /* ---------- Eine Spielepackung ---------- */
 
 .packung {
@@ -373,6 +399,21 @@ body {
 .ausgabe__zeit {
   color: #c9a978;
   font-size: 0.78em;
+}
+
+/*
+ * Der Hinweis aufs Starten.
+ *
+ * Deutlich leiser als der Rest: Man liest ihn einmal und danach nie wieder,
+ * aber ohne ihn kaeme niemand auf die Idee, einen Hintergrund anzuklicken.
+ */
+.ausgabe__start {
+  padding-left: 14px;
+  border-left: 1px solid rgba(214, 178, 128, 0.25);
+  color: #8e7c64;
+  font-size: 0.7em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .hinweis {

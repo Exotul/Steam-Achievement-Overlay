@@ -170,10 +170,15 @@ function planeRegal(faecher, sonderFaecher) {
       }
 
       // Die erste Zeile auf volle Breite bringen, zusammen mit den
-      // Sonderfaechern.
+      // Sonderfaechern - aber begrenzt, genau wie die letzte Zeile.
+      //
+      // Ohne die Grenze wurde ein kleines Fach ueber das halbe Regal gezogen:
+      // "Fast geschafft" mit 20 Spielen war 1070 px breit, die Ruecken
+      // fuellten davon 550, und rechts stand ein leeres Brett. Was uebrig
+      // bleibt, bekommt Krimskrams - dafuer gibt es die Dekofaecher.
       const alleErsten = [...sonderFaecher, ...ersteZeile];
       const summe = alleErsten.reduce((s, e) => s + e.breite, 0);
-      const faktorErste = (breite - SPALT * (alleErsten.length - 1)) / summe;
+      const faktorErste = Math.min((breite - SPALT * (alleErsten.length - 1)) / summe, 1.25);
       alleErsten.forEach((e) => {
         e.breite *= faktorErste;
         if (e.fach) e.jeBoden = Math.max(1, Math.floor((e.breite - FACH_RAND) / ruecken));
@@ -282,9 +287,12 @@ function baue(daten) {
       zeile.appendChild(el);
     });
 
-    // Bleibt am Ende der letzten Zeile etwas uebrig, kommt Krimskrams hinein -
-    // ein halb leeres Brett saehe aus wie ein Fehler.
-    if (nummer === regal.zeilen.length - 1) {
+    // Bleibt in einer Zeile etwas uebrig, kommt Krimskrams hinein - ein halb
+    // leeres Brett saehe aus wie ein Fehler. Das betrifft die letzte Zeile
+    // (dort bleibt fast immer etwas) und seit der Begrenzung oben auch die
+    // erste.
+    const belegt = eintraege.reduce((s, e) => s + e.breite, 0) + SPALT * (eintraege.length - 1);
+    if (nummer === regal.zeilen.length - 1 || belegt < korpus.clientWidth - 28 - 40) {
       const deko = baueDekoFach(nummer);
       deko.style.flex = '1 1 0';
       zeile.appendChild(deko);
@@ -293,7 +301,10 @@ function baue(daten) {
     korpus.appendChild(zeile);
   });
 
-  hinweisEl.textContent = `${daten.anzahlSpiele} Spiele in ${faecher.length} Fächern · aus deinen Steam-Sammlungen`;
+  // Die Spiegelfaecher zaehlen hier nicht mit - sie enthalten keine weiteren
+  // Spiele, sondern zeigen vorhandene ein zweites Mal.
+  const echte = faecher.filter((f) => !f.spiegel).length;
+  hinweisEl.textContent = `${daten.anzahlSpiele} Spiele in ${echte} Fächern · aus deinen Steam-Sammlungen`;
   // Erst messen, wenn das Regal wirklich steht.
   requestAnimationFrame(() => requestAnimationFrame(messeFelder));
 }
@@ -328,6 +339,14 @@ function baueFach({ fach, jeBoden }, boeden) {
   const schild = document.createElement('div');
   schild.className = 'fach__schild';
   schild.innerHTML = `${escape(fach.name)}<span class="fach__schild-zahl">${fach.anzahl}</span>`;
+
+  // Spiegelfaecher ("Fast geschafft", "Zuletzt gespielt") zeigen Spiele, die
+  // zusaetzlich in ihrem Sammlungsfach stehen. Das Schild sagt es, damit
+  // niemand zweimal dieselbe Packung sucht und einen Fehler vermutet.
+  if (fach.spiegel) {
+    el.classList.add('fach--spiegel');
+    schild.classList.add('fach__schild--spiegel');
+  }
 
   el.appendChild(kasten);
   el.appendChild(schild);
@@ -533,18 +552,33 @@ const bildspeicher = new Map();
 // siehe zeigeDeckel().
 const DECKEL_HOEHE = 200;
 
-function zeigeDeckel(feld) {
-  const deckel = holeDeckel();
+/**
+ * Wo das Titelbild liegt - in Fensterkoordinaten.
+ *
+ * Eigene Funktion, weil zwei Stellen dieselbe Rechnung brauchen: das Zeichnen
+ * und der Klickfaenger im Hauptprozess (siehe meldeKlickziel). Zwei getrennte
+ * Rechnungen waeren zwei Gelegenheiten, auseinanderzulaufen.
+ */
+function deckelMasse(feld) {
   const r = feld.rechteck || feld.el.getBoundingClientRect();
   const hoehe = r.height * 1.18;
   // Steams hochformatige Bilder haben das Verhaeltnis 2:3.
   const breite = (hoehe * 2) / 3;
+  return {
+    x: Math.round(r.left + r.width / 2 - breite / 2),
+    y: Math.round(r.bottom - hoehe + r.height * 0.1),
+    breite: Math.round(breite),
+    hoehe: Math.round(hoehe),
+  };
+}
+
+function zeigeDeckel(feld) {
+  const deckel = holeDeckel();
+  const { x, y, hoehe } = deckelMasse(feld);
 
   // NUR verschieben und skalieren, keine Groessen setzen: left/top/width/height
   // zwingen den Browser zu einer neuen Seitenberechnung samt Neuzeichnen -
   // bei jeder Mausbewegung. Eine Verschiebung erledigt die Grafikkarte.
-  const x = Math.round(r.left + r.width / 2 - breite / 2);
-  const y = Math.round(r.bottom - hoehe + r.height * 0.1);
   const massstab = hoehe / DECKEL_HOEHE;
   deckel.style.transform = `translate(${x}px, ${y}px) scale(${massstab.toFixed(3)}) rotate(-1.5deg)`;
 
@@ -568,6 +602,49 @@ function zeigeDeckel(feld) {
   bild.src = feld.spiel.libraryUrl;
 }
 
+let ausgabeStart = null;
+
+/**
+ * Was unter dem Namen steht: Achievement-Stand, Spielzeit, letztes Mal.
+ *
+ * Reiner Text statt innerHTML - das hier laeuft bei jeder neuen Packung, und
+ * innerHTML wuerde jedes Mal Knoten wegwerfen und neu anlegen.
+ */
+function ausgabeText(spiel) {
+  const teile = [];
+  if (Number.isFinite(spiel.erreicht) && spiel.gesamt > 0) {
+    const fehlend = spiel.gesamt - spiel.erreicht;
+    teile.push(
+      fehlend === 0
+        ? `alle ${spiel.gesamt} Achievements`
+        : `${spiel.erreicht} von ${spiel.gesamt} Achievements` +
+            (fehlend <= 5 ? ` — noch ${fehlend}` : '')
+    );
+  }
+  const std = Math.round(spiel.spielzeitMin / 60);
+  if (std > 0) teile.push(`${std} Std gespielt`);
+  else if (spiel.spielzeitMin > 0) teile.push('unter 1 Std gespielt');
+  // "noch nie gespielt" NUR, wenn Steam auch kein Datum kennt. Sonst stand
+  // dort "noch nie gespielt · zuletzt November 2015" - beides zugleich, und
+  // beides von Steam: Bei alten Titeln gibt es ein Datum, aber keine
+  // gezaehlte Spielzeit.
+  else if (!spiel.zuletztGespielt) teile.push('noch nie gespielt');
+  if (spiel.zuletztGespielt > 0) teile.push(`zuletzt ${vorZeit(spiel.zuletztGespielt)}`);
+  return teile.join(' · ');
+}
+
+/** "heute", "gestern", "vor 3 Tagen", sonst das Datum. */
+function vorZeit(sekunden) {
+  const tage = Math.floor((Date.now() - sekunden * 1000) / 86400000);
+  if (tage <= 0) return 'heute';
+  if (tage === 1) return 'gestern';
+  if (tage < 30) return `vor ${tage} Tagen`;
+  return new Date(sekunden * 1000).toLocaleDateString('de-DE', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 function setzeHeraus(feld) {
   if (herausgezogen === feld) return;
   if (herausgezogen) herausgezogen.el.classList.remove('packung--heraus');
@@ -579,24 +656,52 @@ function setzeHeraus(feld) {
     ausgabeName = document.createElement('span');
     ausgabeZeit = document.createElement('span');
     ausgabeZeit.className = 'ausgabe__zeit';
-    ausgabeEl.append(ausgabeName, ausgabeZeit);
+    ausgabeStart = document.createElement('span');
+    ausgabeStart.className = 'ausgabe__start';
+    ausgabeStart.textContent = 'Doppelklick startet das Spiel';
+    ausgabeEl.append(ausgabeName, ausgabeZeit, ausgabeStart);
     document.getElementById('raum').appendChild(ausgabeEl);
   }
   if (!feld) {
     ausgabeEl.classList.remove('ausgabe--an');
     if (deckelEl) deckelEl.classList.remove('deckel--an');
+    meldeKlickziel(null);
     return;
   }
 
   feld.el.classList.add('packung--heraus');
   zeigeDeckel(feld);
 
-  // Nur die Texte austauschen, nicht die Elemente neu bauen: innerHTML wirft
-  // bei jeder Mausbewegung zwei Knoten weg und legt zwei neue an.
-  const std = Math.round(feld.spiel.spielzeitMin / 60);
   ausgabeName.textContent = feld.spiel.name;
-  ausgabeZeit.textContent = std > 0 ? `${std} Std gespielt` : 'noch nie gespielt';
+  ausgabeZeit.textContent = ausgabeText(feld.spiel);
   ausgabeEl.classList.add('ausgabe--an');
+  meldeKlickziel(feld);
+}
+
+/**
+ * Dem Hauptprozess sagen, wo das Titelbild gerade liegt.
+ *
+ * WARUM DER UMWEG: Dieses Fenster haengt hinter den Desktop-Symbolen und
+ * bekommt vom Fenstersystem keine Mausklicks - nachgemessen: Bewegungen
+ * kommen an, Klicks nicht. Der Hauptprozess legt deshalb ein winziges,
+ * unsichtbares Fenster genau ueber das herausgezogene Titelbild; ein
+ * Doppelklick darauf startet das Spiel.
+ */
+function meldeKlickziel(feld) {
+  if (!window.schrankAPI || !window.schrankAPI.klickziel) return;
+  if (!feld) {
+    window.schrankAPI.klickziel(null);
+    return;
+  }
+  const m = deckelMasse(feld);
+  window.schrankAPI.klickziel({
+    appId: feld.spiel.appId,
+    name: feld.spiel.name,
+    x: m.x,
+    y: m.y,
+    breite: m.breite,
+    hoehe: m.hoehe,
+  });
 }
 
 /**

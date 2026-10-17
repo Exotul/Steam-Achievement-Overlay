@@ -17,5 +17,13 @@ contextBridge.exposeInMainWorld('schrankAPI', {
   // vom Fenstersystem; der Hauptprozess meldet die Zeigerposition.
   onZeiger: (fn) => ipcRenderer.on('schrank:zeiger', (_e, punkt) => fn(punkt)),
   farbenMerken: (farben) => ipcRenderer.send('schrank:farben', farben),
+  /**
+   * Wo die herausgezogene Packung liegt - und welches Spiel das ist.
+   *
+   * Klicks erreichen dieses Fenster nicht (nachgemessen: Bewegungen ja,
+   * Klicks nein). Der Hauptprozess legt deshalb ein unsichtbares Fenster
+   * genau dorthin; ein Doppelklick darauf startet das Spiel.
+   */
+  klickziel: (ziel) => ipcRenderer.send('schrank:klickziel', ziel),
   bereit: () => ipcRenderer.send('schrank:bereit'),
 });

@@ -306,8 +306,50 @@ function parseAchievementTimes(statsBuf) {
 }
 
 /**
+ * Ist das eine gueltige Statusdatei, in der nur noch nichts drinsteht?
+ *
+ * DAS WAR DER FEHLER, UND ER KOSTETE EIN GANZES SPIEL:
+ *
+ * Bei Tenebris Somnia stand tagelang im Protokoll "lokale Datei passte nicht,
+ * nicht lesbar", und die App fragte stattdessen alle paar Sekunden Steam.
+ * Beide Dateien waren aber da und in Ordnung. Die Statusdatei war lediglich
+ * 38 Bytes gross:
+ *
+ *     00 "cache" 00  02 "crc" 00 00000000  02 "PendingChanges" 00 00000000  08 08
+ *
+ * Also tadelloses KeyValues - nur ohne einen einzigen Statistikeintrag, weil
+ * in diesem Spiel noch nichts freigeschaltet war. Zum Vergleich dieselbe
+ * Datei bei einem angefangenen Spiel: derselbe Kopf, danach "1" -> data,
+ * AchievementTimes.
+ *
+ * "Keine Eintraege" wurde als "nicht lesbar" gedeutet. Damit war der schnelle
+ * Weg genau dann gesperrt, wenn man ihn am dringendsten braucht: zu Beginn
+ * eines neuen Spiels, wo noch jede Trophaee aussteht. Und er blieb gesperrt,
+ * denn geprueft wird nur am Anfang.
+ *
+ * Woran die leere Datei zu erkennen ist: am Kopf, den jede Statusdatei hat.
+ * Steht dort cache mit crc, hat Steam die Datei geschrieben - dann ist die
+ * leere Menge die richtige Antwort und keine Ausrede.
+ *
+ * Gefaehrlich ist das nicht: Das Ergebnis wird anschliessend ohnehin gegen
+ * den von Steam bestaetigten Stand geprueft. Liest eine Datei faelschlich
+ * "leer", obwohl Steam Freischaltungen meldet, faellt sie genau dort durch.
+ */
+function istLeereStatusdatei(parsed) {
+  if (!parsed || typeof parsed !== 'object') return false;
+  const cacheKey = Object.keys(parsed).find((k) => k.toLowerCase() === 'cache');
+  if (!cacheKey) return false;
+  const cache = parsed[cacheKey];
+  if (!cache || typeof cache !== 'object') return false;
+  return Object.keys(cache).some((k) => k.toLowerCase() === 'crc');
+}
+
+/**
  * Kombiniert Schema und Status zu einer Menge freigeschalteter API-Namen.
- * Gibt null zurueck, wenn die Dateien nicht zusammenpassen.
+ *
+ * @returns {Set<string>|null} null heisst "nicht lesbar". Eine LEERE Menge
+ *   heisst "gelesen, es ist nichts freigeschaltet" - das ist ein Ergebnis,
+ *   kein Fehler (siehe istLeereStatusdatei).
  */
 function readUnlockedViaSchema(statsFile, schemaFile) {
   let statsBuf;
@@ -323,7 +365,9 @@ function readUnlockedViaSchema(statsFile, schemaFile) {
   if (bitMap.size === 0) return null;
 
   const values = parseStatValues(statsBuf);
-  if (values.size === 0) return null;
+  if (values.size === 0) {
+    return istLeereStatusdatei(parseBinaryKeyValues(statsBuf)) ? new Set() : null;
+  }
 
   const unlocked = new Set();
   for (const [statId, bits] of bitMap.entries()) {
@@ -335,7 +379,9 @@ function readUnlockedViaSchema(statsFile, schemaFile) {
     }
   }
 
-  return unlocked.size > 0 ? unlocked : null;
+  // Auch hier: Statistiken vorhanden, aber kein Bit gesetzt - das ist "noch
+  // nichts freigeschaltet", nicht "unlesbar".
+  return unlocked;
 }
 
 /** Findet die zum Spiel gehoerende Schema-Datei. */
@@ -411,6 +457,15 @@ function readUnlockedFromFile(filePath, knownApiNames = null) {
       /* naechster Startpunkt */
     }
   }
+
+  // Eine gueltige, aber noch leere Statusdatei - in diesem Spiel ist schlicht
+  // nichts freigeschaltet. Die leere Menge ist die richtige Antwort; warum
+  // das sicher ist, steht bei istLeereStatusdatei().
+  try {
+    if (istLeereStatusdatei(parseBinaryKeyValues(buf))) return new Set();
+  } catch (err) {
+    /* dann eben nicht lesbar */
+  }
   return null;
 }
 
@@ -450,12 +505,17 @@ function findVerifiedSource(steamPath, appId, webUnlocked, knownApiNames = null)
       if (viaSchema && pruefen(viaSchema)) {
         return { file, schemaFile, unlocked: viaSchema, method: 'schema', attempts };
       }
-      if (viaSchema) {
-        attempts.push({
-          file,
-          reason: `über Schema gelesen: ${viaSchema.size} Einträge, Steam bestätigt: ${webUnlocked.size}`,
-        });
-      }
+      // Auch den Fehlschlag festhalten. Vorher stand hier nichts, wenn das
+      // Schema-Verfahren null lieferte - im Protokoll erschien dann nur
+      // "nicht lesbar" vom zweiten Verfahren, und der eigentliche Grund blieb
+      // unsichtbar. Genau das hat die Suche nach dem Fehler oben
+      // (istLeereStatusdatei) unnoetig lang gemacht.
+      attempts.push({
+        file,
+        reason: viaSchema
+          ? `über Schema gelesen: ${viaSchema.size} Einträge, Steam bestätigt: ${webUnlocked.size}`
+          : 'über Schema nicht lesbar (Statusdatei ohne verwertbare Statistikwerte)',
+      });
     }
   } else {
     attempts.push({ file: `UserGameStatsSchema_${appId}.bin`, reason: 'Schema-Datei nicht gefunden' });
@@ -485,6 +545,7 @@ function findVerifiedSource(steamPath, appId, webUnlocked, knownApiNames = null)
 
 module.exports = {
   bitGesetzt,
+  istLeereStatusdatei,
   parseSchemaBits,
   parseStatValues,
   parseAchievementTimes,

@@ -37,6 +37,15 @@ function darfWiederverwenden(eintrag, spielzeitJetzt) {
   // mit. Ein Eintrag aus der Zeit davor kennt sie nicht - er wuerde die
   // Zahlen oben auf dem Schrank stillschweigend zu niedrig halten.
   if (!eintrag.stufen || typeof eintrag.stufen !== 'object') return false;
+  // Und seit dem Fach "Fast geschafft" auch, wie viele Achievements ein Spiel
+  // ueberhaupt hat. Ohne diese Zahl liesse sich nicht sagen, wem nur noch
+  // zwei zum Diamanten fehlen - das Fach bliebe leer, und zwar ohne
+  // erkennbaren Grund.
+  //
+  // Der Preis ist einmalig: Beim naechsten Durchgang werden die Spiele mit
+  // Spielzeit noch einmal abgefragt, danach nie wieder. Das laeuft im
+  // Hintergrund und mit Vorrang fuer die Achievement-Erkennung.
+  if (typeof eintrag.gesamt !== 'number') return false;
 
   const jetzt = Number(spielzeitJetzt) || 0;
 

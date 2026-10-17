@@ -142,3 +142,128 @@ test('Die Schema-Datei wird NIE als Statusquelle verwendet', () => {
     );
   });
 });
+
+/* ============================================================================
+   "Noch nichts freigeschaltet" ist ein Ergebnis, kein Fehler
+   ============================================================================
+   Der Fall, der ein ganzes Spiel vom schnellen Weg ausschloss: Bei Tenebris
+   Somnia war die Statusdatei 38 Bytes groß und enthielt keinen einzigen
+   Statistikeintrag - weil dort noch nichts freigeschaltet war. Das galt als
+   "nicht lesbar", also fiel die App dauerhaft auf die Web-API zurück. Und
+   zwar genau zu Spielbeginn, wo jede Trophäe noch aussteht.
+
+   Auf diesem Rechner nachgezählt: von 549 Spielen mit Schema-Datei waren 274
+   in genau diesem Zustand.
+   ========================================================================== */
+
+/**
+ * Die leere Statusdatei, Byte für Byte wie Steam sie schreibt.
+ *
+ * Bewusst hier zusammengebaut statt als Datei beigelegt: So steht das Format
+ * lesbar im Test, statt in einer Binärdatei zu verschwinden.
+ */
+function leereStatusdatei() {
+  const teile = [];
+  teile.push(Buffer.from([0x00]), Buffer.from('cache\0', 'latin1')); // Objekt "cache"
+  teile.push(Buffer.from([0x02]), Buffer.from('crc\0', 'latin1'), Buffer.alloc(4)); // Int32 = 0
+  teile.push(
+    Buffer.from([0x02]),
+    Buffer.from('PendingChanges\0', 'latin1'),
+    Buffer.alloc(4)
+  );
+  teile.push(Buffer.from([0x08, 0x08])); // Ende cache, Ende Datei
+  return Buffer.concat(teile);
+}
+
+test('Eine gültige, aber leere Statusdatei wird als solche erkannt', () => {
+  const parsed = M.parseBinaryKeyValues(leereStatusdatei());
+  assert.strictEqual(M.istLeereStatusdatei(parsed), true);
+  // Gegenproben: Ohne den Kopf, den jede Statusdatei hat, gilt sie nicht als
+  // leer, sondern als unlesbar - sonst wäre jede kaputte Datei "leer".
+  assert.strictEqual(M.istLeereStatusdatei({}), false);
+  assert.strictEqual(M.istLeereStatusdatei({ cache: {} }), false, 'cache ohne crc');
+  assert.strictEqual(M.istLeereStatusdatei({ irgendwas: { crc: 0 } }), false, 'crc ohne cache');
+  assert.strictEqual(M.istLeereStatusdatei(null), false);
+});
+
+/** Steam-Ordner mit echtem Schema, aber leerer Statusdatei. */
+function mitLeeremStand(fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamleer-'));
+  const ziel = path.join(dir, 'appcache', 'stats');
+  fs.mkdirSync(ziel, { recursive: true });
+  fs.copyFileSync(SCHEMA, path.join(ziel, path.basename(SCHEMA)));
+  fs.writeFileSync(path.join(ziel, path.basename(STATS)), leereStatusdatei());
+  try {
+    fn(dir, path.join(ziel, path.basename(STATS)), path.join(ziel, path.basename(SCHEMA)));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('Leere Statusdatei ergibt die leere Menge - nicht null', () => {
+  mitLeeremStand((dir, stats, schema) => {
+    const gelesen = M.readUnlockedViaSchema(stats, schema);
+    assert.ok(gelesen instanceof Set, 'muss eine Menge sein, nicht null');
+    assert.strictEqual(gelesen.size, 0);
+  });
+});
+
+test('Die Selbstprüfung nimmt sie an, wenn Steam ebenfalls nichts meldet', () => {
+  // Das ist der eigentliche Gewinn: Ab jetzt läuft der schnelle Weg vom
+  // ersten Achievement an, statt erst ab dem zweiten Spielstart.
+  mitLeeremStand((dir) => {
+    const r = M.findVerifiedSource(dir, 3419430, new Set(), ALLE_NAMEN);
+    assert.ok(r.file, 'muss angenommen werden');
+    assert.strictEqual(r.method, 'schema');
+    assert.strictEqual(r.unlocked.size, 0);
+  });
+});
+
+test('Sie wird abgelehnt, sobald Steam etwas anderes sagt', () => {
+  // DIE SICHERUNG. Ohne sie wäre die Änderung gefährlich: Eine Datei, die
+  // fälschlich "leer" gelesen wird, obwohl Trophäen errungen sind, darf nie
+  // als Quelle gelten.
+  mitLeeremStand((dir) => {
+    const r = M.findVerifiedSource(dir, 3419430, new Set(['PET_1']), ALLE_NAMEN);
+    assert.strictEqual(r.file, null, 'darf nicht angenommen werden');
+  });
+});
+
+test('Eine wirklich unlesbare Datei bleibt unlesbar', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamkaputt-'));
+  const ziel = path.join(dir, 'appcache', 'stats');
+  fs.mkdirSync(ziel, { recursive: true });
+  fs.copyFileSync(SCHEMA, path.join(ziel, path.basename(SCHEMA)));
+  // Zufallsbytes - kein KeyValues, kein cache, kein crc.
+  fs.writeFileSync(path.join(ziel, path.basename(STATS)), Buffer.from([
+    0x7f, 0x41, 0x42, 0x43, 0x00, 0xff, 0xfe, 0x12, 0x34, 0x56, 0x78, 0x9a,
+  ]));
+  try {
+    assert.strictEqual(
+      M.readUnlockedViaSchema(path.join(ziel, path.basename(STATS)), path.join(ziel, path.basename(SCHEMA))),
+      null
+    );
+    assert.strictEqual(M.findVerifiedSource(dir, 3419430, new Set(), ALLE_NAMEN).file, null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('Der Grund steht im Protokoll, auch wenn das Schema-Verfahren scheitert', () => {
+  // Vorher stand dort nur "nicht lesbar" vom zweiten Verfahren - der
+  // eigentliche Grund fehlte, und die Fehlersuche dauerte entsprechend.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steamgrund-'));
+  const ziel = path.join(dir, 'appcache', 'stats');
+  fs.mkdirSync(ziel, { recursive: true });
+  fs.copyFileSync(SCHEMA, path.join(ziel, path.basename(SCHEMA)));
+  fs.writeFileSync(path.join(ziel, path.basename(STATS)), Buffer.from([0x7f, 0x41, 0x42, 0x00]));
+  try {
+    const r = M.findVerifiedSource(dir, 3419430, new Set(), ALLE_NAMEN);
+    assert.ok(
+      r.attempts.some((a) => /über Schema/.test(a.reason)),
+      'das Schema-Verfahren muss seinen Fehlschlag melden: ' + JSON.stringify(r.attempts)
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

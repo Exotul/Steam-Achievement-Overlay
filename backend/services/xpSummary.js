@@ -56,7 +56,15 @@ const SPIEL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 //    und die Diamanten. Eine Summe aus der Zeit davor haette sie nicht - der
 //    Schrank zeigte dann oben eine leere Zeile, und zwar so lange, bis die
 //    Summe nach Stunden von selbst ablaeuft.
-const SUMMEN_FASSUNG = 3;
+// 4: Dasselbe noch einmal, diesmal fuer das Fach "Fast geschafft". Es braucht
+//    je Spiel `erreicht` und `gesamt`; die Werte je Spiel fallen beim Rechnen
+//    ohnehin an, standen aber in den alten Eintraegen nicht drin.
+//    xpPlan.darfWiederverwenden() verwirft sie deshalb - aber die
+//    Neuberechnung startet nur, wenn auch die SUMME nicht mehr gilt. Ohne
+//    diesen Schritt bliebe das Fach bis zu zwoelf Stunden leer.
+//    Es kostet einmalig rund 380 Hintergrundabfragen (gemessen: knapp zehn
+//    Minuten), danach nie wieder.
+const SUMMEN_FASSUNG = 4;
 
 const schluesselSpiel = (steamId, appId) => `xp-spiel:v${FORMEL_VERSION}:${steamId}:${appId}`;
 const schluesselFrisch = (steamId) =>
@@ -123,7 +131,17 @@ async function spielXp(steamId, appId, spielzeit) {
   if (errungen.length === 0) {
     // Kein Achievement-System, privates Profil oder schlicht noch nichts
     // geholt - merken, damit nicht bei jedem Start erneut gefragt wird.
-    const leer = { xp: 0, spielzeit, stufen: {}, diamant: false };
+    // `gesamt` auch hier: Ein Spiel mit 24 Achievements und keinem davon
+    // erreicht ist etwas anderes als eines ganz ohne, und nur so laesst es
+    // sich spaeter unterscheiden, ohne erneut zu fragen.
+    const leer = {
+      xp: 0,
+      spielzeit,
+      stufen: {},
+      diamant: false,
+      erreicht: 0,
+      gesamt: (playerAch || []).length,
+    };
     cache.set(schluessel, leer, SPIEL_TTL_MS);
     return leer;
   }
@@ -148,9 +166,41 @@ async function spielXp(steamId, appId, spielzeit) {
   // Spiels, auch die offenen - der Vergleich kostet also nichts extra.
   const diamant = playerAch.length > 0 && errungen.length === playerAch.length;
 
-  const ergebnis = { xp, spielzeit, stufen, diamant };
+  /*
+   * `erreicht` und `gesamt` fallen hier ohnehin an - playerAch enthaelt alle
+   * Achievements des Spiels, auch die offenen.
+   *
+   * Dafuer gibt es einen handfesten Grund: Der Spieleschrank zeigt ein Fach
+   * "Fast geschafft" mit den Spielen, denen nur noch ein, zwei Trophaeen zum
+   * Diamanten fehlen. Diese Zahl ein zweites Mal zu erheben hiesse, die ganze
+   * Bibliothek noch einmal bei Steam abzufragen - fuer eine Angabe, die beim
+   * Rechnen schon in der Hand lag.
+   */
+  const ergebnis = {
+    xp,
+    spielzeit,
+    stufen,
+    diamant,
+    erreicht: errungen.length,
+    gesamt: playerAch.length,
+  };
   cache.set(schluessel, ergebnis, SPIEL_TTL_MS);
   return ergebnis;
+}
+
+/**
+ * Der gemerkte Stand EINES Spiels - ohne jede Abfrage.
+ *
+ * Fuer den Spieleschrank: Er laeuft dauerhaft und darf fuer seine Faecher
+ * nichts bei Steam holen. Fehlt der Eintrag (noch nicht gerechnet, nie
+ * gespielt, abgelaufen), kommt null zurueck, und das Fach laesst das Spiel
+ * eben aus.
+ *
+ * @returns {{xp:number, spielzeit:number, erreicht?:number, gesamt?:number, diamant?:boolean}|null}
+ */
+function spielStand(steamId, appId) {
+  const eintrag = cache.get(schluesselSpiel(steamId, appId));
+  return eintrag && typeof eintrag === 'object' ? eintrag : null;
 }
 
 async function berechneIntern(steamId, job) {
@@ -294,6 +344,7 @@ function getSummary(steamId, neuBerechnen = false) {
 module.exports = {
   getSummary,
   getLevelProgress,
+  spielStand,
   // Fuer die Tests: die Berechnung selbst, ohne Warteschlange und Job-Verwaltung.
   _berechneIntern: berechneIntern,
 };

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Spieleschrank – Klickfänger</title>
+    <style>
+      /*
+       * Dieses Fenster ist unsichtbar und liegt genau über der Packung, die
+       * gerade aus dem Schrank ragt. Es hat eine einzige Aufgabe: einen
+       * Doppelklick entgegenzunehmen.
+       *
+       * WARUM NICHT GANZ DURCHSICHTIG (alpha 0): Windows reicht Klicks durch
+       * vollständig durchsichtige Stellen eines geschichteten Fensters an das
+       * Fenster darunter weiter - dann käme hier nie etwas an. Ein Hauch
+       * Deckkraft genügt, damit es Klicks fängt; zu sehen ist davon nichts.
+       */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.01);
+        cursor: pointer;
+        overflow: hidden;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // Doppelklick, nicht Einzelklick: Ein Schrank, der beim Hinsehen Spiele
+      // startet, wäre eine Falle. Dieselbe Geste wie auf dem Desktop.
+      window.addEventListener('dblclick', () => {
+        if (window.klickAPI) window.klickAPI.starten();
+      });
+      // Die mittlere Taste und das Kontextmenü haben hier nichts zu suchen.
+      window.addEventListener('contextmenu', (e) => e.preventDefault());
+      window.addEventListener('auxclick', (e) => e.preventDefault());
+    </script>
+  </body>
+</html>

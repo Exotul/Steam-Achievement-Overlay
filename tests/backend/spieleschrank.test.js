@@ -5,7 +5,13 @@ const os = require('node:os');
 
 process.env.LOG_DIR = path.join(os.tmpdir(), 'trophaenschrank-testlogs');
 
-const { ordneSpiele, UNSORTIERT, VERSCHIEDENES } = require('../../backend/services/spieleschrank');
+const {
+  ordneSpiele,
+  UNSORTIERT,
+  VERSCHIEDENES,
+  FAST_GESCHAFFT,
+  ZULETZT_GESPIELT,
+} = require('../../backend/services/spieleschrank');
 
 /**
  * Welches Spiel steht in welchem Fach?
@@ -44,9 +50,13 @@ const SAMMLUNGEN = [
 const fach = (ergebnis, name) => ergebnis.faecher.find((f) => f.name === name);
 const spieleIn = (ergebnis, name) => (fach(ergebnis, name)?.spiele || []).map((s) => s.name);
 
-test('Jedes Spiel steht genau einmal im Schrank', () => {
+test('Jedes Spiel steht genau einmal in den Sammlungsfächern', () => {
   const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK);
-  const alle = e.faecher.flatMap((f) => f.spiele.map((s) => s.appId));
+  // Ausdrücklich ohne die Spiegelfächer: Die zeigen Spiele absichtlich ein
+  // zweites Mal (siehe weiter unten).
+  const alle = e.faecher
+    .filter((f) => !f.spiegel)
+    .flatMap((f) => f.spiele.map((s) => s.appId));
   assert.strictEqual(alle.length, new Set(alle).size, 'ein Spiel steht doppelt');
 });
 
@@ -123,4 +133,136 @@ test('Jedes Spiel bringt seine Bildadressen mit', () => {
   const re4 = fach(e, 'Horror').spiele[0];
   assert.ok(re4.libraryUrl.includes('/apps/1/library_600x900.jpg'), re4.libraryUrl);
   assert.ok(re4.headerUrl.includes('/apps/1/header.jpg'), re4.headerUrl);
+});
+
+/* ==========================================================================
+   Die Spiegelfächer: "Fast geschafft" und "Zuletzt gespielt"
+   ==========================================================================
+   Die eine Regel, die hier zählt: Ein Spiel wird NICHT aus seiner Sammlung
+   genommen, weil es gerade fast fertig ist. Es steht an beiden Stellen.
+   ========================================================================== */
+
+// Achievement-Stand, wie ihn die XP-Berechnung ablegt.
+const STAND = {
+  1: { erreicht: 23, gesamt: 24 }, // Resident Evil 4 - eine fehlt
+  2: { erreicht: 10, gesamt: 12 }, // Silent Hill 2 - zwei fehlen
+  3: { erreicht: 50, gesamt: 50 }, // Fallout 4 - fertig, also kein Kandidat
+  5: { erreicht: 1, gesamt: 80 }, // Skyrim - weit weg
+  10: { erreicht: 0, gesamt: 30 }, // Dead Space - nie angefangen
+  11: { erreicht: 77, gesamt: 78 }, // The Witcher 3 - eine fehlt
+};
+const mitStand = (ids = STAND) => ({ stand: (appId) => ids[appId] || null });
+
+test('"Fast geschafft" nimmt die Spiele, denen am wenigsten fehlt', () => {
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand());
+  assert.deepStrictEqual(spieleIn(e, FAST_GESCHAFFT), [
+    // Beiden fehlt genau eine Trophäe. Bei Gleichstand entscheidet, wer
+    // weiter ist: 77 von 78 sind mehr als 23 von 24.
+    'The Witcher 3',
+    'Resident Evil 4',
+    'Silent Hill 2', // 2 fehlen
+  ]);
+});
+
+test('Fertige Spiele und solche ohne jeden Fortschritt gehören nicht hinein', () => {
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand());
+  const drin = spieleIn(e, FAST_GESCHAFFT);
+  // Fallout 4 ist komplett - da ist nichts mehr "fast".
+  assert.ok(!drin.includes('Fallout 4'), 'ein fertiges Spiel steht im Fach');
+  // Dead Space hat 0 von 30. Es fehlen zwar viele, aber angefangen hat man es
+  // nicht - "fast geschafft" soll heißen, dass sich Weitermachen lohnt.
+  assert.ok(!drin.includes('Dead Space'), 'ein nie begonnenes Spiel steht im Fach');
+});
+
+test('Die Spiele bleiben zusätzlich in ihrer Sammlung stehen', () => {
+  // Genau das war die Vorgabe: doppelt in der Ansicht, nicht umgeräumt.
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand());
+  assert.ok(spieleIn(e, 'Horror').includes('Resident Evil 4'));
+  assert.ok(spieleIn(e, FAST_GESCHAFFT).includes('Resident Evil 4'));
+});
+
+test('Die doppelten Spiele zählen nicht in der Gesamtzahl mit', () => {
+  const ohne = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK);
+  const mit = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand());
+  assert.strictEqual(mit.anzahlSpiele, ohne.anzahlSpiele);
+});
+
+test('Findet sich fast nichts, wird die Grenze weiter gefasst', () => {
+  // Nur ein Spiel ist nah dran. Ein Fach mit einem einzigen Rücken sähe aus
+  // wie ein Fehler - also rückt die Grenze eine Stufe weiter.
+  const knapp = { 1: { erreicht: 23, gesamt: 24 }, 5: { erreicht: 76, gesamt: 80 } };
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand(knapp));
+  assert.deepStrictEqual(spieleIn(e, FAST_GESCHAFFT), ['Resident Evil 4', 'Skyrim']);
+});
+
+test('Ohne gemerkten Stand gibt es das Fach gar nicht', () => {
+  // Solange die XP-Berechnung noch läuft, ist nichts bekannt. Ein leeres Fach
+  // wäre schlimmer als keines - es sähe aus, als hätte etwas nicht geladen.
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK);
+  assert.strictEqual(fach(e, FAST_GESCHAFFT), undefined);
+});
+
+test('"Zuletzt gespielt" steht in der Reihenfolge von Steam', () => {
+  const t = (tage) => Math.floor(Date.now() / 1000) - tage * 86400;
+  const bibliothek = BIBLIOTHEK.map((s) => ({ ...s }));
+  bibliothek[0].rtime_last_played = t(5); // Resident Evil 4
+  bibliothek[4].rtime_last_played = t(1); // Skyrim
+  bibliothek[9].rtime_last_played = t(12); // Dead Space
+
+  const e = ordneSpiele(SAMMLUNGEN, bibliothek);
+  // Nicht nach Spielzeit sortiert wie sonst - die Reihenfolge IST die Aussage.
+  assert.deepStrictEqual(spieleIn(e, ZULETZT_GESPIELT), [
+    'Skyrim',
+    'Resident Evil 4',
+    'Dead Space',
+  ]);
+});
+
+test('Verstecktes bleibt auch in den Spiegelfächern draußen', () => {
+  // "Peinliches Spiel" (appId 8) liegt in Steams versteckter Sammlung.
+  const bibliothek = BIBLIOTHEK.map((s) =>
+    s.appid === 8 ? { ...s, rtime_last_played: Math.floor(Date.now() / 1000) } : s
+  );
+  const e = ordneSpiele(SAMMLUNGEN, bibliothek, mitStand({ 8: { erreicht: 9, gesamt: 10 } }));
+  const alle = e.faecher.flatMap((f) => f.spiele.map((s) => s.name));
+  assert.ok(!alle.includes('Peinliches Spiel'), 'Verstecktes ist durchgerutscht');
+});
+
+test('Die Spiegelfächer stehen vorn im Schrank', () => {
+  const t = Math.floor(Date.now() / 1000);
+  const bibliothek = BIBLIOTHEK.map((s) => ({ ...s, rtime_last_played: t }));
+  const e = ordneSpiele(SAMMLUNGEN, bibliothek, mitStand());
+  assert.deepStrictEqual(
+    e.faecher.slice(0, 2).map((f) => f.name),
+    [FAST_GESCHAFFT, ZULETZT_GESPIELT]
+  );
+  assert.ok(e.faecher.slice(0, 2).every((f) => f.spiegel === true), 'nicht als Spiegel markiert');
+});
+
+test('Der Achievement-Stand hängt an jedem Spiel, nicht nur in den Spiegelfächern', () => {
+  // Die Anzeige beim Darüberfahren zeigt "23 von 24" - auch im Horror-Fach.
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand());
+  const re4 = fach(e, 'Horror').spiele.find((s) => s.appId === 1);
+  assert.strictEqual(re4.erreicht, 23);
+  assert.strictEqual(re4.gesamt, 24);
+  // Und bei einem Spiel ohne gemerkten Stand ausdrücklich "unbekannt".
+  const indie = fach(e, UNSORTIERT).spiele.find((s) => s.appId === 6);
+  assert.strictEqual(indie.gesamt, undefined);
+});
+
+test('Wenig fehlt allein genügt nicht - das meiste muss geschafft sein', () => {
+  // An den echten Daten aufgefallen: Ein Spiel mit 1 von 5 Achievements hat
+  // zwar nur vier offen, ist aber gerade erst angefangen. "Fast geschafft"
+  // heißt beides - wenige fehlen UND das meiste ist erledigt.
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, mitStand({
+    1: { erreicht: 1, gesamt: 5 }, // 20 % - gehört nicht hinein
+    2: { erreicht: 10, gesamt: 12 }, // 83 % - gehört hinein
+    11: { erreicht: 7, gesamt: 11 }, // 64 % - gehört hinein
+    12: { erreicht: 6, gesamt: 12 }, // genau 50 % - zählt noch
+  }));
+  assert.deepStrictEqual(spieleIn(e, FAST_GESCHAFFT), [
+    'Silent Hill 2', // 2 fehlen
+    'The Witcher 3', // 4 fehlen
+    'Oblivion', // 6 fehlen, aber die Hälfte ist geschafft
+  ]);
 });

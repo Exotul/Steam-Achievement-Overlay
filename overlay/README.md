@@ -160,7 +160,60 @@ fallen in der Levelberechnung ohnehin an (sie geht durch jede einzelne Trophäe)
 und werden dort mitgezählt; sie getrennt zu erheben hieße, die ganze Bibliothek
 erneut abzufragen.
 
-### Warum der Schrank keine Mausereignisse bekommt
+### Zwei Fächer, die dieselben Spiele noch einmal zeigen
+
+**„Fast geschafft"** und **„Zuletzt gespielt"** sind keine Sammlungen, sondern
+Blickwinkel auf dieselbe Bibliothek. Die Spiele darin stehen deshalb
+*zusätzlich* in ihrem Sammlungsfach, nicht statt dessen — ein Spiel aus seinem
+Genre zu nehmen, weil es gerade fast fertig ist, wäre eine Umräumaktion hinter
+dem Rücken des Anwenders. Erkennbar sind sie am grünen Schild; in der Gesamtzahl
+unten rechts zählen sie nicht mit.
+
+- **Fast geschafft:** Spiele, denen nur noch wenige Trophäen zum Diamanten
+  fehlen. Zwei Bedingungen zusammen: wenige fehlen **und** mindestens die Hälfte
+  ist geschafft. Nur die Zahl der fehlenden zu nehmen ging nicht — an echten
+  Daten stand dann ein Spiel mit 1 von 5 Achievements im Fach. Die Grenze rückt
+  in Stufen (2 → 5 → 12 fehlende), bis mindestens drei Spiele zusammenkommen:
+  Ein leeres Fach sähe aus wie ein Fehler, nicht wie eine Aussage.
+- **Zuletzt gespielt:** die letzten zwölf Titel, in der Reihenfolge, die Steam
+  selbst liefert (`rtime_last_played` aus `GetOwnedGames` — kostet keine
+  zusätzliche Abfrage).
+
+Die Achievement-Zahlen je Spiel kommen aus dem Zwischenspeicher der
+XP-Berechnung. Sie fallen dort ohnehin an, weil die Berechnung durch jede
+einzelne Trophäe geht; sie getrennt zu erheben hieße, die ganze Bibliothek
+erneut bei Steam abzufragen.
+
+### Ein Spiel aus dem Schrank starten
+
+Doppelklick auf eine herausgezogene Packung startet sie über
+`steam://rungameid/<appid>` — also genau so, als hätte man in der Bibliothek auf
+„Spielen" geklickt.
+
+Dass das überhaupt geht, ist nicht selbstverständlich. **Nachgemessen** an drei
+gleichen Fenstern an derselben Stelle:
+
+| Fenster | Mausbewegungen | Klicks |
+|---|---|---|
+| gewöhnlich | 7 | 1 |
+| wie der Schrank (`focusable: false`) | 7 | 1 |
+| Schrank im Hintergrundmodus | 1 | **0** |
+
+Hinter den Desktop-Symbolen kommen also Bewegungen an, Klicks nicht. Deshalb
+legt der Hauptprozess ein **winziges, unsichtbares Fenster** genau über die
+Packung, die gerade heraussteht; dort kommen Klicks an. Es wandert mit und
+verschwindet, sobald der Zeiger den Schrank verlässt. Absichtlich nicht größer
+als das Titelbild: Ein Fenster über dem ganzen Schrank würde sämtliche Klicks
+auf den Desktop schlucken.
+
+Zwei Feinheiten, beide nachgemessen: Die Seite braucht einen Hauch Deckkraft
+(`rgba(255,255,255,0.01)`), weil Windows Klicks durch *vollständig*
+durchsichtige Stellen eines geschichteten Fensters hindurchreicht — sichtbar ist
+davon nichts (Helligkeit an der Stelle: 15,5 ohne, 17,4 mit Fänger). Und
+solange ein Spiel läuft, geht der Fänger gar nicht erst auf: Ein neues Fenster
+über einem Vollbildspiel minimiert es.
+
+### Warum der Schrank selbst keine Mausereignisse bekommt
 
 Das Fenster ist **nicht fokussierbar** — ein Klick darauf darf ein Spiel auf dem
 anderen Monitor nicht minimieren, und im Hintergrundmodus liegt es ohnehin hinter
@@ -342,6 +395,32 @@ Ein falsch gelesenes Format kann dadurch keine Fehlalarme auslösen - es fällt
 bei der Prüfung durch, bevor es jemals etwas melden darf. Zusätzlich gilt:
 Meldet die Datei mehr als fünf neue Einträge auf einmal, wird nichts
 angezeigt.
+
+**„Noch nichts freigeschaltet" ist ein Ergebnis, kein Fehler.** Das war lange
+anders und hat die Hälfte der Bibliothek vom schnellen Weg ausgeschlossen. Bei
+einem frisch begonnenen Spiel schreibt Steam eine gültige, aber leere
+Statusdatei — 38 Bytes:
+
+```
+00 "cache" 00  02 "crc" 00 00000000  02 "PendingChanges" 00 00000000  08 08
+```
+
+Tadelloses KeyValues, nur ohne einen einzigen Statistikeintrag. Das galt als
+„nicht lesbar", also blieb es bei der Web-API — und zwar dauerhaft, denn
+geprüft wird nur zu Spielbeginn. Ausgerechnet dort, wo noch jede Trophäe
+aussteht, war der schnelle Weg damit gesperrt. Auf einem echten Rechner
+nachgezählt:
+
+| Spiele mit Schema-Datei | 549 |
+|---|---|
+| mit Freischaltungen (ging schon immer) | 256 |
+| gültig, aber noch leer (galt als unlesbar) | **274** |
+| wirklich nicht lesbar | 19 |
+
+Erkannt wird so eine Datei am Kopf, den jede Statusdatei hat (`cache` mit
+`crc`). Gefährlich ist das nicht: Das Ergebnis geht anschließend durch dieselbe
+Selbstprüfung wie jedes andere. Eine Datei, die fälschlich „leer" gelesen wird,
+obwohl Steam Freischaltungen meldet, fällt genau dort durch.
 
 **Status prüfen:** *Einstellungen → Diagnose* -> "Lokale Erkennung prüfen…". Bei Erfolg steht
 dort "GEFUNDEN und geprüft"; andernfalls listet die Diagnose jede geprüfte

@@ -2,6 +2,67 @@
 
 ## Noch nicht veröffentlicht
 
+### Die Erkennung greift jetzt auch bei frisch begonnenen Spielen
+
+Im Protokoll stand bei *Tenebris Somnia* tagelang „lokale Datei passte nicht —
+nicht lesbar", und die App fragte stattdessen alle paar Sekunden bei Steam nach.
+Beide Dateien waren aber in Ordnung. Die Statusdatei war lediglich 38 Bytes
+groß:
+
+```
+00 "cache" 00  02 "crc" 00 00000000  02 "PendingChanges" 00 00000000  08 08
+```
+
+Tadellos aufgebaut, nur ohne einen einzigen Eintrag — weil in diesem Spiel noch
+nichts freigeschaltet war. **„Nichts freigeschaltet" wurde als „nicht lesbar"
+gedeutet.** Damit war der schnelle Weg genau dann gesperrt, wenn man ihn am
+dringendsten braucht: zu Beginn eines neuen Spiels. Und er blieb gesperrt, denn
+geprüft wird nur beim Spielstart.
+
+Auf deinem Rechner nachgezählt:
+
+| Spiele mit Schema-Datei | 549 |
+|---|---|
+| mit Freischaltungen (ging schon immer) | 256 |
+| gültig, aber noch leer (galt als unlesbar) | **274** |
+| wirklich nicht lesbar | 19 |
+
+Die Sicherung bleibt unangetastet: Das Ergebnis geht durch dieselbe
+Selbstprüfung wie jedes andere, und eine Datei, die fälschlich „leer" gelesen
+wird, obwohl Steam Trophäen meldet, fällt genau dort durch. Zusätzlich steht der
+Grund jetzt im Protokoll, auch wenn das Schema-Verfahren scheitert — vorher
+fehlte genau diese Zeile, und das hat die Suche unnötig lang gemacht.
+
+### Der Schrank lässt sich bedienen, und zwei neue Fächer
+
+**Doppelklick auf eine herausgezogene Packung startet das Spiel** über Steam.
+Hinter den Desktop-Symbolen kommen Klicks nicht an (nachgemessen: Bewegungen 7,
+Klicks 0), deshalb legt die App ein winziges, unsichtbares Fenster genau über
+die Packung, die gerade heraussteht. Unsichtbar heißt gemessen unsichtbar:
+Helligkeit an der Stelle 15,5 ohne, 17,4 mit Fänger. Läuft ein Spiel, geht es
+gar nicht erst auf.
+
+Dazu zwei Fächer, die **dieselben Spiele ein zweites Mal** zeigen — aus ihren
+Sammlungen genommen wird nichts:
+
+- **Fast geschafft** — Spiele, denen nur noch wenige Trophäen zum Diamanten
+  fehlen. Bei dir gerade: Yu-Gi-Oh! Duel Links (17/20), Lakeside Bar (16/19),
+  Is This Game Trying To Kill Me? (13/17), Yu-Gi-Oh! Master Duel (7/11).
+- **Zuletzt gespielt** — die letzten zwölf Titel in der Reihenfolge von Steam.
+
+Beide tragen ein grünes Schild und zählen in der Gesamtzahl nicht mit. Beim
+Darüberfahren steht jetzt außerdem der Achievement-Stand dabei („39 von 40 —
+noch 1") und wann zuletzt gespielt wurde.
+
+Nebenbei: Die erste Regalzeile wurde bisher über Gebühr gestreckt — ein Fach mit
+20 Spielen war 1070 px breit, die Rücken füllten davon 550, und rechts stand ein
+leeres Brett. Jetzt gilt dort dieselbe Grenze wie in der letzten Zeile, und was
+übrig bleibt, bekommt Krimskrams.
+
+Einmalig rechnet die App dafür die Achievement-Zahlen aller gespielten Titel
+nach (381 Hintergrundabfragen, gemessen gut eine halbe Minute). Danach nie
+wieder — die Zahlen fallen bei der XP-Berechnung ohnehin an.
+
 ### Im Vollbild erscheint die Meldung jetzt auch auf dem zweiten Bildschirm
 
 Über einem Spiel im echten Vollbild zeigt Windows fremde Fenster nicht an —

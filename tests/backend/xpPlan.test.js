@@ -17,8 +17,15 @@ const P = require('../../backend/services/xpPlan');
  */
 
 // Seit dem Spieleschrank gehoeren zu einem Eintrag auch die Trophaeen je
-// Stufe - ohne sie ist er nicht mehr vollstaendig.
-const eintrag = (xp, spielzeit, stufen = { Kupfer: 2 }) => ({ xp, spielzeit, stufen });
+// Stufe und die Gesamtzahl der Achievements des Spiels - ohne sie ist er
+// nicht mehr vollstaendig.
+const eintrag = (xp, spielzeit, stufen = { Kupfer: 2 }) => ({
+  xp,
+  spielzeit,
+  stufen,
+  erreicht: 2,
+  gesamt: 20,
+});
 
 // --- Wann darf ein gemerkter Wert weiterverwendet werden? --------------------
 
@@ -50,6 +57,23 @@ test('Fehlender oder unbrauchbarer Eintrag führt zur Abfrage', () => {
     P.darfWiederverwenden({ xp: 5, spielzeit: 10 }, 10),
     false,
     'ohne Stufen unvollstaendig'
+  );
+  // Und ohne die Gesamtzahl der Achievements bliebe das Fach "Fast
+  // geschafft" leer, ohne dass ein Grund erkennbar waere.
+  assert.strictEqual(
+    P.darfWiederverwenden({ xp: 5, spielzeit: 10, stufen: { Kupfer: 1 } }, 10),
+    false,
+    'ohne gesamt unvollstaendig'
+  );
+});
+
+test('Ein Spiel ganz ohne Achievements bleibt ein gültiger Eintrag', () => {
+  // gesamt: 0 ist eine Aussage ("hat kein Achievement-System"), kein
+  // fehlender Wert. Wuerde das zur Abfrage führen, würden genau diese Spiele
+  // bei jedem Durchgang erneut bei Steam erfragt.
+  assert.strictEqual(
+    P.darfWiederverwenden({ xp: 0, spielzeit: 30, stufen: {}, erreicht: 0, gesamt: 0 }, 30),
+    true
   );
 });
 
