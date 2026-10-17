@@ -39,6 +39,32 @@ test('2 ist Vollbild, aber NICHT exklusiv - dort darf die Übersicht auf', () =>
   assert.strictEqual(r.exklusiv, false);
 });
 
+// --- Die weitere Frage: füllt gerade irgendetwas den Bildschirm? -------------
+//
+// Daran hängt die Zweitmeldung auf dem Nebenbildschirm (lib/zweitmeldung.js).
+// Sie gilt für BEIDE Vollbildarten, nicht nur für die exklusive: Im randlosen
+// Modus übermalt das Spiel unsere Meldung zwar nicht grundsätzlich, es tut es
+// aber oft genug - und auf dem Nebenbildschirm stört die zweite nicht.
+
+test('2 und 3 sind Vollbild, 5 ist keines', () => {
+  assert.strictEqual(deuteAusgabe('2').vollbild, true, 'randlos');
+  assert.strictEqual(deuteAusgabe('3').vollbild, true, 'exklusiv');
+  assert.strictEqual(deuteAusgabe('5').vollbild, false, 'Desktop');
+});
+
+test('Präsentationsmodus (4) zählt NICHT als Vollbild', () => {
+  // 4 heißt: Jemand hat sich Ruhe gewünscht. Eine Trophäenmeldung auf den
+  // zweiten Bildschirm zu schieben, wäre dann das Gegenteil von hilfreich -
+  // und dort hängt womöglich ein Beamer.
+  assert.strictEqual(deuteAusgabe('4').vollbild, false);
+});
+
+test('Ohne verständliche Antwort wird kein Vollbild angenommen', () => {
+  for (const unklar of ['', 'Fehler', '42', null]) {
+    assert.strictEqual(deuteAusgabe(unklar).vollbild, false, JSON.stringify(unklar));
+  }
+});
+
 test('Alle bekannten Werte werden benannt', () => {
   const erwartet = { 1: 'gesperrt', 4: 'praesentation', 6: 'ruhezeit', 7: 'app' };
   for (const [code, zustand] of Object.entries(erwartet)) {

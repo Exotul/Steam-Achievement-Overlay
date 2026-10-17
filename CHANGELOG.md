@@ -2,6 +2,44 @@
 
 ## Noch nicht veröffentlicht
 
+### Im Vollbild erscheint die Meldung jetzt auch auf dem zweiten Bildschirm
+
+Über einem Spiel im echten Vollbild zeigt Windows fremde Fenster nicht an —
+daran lässt sich von außen nichts ändern. Auf einem **anderen** Bildschirm
+zeigt es sie aber sehr wohl: Das Spiel besitzt einen Bildschirm, nicht den
+Rechner. Läuft ein Spiel im Vollbild, erscheint dieselbe Trophäenmeldung
+deshalb zusätzlich auf allen übrigen Bildschirmen.
+
+Zusätzlich, nicht stattdessen: Auf dem Spielbildschirm wird sie weiterhin
+gezeigt. Ob sie dort durchkommt, hängt am Spiel, am Treiber und am
+Anzeigemodus — ein Fenster, das vorsorglich übergangen wird, wäre der eine
+Fall, in dem es funktioniert hätte.
+
+Nachgemessen (Vollbildfenster auf Bildschirm 1, Meldung auf Bildschirm 2):
+
+| geprüft | Ergebnis |
+|---|---|
+| Windows meldet beim Vollbildfenster | Code 2 („Vollbild") |
+| Meldung im Fenster auf Bildschirm 2 | vollständig gezeichnet, Helligkeit 38,6 gegen 0,0 daneben |
+| Vollbildfenster danach | nicht minimiert, weiterhin im Vordergrund |
+| Last der App im Leerlauf | 0,13 % der CPU (unverändert) |
+
+Dass das Spiel unberührt bleibt, war die eigentliche Frage: Genau daran war
+die Achievement-Übersicht gescheitert, die über einem solchen Spiel deshalb
+gar nicht erst aufgeht.
+
+Einzelheiten:
+
+- **Nur im Vollbild.** Ohne laufendes Spiel oder im Fenstermodus passiert
+  nichts — dort sieht man die Meldung ohnehin.
+- **Stumm.** Der Ton kommt aus dem Hauptfenster; zwei Fenster, die denselben
+  Klang starten, ergeben ein Flattern.
+- Das Tastenkürzel `Strg+Alt+Umschalt+T` fragt jetzt zuerst nach dem
+  Anzeigemodus und schaltet die Zweitmeldung sofort frei — zum Nachsehen im
+  Spiel, ohne auf die regelmäßige Prüfung zu warten.
+- Abschaltbar unter *Einstellungen → Anzeige → „Im Vollbild auf allen
+  Bildschirmen"*.
+
 ### Der Spieleschrank kostet fast keine Rechenleistung mehr
 
 Gemeldet: Der Hintergrund lässt den Rechner schnaufen. Nachgemessen über alle

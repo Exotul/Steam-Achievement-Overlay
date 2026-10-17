@@ -52,6 +52,12 @@ function standard() {
     // null = Hauptbildschirm. Eine feste Kennung wäre falsch: Monitore
     // können abgezogen werden, und dann läge das Overlay im Nirgendwo.
     bildschirm: null,
+    // Im Vollbild die Meldung zusaetzlich auf den anderen Bildschirmen
+    // zeigen. Ueber einem Spiel im exklusiven Vollbild zeigt Windows fremde
+    // Fenster nicht an - auf einem anderen Bildschirm aber schon. Siehe
+    // lib/zweitmeldung.js. An, weil es sonst niemand findet, und weil es
+    // ausserhalb des Vollbilds ohnehin nichts tut.
+    vollbildZweitschirm: true,
     groesse: 1,
     anzeigeDauerSek: 8.5,
     spielStartDauerSek: Number(process.env.GAME_TOAST_SECONDS) || 30,
@@ -131,6 +137,9 @@ function bereinige(roh) {
     bildschirm: Number.isFinite(Number(e.bildschirm)) && e.bildschirm !== null
       ? Number(e.bildschirm)
       : null,
+
+    vollbildZweitschirm:
+      e.vollbildZweitschirm === undefined ? s.vollbildZweitschirm : !!e.vollbildZweitschirm,
 
     groesse: zahlIn(e.groesse, GRENZEN.groesse, s.groesse),
     anzeigeDauerSek: zahlIn(e.anzeigeDauerSek, GRENZEN.anzeigeDauerSek, s.anzeigeDauerSek),

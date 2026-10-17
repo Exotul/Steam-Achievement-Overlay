@@ -61,7 +61,20 @@ function deuteAusgabe(ausgabe) {
   const treffer = String(ausgabe || '').trim().match(/^(\d+)\s*$/m);
   const code = treffer ? Number(treffer[1]) : null;
   const zustand = code !== null && ZUSTAND[code] ? ZUSTAND[code] : 'unbekannt';
-  return { code, zustand, exklusiv: code === 3 };
+  return {
+    code,
+    zustand,
+    exklusiv: code === 3,
+    // `vollbild` ist die weitere Frage: Besitzt gerade irgendetwas den
+    // Bildschirm? Das gilt fuer das exklusive Vollbild (3) UND fuer den
+    // randlosen Modus (2). Gebraucht fuer die Zweitmeldung auf dem
+    // Nebenbildschirm: Die soll immer dann mitlaufen, wenn ein Spiel den
+    // Hauptbildschirm fuellt - ob Windows unsere Meldung dort nun
+    // unterdrueckt (3) oder nur das Spiel sie uebermalt (2), merkt man von
+    // aussen ohnehin nicht. 4 (Praesentation) zaehlt nicht dazu: Das ist
+    // keine Vollbildanwendung, sondern ein Benutzerwunsch nach Ruhe.
+    vollbild: code === 2 || code === 3,
+  };
 }
 
 /**
@@ -76,7 +89,7 @@ function abfragen() {
   const beginn = Date.now();
   return new Promise((fertig) => {
     if (process.platform !== 'win32') {
-      fertig({ code: null, zustand: 'unbekannt', exklusiv: false, dauerMs: 0 });
+      fertig({ code: null, zustand: 'unbekannt', exklusiv: false, vollbild: false, dauerMs: 0 });
       return;
     }
     execFile(
@@ -86,7 +99,14 @@ function abfragen() {
       (fehler, stdout) => {
         const dauerMs = Date.now() - beginn;
         if (fehler) {
-          fertig({ code: null, zustand: 'unbekannt', exklusiv: false, dauerMs, fehler: fehler.message });
+          fertig({
+            code: null,
+            zustand: 'unbekannt',
+            exklusiv: false,
+            vollbild: false,
+            dauerMs,
+            fehler: fehler.message,
+          });
           return;
         }
         fertig({ ...deuteAusgabe(stdout), dauerMs });

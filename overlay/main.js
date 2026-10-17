@@ -14,6 +14,7 @@ const autostart = require('./lib/autostart');
 const { lesbareSpanne } = require('./lib/zeitspanne');
 const vollbild = require('./lib/vollbild');
 const { overlayRechteck } = require('./lib/overlayFlaeche');
+const zweitmeldung = require('./lib/zweitmeldung');
 const { levelAus } = require('./lib/levelKurve');
 const schrankFarben = require('./lib/schrankFarben');
 const hintergrund = require('./lib/hintergrund');
@@ -332,6 +333,157 @@ function createPanelWindow() {
   panelWindow.setAlwaysOnTop(true, 'screen-saver', 1);
   panelWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   panelWindow.loadFile(path.join(__dirname, 'panel', 'panel.html'));
+}
+
+/* ==========================================================================
+   Zweitmeldung auf den anderen Bildschirmen
+   ==========================================================================
+   Ueber einem Spiel im exklusiven Vollbild zeigt Windows fremde Fenster nicht
+   an - auf einem ANDEREN Bildschirm aber schon. Also laeuft dort dasselbe
+   Overlay mit und bekommt dieselben Meldungen. Warum und unter welchen
+   Bedingungen, steht in lib/zweitmeldung.js.
+
+   Diese Fenster entstehen beim Start und werden danach nur noch ein- und
+   ausgeblendet - aus demselben Grund wie bei der Uebersicht: Ein Fenster, das
+   es schon gibt, stoert weniger als eines, das mitten im Spiel neu entsteht.
+   Solange niemand spielt, sind sie unsichtbar; unsichtbare Fenster zeichnen
+   nichts und kosten damit auch nichts.
+   ========================================================================== */
+
+let zweitFenster = [];
+// Laeuft gerade ein Spiel im Vollbild, sodass gespiegelt wird?
+let spiegelAktiv = false;
+
+function createZweitFenster() {
+  schliesseZweitFenster();
+  if (!einstellungen.vollbildZweitschirm) return;
+
+  const haupt = gewaehlterBildschirm();
+  const andere = zweitmeldung.zweitBildschirme(screen.getAllDisplays(), haupt.id);
+  if (andere.length === 0) return;
+
+  zweitFenster = andere.map((anzeige) => {
+    // Dieselbe Flaeche wie das Hauptfenster, inklusive des einen freien
+    // Pixels: Ein bildschirmgrosses Fenster haelt Windows fuer eine
+    // Vollbild-Anwendung und unterdrueckt dann systemweit
+    // Benachrichtigungen - nachgemessen, siehe lib/overlayFlaeche.js. Das
+    // gilt fuer JEDES unserer Fenster, auch fuer dieses hier.
+    const r = overlayRechteck(anzeige.bounds, einstellungen.position);
+
+    const fenster = new BrowserWindow({
+      x: r.x,
+      y: r.y,
+      width: r.width,
+      height: r.height,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      movable: false,
+      focusable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'overlay', 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        // Die Meldung ist eine Animation. Chromium bremst Fenster, die es
+        // fuer verdeckt haelt, auf einen Takt pro Sekunde herunter - ein
+        // transparentes Fenster auf dem Nebenbildschirm ist genau so ein
+        // Grenzfall. Dann ruckelte die Meldung genau dort, wo sie die
+        // einzige ist, die man sieht.
+        backgroundThrottling: false,
+      },
+    });
+
+    fenster.setBounds({ x: r.x, y: r.y, width: r.width, height: r.height });
+    fenster.setAlwaysOnTop(true, 'screen-saver', 1);
+    fenster.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // EINMAL - jeder weitere Aufruf nimmt einem transparenten Fenster
+    // WS_EX_LAYERED weg und minimiert damit ein Vollbildspiel. Die Messung
+    // dazu steht in overlay/panel/panel.html.
+    fenster.setIgnoreMouseEvents(true);
+
+    // STUMM, und zwar doppelt: setAudioMuted schaltet die Tonspur des
+    // Fensters ab, die Lautstaerke 0 verhindert zusaetzlich, dass ueberhaupt
+    // Toene berechnet werden (siehe einstellungenFuerZweitfenster).
+    fenster.webContents.setAudioMuted(true);
+    fenster.webContents.once('did-finish-load', () => {
+      if (fenster.isDestroyed()) return;
+      fenster.webContents.send('einstellungen', einstellungenFuerZweitfenster());
+    });
+    fenster.loadFile(path.join(__dirname, 'overlay', 'overlay.html'));
+    return fenster;
+  });
+
+  logger.info(
+    `Zweitmeldung vorbereitet auf ${zweitFenster.length} weiteren Bildschirm(en) - ` +
+      'sichtbar, sobald ein Spiel im Vollbild läuft'
+  );
+}
+
+function schliesseZweitFenster() {
+  zweitFenster.forEach((f) => {
+    if (f && !f.isDestroyed()) f.destroy();
+  });
+  zweitFenster = [];
+  spiegelAktiv = false;
+}
+
+/**
+ * Entscheidet nach der Vollbild-Abfrage, ob gespiegelt wird - und blendet die
+ * Fenster entsprechend ein oder aus.
+ *
+ * @param {{vollbild?: boolean}} modus - Ergebnis von vollbild.istExklusivesVollbild()
+ */
+function setzeSpiegel(modus) {
+  const an = zweitmeldung.darfSpiegeln({
+    eingeschaltet: einstellungen.vollbildZweitschirm,
+    spielLaeuft: trackedAppId !== null,
+    vollbild: !!(modus && modus.vollbild),
+    fenster: zweitFenster.length,
+  });
+  if (an === spiegelAktiv) return;
+  spiegelAktiv = an;
+
+  zweitFenster.forEach((f) => {
+    if (!f || f.isDestroyed()) return;
+    if (an) {
+      // showInactive: anzeigen, ohne den Fokus anzufordern. show() wuerde
+      // genau das Spiel minimieren, dem wir hier helfen wollen.
+      f.showInactive();
+      f.setAlwaysOnTop(true, 'screen-saver', 1);
+    } else {
+      f.hide();
+    }
+  });
+
+  logger.info(
+    an
+      ? `Zweitmeldung an: ${trackedGameName || 'Spiel'} läuft im Vollbild ` +
+          `(${modus && modus.zustand}) - Meldungen erscheinen auf allen Bildschirmen`
+      : 'Zweitmeldung aus'
+  );
+}
+
+/**
+ * Schickt eine Meldung an alle Fenster, die sie zeigen sollen.
+ *
+ * Das Hauptfenster bekommt sie IMMER - auch im exklusiven Vollbild, wo sie
+ * vermutlich nicht durchkommt. "Vermutlich" ist hier das entscheidende Wort:
+ * Es haengt am Spiel, am Treiber und am Anzeigemodus, und ein Fenster, das
+ * wir vorsorglich uebergehen, waere der eine Fall, in dem es funktioniert
+ * haette. Die Zweitmeldung kommt also dazu, nicht an seine Stelle.
+ */
+function sendeMeldung(kanal, nutzlast) {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send(kanal, nutzlast);
+  }
+  if (!spiegelAktiv) return;
+  zweitFenster.forEach((f) => {
+    if (f && !f.isDestroyed() && f.isVisible()) f.webContents.send(kanal, nutzlast);
+  });
 }
 
 /* ==========================================================================
@@ -683,7 +835,8 @@ function sendAchievementToOverlay(achievement, nurTest = false) {
       (nurTest ? ' [TEST]' : '') +
       (xpInfo ? ` +${xpInfo.zuwachs} XP, Level ${xpInfo.level}${xpInfo.levelUp ? ' AUFSTIEG' : ''}` : '')
   );
-  overlayWindow.webContents.send('achievement-unlocked', { ...achievement, xp: xpInfo, nurTest });
+  // Im Vollbild zusaetzlich auf den anderen Bildschirmen - siehe sendeMeldung().
+  sendeMeldung('achievement-unlocked', { ...achievement, xp: xpInfo, nurTest });
 
   // Die Uebersicht ist ein eigenes Fenster und haelt eine eigene Kopie. Sie
   // bekommt nur den Namen - mehr braucht sie nicht, um den Eintrag sofort von
@@ -845,8 +998,9 @@ function zeigeSitzungsbilanz() {
 }
 
 function sendGameStartedToOverlay(payload) {
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  overlayWindow.webContents.send('game-started', payload);
+  // Auch eine Meldung - beim Spielstart ist der Spiegel allerdings meist noch
+  // aus, weil erst danach feststeht, ob das Spiel ins Vollbild geht.
+  sendeMeldung('game-started', payload);
 }
 
 function sendStatusBadge(visible) {
@@ -868,8 +1022,8 @@ function sendStatusBadge(visible) {
 }
 
 function sendCompletionTimeToOverlay(payload) {
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  overlayWindow.webContents.send('completion-time', payload);
+  // Gehoert zur Trophaeenmeldung - also auch auf den anderen Bildschirmen.
+  sendeMeldung('completion-time', payload);
 }
 
 function sendDiamondToOverlay(payload) {
@@ -877,8 +1031,7 @@ function sendDiamondToOverlay(payload) {
     spiel: payload && payload.gameName,
     symbol: payload && payload.icon,
   });
-  if (!overlayWindow || overlayWindow.isDestroyed()) return;
-  overlayWindow.webContents.send('game-diamond-unlocked', payload);
+  sendeMeldung('game-diamond-unlocked', payload);
 }
 
 // --- Langsame Schleife: nur "wird gerade gespielt?" ------------------------
@@ -943,8 +1096,12 @@ async function startAchievementTracking(appId, gameName) {
     unlockedBaseline = null;
   }
 
-  // Anderes Spiel, womoeglich anderer Anzeigemodus - neu fragen.
+  // Anderes Spiel, womoeglich anderer Anzeigemodus - neu fragen. Auch die
+  // Zweitmeldung faengt wieder bei "unbekannt" an: Beim Wechsel von einem
+  // Vollbildspiel in ein Fensterspiel wird stopAchievementTracking() nicht
+  // zwingend durchlaufen (checkPresence steigt direkt um).
   vollbild.vergessen();
+  setzeSpiegel({ vollbild: false });
   planeVollbildPruefung(appId);
 
   sitzung = {
@@ -1291,6 +1448,9 @@ function stopAchievementTracking() {
   trackedGameName = null;
   unlockedBaseline = null;
   achievementIndex = new Map();
+  // Kein Spiel, kein Vollbild: Die Zweitmeldung verschwindet wieder. Erst
+  // trackedAppId loeschen, dann umschalten - setzeSpiegel() prueft genau das.
+  setzeSpiegel({ vollbild: false });
   sendeSpielDaten();
 }
 
@@ -1579,6 +1739,17 @@ function einstellungenFuerOverlay() {
 }
 
 /**
+ * Dieselben Einstellungen fuer die Zweitmeldung - nur stumm.
+ *
+ * Groesse, Anzeigedauer und Ecke sollen dort genauso gelten; der Ton kommt
+ * aus dem Hauptfenster. Zwei Fenster, die denselben Klang starten, ergeben
+ * ein Flattern, weil sie nie genau gleich schnell loslegen.
+ */
+function einstellungenFuerZweitfenster() {
+  return { ...einstellungenFuerOverlay(), lautstaerke: 0, eigenerTonUrl: null };
+}
+
+/**
  * Schickt die vollstaendige Achievement-Liste des verfolgten Spiels ans
  * Overlay. Merkliste und Uebersicht arbeiten ausschliesslich damit - sie
  * fragen nie selbst bei Steam nach.
@@ -1654,23 +1825,44 @@ function meldeExklusivesVollbild() {
 }
 
 /**
- * Einmal je Spiel nachsehen, ob es im exklusiven Vollbild laeuft.
+ * Nachsehen, ob das laufende Spiel im Vollbild ist - und zwar so lange, bis
+ * es der Fall ist.
  *
- * 45 Sekunden nach dem Start: Viele Spiele zeigen zuerst ein Startfenster und
- * schalten erst danach ins Vollbild - eine fruehere Abfrage saehe noch das
- * Startfenster. Die Abfrage selbst stoert das Spiel nicht (nachgemessen: Dead
- * Space blieb dabei im Vordergrund und nicht minimiert).
+ * WARUM NICHT NUR EINMAL: Fruehere Fassungen fragten genau einmal, 45 s nach
+ * dem Spielstart. Die 45 s waren ein Kompromiss gegen einen einzigen
+ * Versuch: Viele Spiele zeigen zuerst ein Startfenster, und eine fruehe
+ * Abfrage saehe nur dieses. Jetzt haengt die Zweitmeldung an der Antwort,
+ * und ein verpasster Wechsel ins Vollbild heisst: Die Meldung erscheint
+ * nirgends. Also wird wiederholt gefragt, bis Vollbild gemeldet ist - und
+ * dann nicht mehr, denn ab da steht die Antwort fuer dieses Spiel.
+ *
+ * Deshalb darf der erste Blick nun auch frueher kommen: Ein Fehlschlag
+ * kostet nur die naechste Runde. Die Abstaende werden dabei laenger - ein
+ * Spiel, das nach einer Stunde noch im Fenster laeuft, wird auch in der
+ * naechsten Minute keines, und jede Abfrage kostet einen PowerShell-Start.
+ *
+ * Die Abfrage selbst stoert das Spiel nicht (nachgemessen: Dead Space blieb
+ * dabei im Vordergrund und nicht minimiert).
  */
-const VOLLBILD_PRUEFUNG_NACH_MS = 45 * 1000;
+const VOLLBILD_ABSTAENDE_MS = [20, 45, 90, 180].map((s) => s * 1000);
+const VOLLBILD_ABSTAND_MAX_MS = 300 * 1000;
 let vollbildPruefTimer = null;
 
-function planeVollbildPruefung(appId) {
+function planeVollbildPruefung(appId, runde = 0) {
   clearTimeout(vollbildPruefTimer);
+  const abstand = VOLLBILD_ABSTAENDE_MS[runde] || VOLLBILD_ABSTAND_MAX_MS;
+
   vollbildPruefTimer = setTimeout(async () => {
     if (trackedAppId !== appId) return;
     const modus = await vollbild.istExklusivesVollbild({ frisch: true });
-    if (trackedAppId === appId && modus.exklusiv) meldeExklusivesVollbild();
-  }, VOLLBILD_PRUEFUNG_NACH_MS);
+    if (trackedAppId !== appId) return;
+
+    if (modus.exklusiv) meldeExklusivesVollbild();
+    setzeSpiegel(modus);
+
+    // Steht das Vollbild, ist nichts mehr zu klaeren. Sonst weiter nachsehen.
+    if (!modus.vollbild) planeVollbildPruefung(appId, runde + 1);
+  }, abstand);
 }
 
 /** Ist die Uebersicht gerade zu sehen? */
@@ -2020,6 +2212,21 @@ async function handleDiagnose() {
   lines.push(...watcherLines);
 
   lines.push('');
+  lines.push('Zweitmeldung im Vollbild:');
+  if (!einstellungen.vollbildZweitschirm) {
+    lines.push('  Abgeschaltet (Einstellungen > Anzeige).');
+  } else if (zweitFenster.length === 0) {
+    lines.push('  Kein weiterer Bildschirm vorhanden - es gibt nichts zu spiegeln.');
+  } else {
+    lines.push(`  Vorbereitet auf ${zweitFenster.length} weiteren Bildschirm(en).`);
+    lines.push(
+      spiegelAktiv
+        ? '  Gerade AKTIV - Meldungen erscheinen auf allen Bildschirmen.'
+        : '  Gerade ruhend - sie geht erst auf, wenn ein Spiel im Vollbild laeuft.'
+    );
+  }
+
+  lines.push('');
   lines.push('Status-Abzeichen (unten rechts):');
   lines.push(`  Betriebsart: ${einstellungen.statusAbzeichen}`);
   if (einstellungen.statusAbzeichen === 'steam-overlay') {
@@ -2286,6 +2493,31 @@ function wendeEinstellungenAn(vorher) {
       passeFensterAnBildschirmAn();
     }
     sendToOverlay('einstellungen', einstellungenFuerOverlay());
+    // Groesse, Dauer und Ecke gelten auch fuer die Zweitmeldung - nur der Ton
+    // bleibt dort aus.
+    zweitFenster.forEach((f) => {
+      if (f && !f.isDestroyed()) f.webContents.send('einstellungen', einstellungenFuerZweitfenster());
+    });
+  }
+
+  // Die Zweitmeldung haengt an drei Werten: ob sie eingeschaltet ist, auf
+  // welchem Bildschirm das Hauptfenster liegt (die uebrigen bekommen sie) und
+  // an der Ecke (sie bestimmt die freie Seite des Fensters). Aendert sich
+  // einer davon, werden die Fenster neu aufgestellt.
+  if (
+    vorher &&
+    (vorher.vollbildZweitschirm !== einstellungen.vollbildZweitschirm ||
+      vorher.bildschirm !== einstellungen.bildschirm ||
+      vorher.position !== einstellungen.position)
+  ) {
+    createZweitFenster();
+    // Laeuft gerade ein Spiel, muss die Lage neu geklaert werden - die
+    // frischen Fenster sind unsichtbar, und der gemerkte Stand ist weg.
+    if (trackedAppId !== null && einstellungen.vollbildZweitschirm) {
+      vollbild.istExklusivesVollbild({ frisch: true }).then((modus) => {
+        if (trackedAppId !== null) setzeSpiegel(modus);
+      });
+    }
   }
 
   if (!vorher || vorher.panelTaste !== einstellungen.panelTaste) setzeTastenkuerzel();
@@ -2663,17 +2895,25 @@ function zeigeEinstellungen() {
  */
 const TEST_TASTE = 'Control+Alt+Shift+T';
 
-function handleTestImSpiel() {
-  handleTestAchievement();
+async function handleTestImSpiel() {
   const fenster = overlayWindow && !overlayWindow.isDestroyed() ? overlayWindow.getBounds() : null;
   const bild = gewaehlterBildschirm().bounds;
-  vollbild.istExklusivesVollbild({ frisch: true }).then((modus) => {
-    logger.info(
-      'Testmeldung per Tastenkürzel - ' +
-        `Fenster ${fenster ? `${fenster.width}x${fenster.height}` : '-'}, ` +
-        `Bildschirm ${bild.width}x${bild.height}, Windows meldet: ${modus.zustand}`
-    );
-  });
+
+  // ZUERST fragen, dann melden. Das kostet den Test rund eine Fuenftelsekunde
+  // und ist genau der Grund, warum es dieses Kuerzel gibt: Wer im Spiel
+  // nachsieht, ob die Zweitmeldung kommt, soll nicht erst warten, bis die
+  // regelmaessige Pruefung von selbst vorbeikommt.
+  const modus = await vollbild.istExklusivesVollbild({ frisch: true });
+  if (trackedAppId !== null) setzeSpiegel(modus);
+
+  handleTestAchievement();
+
+  logger.info(
+    'Testmeldung per Tastenkürzel - ' +
+      `Fenster ${fenster ? `${fenster.width}x${fenster.height}` : '-'}, ` +
+      `Bildschirm ${bild.width}x${bild.height}, Windows meldet: ${modus.zustand}, ` +
+      `Zweitmeldung: ${spiegelAktiv ? `auf ${zweitFenster.length} Bildschirm(en)` : 'aus'}`
+  );
 }
 
 function setzeTastenkuerzel() {
@@ -2861,6 +3101,9 @@ app.whenReady().then(async () => {
 
   createOverlayWindow();
   createPanelWindow();
+  // Vorbereitet, aber unsichtbar - sie gehen erst auf, wenn ein Spiel im
+  // Vollbild laeuft.
+  createZweitFenster();
   createTray();
   // Den Schrank beim Start aufstellen, wenn er eingeschaltet ist.
   //
@@ -2877,6 +3120,13 @@ app.whenReady().then(async () => {
     clearTimeout(bildschirmTimer);
     bildschirmTimer = setTimeout(() => {
       passeFensterAnBildschirmAn();
+      // Die Zweitmeldung haengt daran, WELCHE Bildschirme es gibt - ein
+      // abgezogener Monitor laesst sonst ein Fenster im Nirgendwo zurueck.
+      // Neu anlegen statt verschieben: Es sind unsichtbare Fenster, das
+      // kostet nichts und ist nicht zu verwechseln.
+      const spiegelteVorher = spiegelAktiv;
+      createZweitFenster();
+      if (spiegelteVorher) setzeSpiegel({ vollbild: true, zustand: 'unverändert' });
       // Der Schrank haengt an einem bestimmten Bildschirm - wird der
       // abgezogen oder anders aufgeloest, muss er neu aufgestellt werden.
       if (einstellungen.schrankAktiv) {

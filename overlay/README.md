@@ -401,6 +401,35 @@ Projekt.
 "Vollbild" auf "Randloses Fenster" umstellen - kostet bei modernen Spielen
 praktisch keine Leistung und löst das Problem zuverlässig.
 
+### Zweitmeldung auf dem Nebenbildschirm
+
+Was Windows über einem Vollbildspiel nicht zeigt, zeigt es auf einem **anderen**
+Bildschirm sehr wohl: Das Spiel besitzt einen Bildschirm, nicht den Rechner.
+Läuft ein Spiel im Vollbild, erscheint dieselbe Meldung deshalb zusätzlich auf
+allen übrigen Bildschirmen - gleichzeitig, nicht stattdessen. Auf dem
+Spielbildschirm wird sie weiterhin gezeigt; kommt sie dort durch, sieht man sie
+zweimal, und das ist das kleinere Übel gegenüber "gar nicht".
+
+- **Nur im Vollbild.** Ohne laufendes Spiel oder im Fenstermodus passiert
+  nichts - dort sieht man die Meldung ohnehin, und eine zweite wäre nur Unruhe
+  daneben. Gefragt wird mit `SHQueryUserNotificationState`; es zählen
+  "exklusives Vollbild" (3) und "randlos" (2), nicht aber der
+  Präsentationsmodus (4).
+- **Stumm.** Der Ton kommt aus dem Hauptfenster. Zwei Fenster, die denselben
+  Klang starten, ergeben ein Flattern - sie legen nie genau gleich schnell los.
+- **Die Fenster entstehen beim Programmstart** und werden danach nur noch ein-
+  und ausgeblendet, wie die Übersicht. Unsichtbare Fenster zeichnen nichts; die
+  gemessene Last der ganzen App im Leerlauf liegt dadurch unverändert bei rund
+  0,13 % der CPU.
+- Abschaltbar unter *Einstellungen > Anzeige > "Im Vollbild auf allen
+  Bildschirmen"*. Mit nur einem Bildschirm gibt es nichts zu spiegeln.
+
+Nachgemessen (Vollbildfenster auf Bildschirm 1, Zweitmeldung auf Bildschirm 2):
+Die Meldung wird dort vollständig gezeichnet, und das Vollbildfenster bleibt
+dabei unberührt - nicht minimiert, weiterhin im Vordergrund, Windows meldet
+weiter "Vollbild". Genau das war bei der Übersicht der Knackpunkt, die deshalb
+über einem solchen Spiel gar nicht erst aufgeht.
+
 ## Schwierigkeitsschätzung (0-10)
 
 Die Spielstart-Meldung zeigt eine geschätzte Komplettierungs-Schwierigkeit,

@@ -9,7 +9,7 @@
  */
 
 const els = {};
-['bildschirm', 'groesse', 'anzeigeDauerSek', 'spielStartDauerSek', 'lautstaerke',
+['bildschirm', 'vollbildZweitschirm', 'groesse', 'anzeigeDauerSek', 'spielStartDauerSek', 'lautstaerke',
  'statusAbzeichen', 'position', 'ton-name', 'ton-waehlen', 'ton-entfernen',
  'key-status', 'key-aendern', 'test', 'zuruecksetzen', 'schliessen', 'gespeichert',
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
@@ -33,6 +33,7 @@ const REGLER = {
 
 // Einstellungen, die nur an oder aus kennen.
 const SCHALTER = [
+  'vollbildZweitschirm',
   'merklisteAktiv',
   'panelBeiSteamOverlay',
   'sitzungsbilanz',
