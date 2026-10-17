@@ -1,0 +1,112 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const path = require('node:path');
+const os = require('node:os');
+
+process.env.LOG_DIR = path.join(os.tmpdir(), 'trophaenschrank-testlogs');
+
+const Z = require(path.resolve(__dirname, '..', '..', 'overlay', 'lib', 'zeigerFenster.js'));
+
+/**
+ * Darf der Klickfänger an dieser Stelle auf einen Doppelklick warten?
+ *
+ * DER FEHLER, DEN DIESE ENTSCHEIDUNG BEHEBT: Der Fänger liegt auf der
+ * obersten Fensterebene und lag damit auch über einem Browser oder Editor, in
+ * dem gerade gearbeitet wurde. Nachgemessen, mit einem fokussierten Fenster
+ * darunter: Fänger bekommt den Doppelklick (1x), Arbeitsfenster nichts (0x).
+ * Genau so hat ein Doppelklick im Arbeitsfenster ein Spiel gestartet.
+ *
+ * Irrt die Entscheidung in die eine Richtung, schluckt der Schrank fremde
+ * Klicks. Irrt sie in die andere, lässt sich kein Spiel mehr starten. Beide
+ * Richtungen stehen hier.
+ */
+
+const zeile = (hwnd, klasse, wurzel, wurzelKlasse) =>
+  `${hwnd} ${klasse} ${wurzel} ${wurzelKlasse}`;
+
+// --- Die Antwort des Skripts deuten -----------------------------------------
+
+test('Eine Antwortzeile wird in ihre vier Teile zerlegt', () => {
+  const a = Z.deuteZeile(zeile(66606, 'WorkerW', 66606, 'WorkerW'));
+  assert.deepStrictEqual(a, { hwnd: 66606, klasse: 'WorkerW', wurzel: 66606, wurzelKlasse: 'WorkerW' });
+});
+
+test('Unbrauchbare Ausgabe ergibt null, nicht etwas Geratenes', () => {
+  for (const unsinn of ['', '   ', 'FEHLER irgendwas', '123 nur zwei', null, undefined, '\r\n']) {
+    assert.strictEqual(Z.deuteZeile(unsinn), null, JSON.stringify(unsinn));
+  }
+});
+
+test('Zeilenenden und zusätzliche Leerzeichen stören nicht', () => {
+  const a = Z.deuteZeile('  131072   Chrome_WidgetWin_1   66606   WorkerW  \r\n');
+  assert.strictEqual(a.hwnd, 131072);
+  assert.strictEqual(a.wurzelKlasse, 'WorkerW');
+});
+
+// --- Die Entscheidung --------------------------------------------------------
+
+test('Unser eigenes Schrankfenster zählt - auch als Kind von WorkerW', () => {
+  // Im Hintergrundmodus ist der Schrank ein KIND von WorkerW. Unter dem
+  // Zeiger liegt dann unser Fenster, sein oberster Vorfahr ist der Desktop.
+  const a = Z.deuteZeile(zeile(131072, 'Chrome_WidgetWin_1', 66606, 'WorkerW'));
+  assert.strictEqual(Z.istSchrankSichtbar(a, [131072]), true);
+});
+
+test('Der blanke Desktop zählt auch ohne unsere Fensternummer', () => {
+  assert.strictEqual(Z.istSchrankSichtbar(Z.deuteZeile(zeile(1, 'WorkerW', 1, 'WorkerW')), []), true);
+  assert.strictEqual(Z.istSchrankSichtbar(Z.deuteZeile(zeile(2, 'Progman', 2, 'Progman')), []), true);
+});
+
+test('Die Symbolliste des Desktops zählt mit', () => {
+  // Sie liegt ÜBER dem Hintergrundbild. Zählte sie nicht mit, wäre der
+  // Schrank ausgerechnet dort tot, wo die Desktop-Symbole stehen.
+  const a = Z.deuteZeile(zeile(300, 'SysListView32', 2, 'Progman'));
+  assert.strictEqual(Z.istSchrankSichtbar(a, []), true);
+  const b = Z.deuteZeile(zeile(301, 'SHELLDLL_DefView', 2, 'Progman'));
+  assert.strictEqual(Z.istSchrankSichtbar(b, []), true);
+});
+
+test('Ein fremdes Fenster darüber sperrt den Fänger', () => {
+  // Der eigentliche Fall: ein Browser über dem Schrank.
+  const a = Z.deuteZeile(zeile(900, 'Chrome_WidgetWin_1', 900, 'Chrome_WidgetWin_1'));
+  assert.strictEqual(Z.istSchrankSichtbar(a, [131072]), false);
+  // Und ein Explorer-Fenster ebenso.
+  const b = Z.deuteZeile(zeile(901, 'CabinetWClass', 901, 'CabinetWClass'));
+  assert.strictEqual(Z.istSchrankSichtbar(b, [131072]), false);
+});
+
+test('Keine Antwort heißt: kein Fänger', () => {
+  // Lieber kein Fänger als einer, der fremde Klicks schluckt. Antwortet die
+  // Prüfung nicht (nicht gestartet, zu langsam, PowerShell gesperrt), bleibt
+  // er zu - das Starten per Doppelklick entfällt dann, mehr nicht.
+  assert.strictEqual(Z.istSchrankSichtbar(null, [131072]), false);
+  assert.strictEqual(Z.istSchrankSichtbar(undefined, []), false);
+});
+
+test('Unsinnige Fensternummern werden nicht als unsere gezählt', () => {
+  const a = Z.deuteZeile(zeile(900, 'Chrome_WidgetWin_1', 900, 'Chrome_WidgetWin_1'));
+  assert.strictEqual(Z.istSchrankSichtbar(a, [NaN, undefined, null]), false);
+});
+
+test('Die Desktop-Klassen sind vollständig benannt', () => {
+  // Fehlt eine davon, ist der Schrank auf einem Teil des Desktops tot.
+  for (const k of ['Progman', 'WorkerW', 'SHELLDLL_DefView', 'SysListView32']) {
+    assert.ok(Z.DESKTOP.has(k), k);
+  }
+});
+
+// --- Das Skript selbst --------------------------------------------------------
+
+test('Das PowerShell-Skript liegt neben dem Modul und antwortet je Zeile', () => {
+  // Es wird eingelesen und als Text übergeben - in der installierten Fassung
+  // liegt es in app.asar, und daraus kann PowerShell nichts starten.
+  const fs = require('node:fs');
+  const skript = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'lib', 'zeigerFenster.ps1'),
+    'utf8'
+  );
+  assert.ok(/WindowFromPoint/.test(skript), 'muss WindowFromPoint benutzen');
+  assert.ok(/GetAncestor/.test(skript), 'muss den obersten Vorfahr ermitteln');
+  assert.ok(/ReadLine/.test(skript), 'muss dauerhaft auf Zeilen warten');
+  assert.ok(/BEREIT/.test(skript), 'muss seine Bereitschaft melden');
+});

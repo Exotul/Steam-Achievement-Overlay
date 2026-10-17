@@ -19,6 +19,7 @@ const { levelAus } = require('./lib/levelKurve');
 const schrankFarben = require('./lib/schrankFarben');
 const hintergrund = require('./lib/hintergrund');
 const streamBruecke = require('./lib/streamBruecke');
+const zeigerFenster = require('./lib/zeigerFenster');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -805,6 +806,50 @@ let klickFenster = null;
 // Klickfenster - der Hauptprozess weiss sie, weil er das Fenster dorthin
 // gelegt hat.
 let klickSpiel = null;
+// Waechter: Solange der Faenger offen steht, wird nachgesehen, ob ueber dem
+// Schrank inzwischen ein fremdes Fenster liegt.
+let klickWache = null;
+// Das zuletzt gemeldete Ziel - der Waechter braucht es, um den Faenger nach
+// einem Fehlalarm wieder aufzustellen.
+let letztesKlickziel = null;
+
+/**
+ * Liegt unter dem Zeiger wirklich der Schrank?
+ *
+ * DER FEHLER, DEN DAS BEHEBT: Der Faenger liegt auf der obersten
+ * Fensterebene und lag damit auch ueber einem Browser oder Editor, in dem
+ * gerade gearbeitet wurde. Nachgemessen, mit einem fokussierten Fenster
+ * darunter:
+ *
+ *     Faenger bekommt den Doppelklick: 1x
+ *     Arbeitsfenster bekommt:          0x
+ *
+ * Genau so ist es passiert: Ein Doppelklick im Arbeitsfenster hat
+ * "Rise of the Triad" gestartet, das irgendwo dahinter im Schrank stand.
+ *
+ * Seitdem gilt eine Regel: Der Schrank reagiert nur dort, wo er auch zu sehen
+ * ist. Was unter dem Zeiger liegt, sagt Windows (siehe lib/zeigerFenster.js).
+ */
+async function schrankUnterZeiger() {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return false;
+  const antwort = await zeigerFenster.unterZeiger();
+  const eigene = [];
+  const nummer = (fenster) => {
+    if (!fenster || fenster.isDestroyed()) return;
+    try {
+      eigene.push(fenster.getNativeWindowHandle().readUInt32LE(0));
+    } catch (err) {
+      /* dann zaehlt dieses Fenster eben nicht als unseres */
+    }
+  };
+  nummer(schrankWindow);
+  nummer(klickFenster);
+  // Das Meldungsfenster deckt den ganzen Bildschirm ab, nimmt aber keine
+  // Maus an (setIgnoreMouseEvents). Windows ueberspringt es deshalb
+  // normalerweise - falls doch nicht, darf es den Schrank nicht blockieren.
+  nummer(overlayWindow);
+  return zeigerFenster.istSchrankSichtbar(antwort, eigene);
+}
 
 function createKlickFenster() {
   if (klickFenster && !klickFenster.isDestroyed()) return klickFenster;
@@ -839,8 +884,49 @@ function createKlickFenster() {
 
 function schliesseKlickFenster() {
   klickSpiel = null;
+  letztesKlickziel = null;
+  clearInterval(klickWache);
+  klickWache = null;
   if (klickFenster && !klickFenster.isDestroyed()) klickFenster.destroy();
   klickFenster = null;
+  zeigerFenster.beende();
+}
+
+/** Den Faenger verbergen, ohne das Ziel zu vergessen. */
+function verbergeFaenger() {
+  klickSpiel = null;
+  if (klickFenster && !klickFenster.isDestroyed()) klickFenster.hide();
+}
+
+/**
+ * Solange eine Packung heraussteht, alle 250 ms nachsehen, ob der Faenger
+ * dort sein darf - und ihn entsprechend auf- oder zumachen.
+ *
+ * Beide Richtungen sind noetig. Ohne die eine genuegte es, nach dem Aufgehen
+ * ein anderes Fenster nach vorn zu holen: Der Faenger laege weiter obenauf
+ * und finge den naechsten Doppelklick ab. Ohne die andere bliebe er weg, bis
+ * der Zeiger eine ANDERE Packung trifft - wer das fremde Fenster wegklickt
+ * und dann doppelklickt, saehe nichts geschehen.
+ *
+ * Die Frage kostet dank des dauerhaft laufenden Helfers nur einen
+ * Zeilenwechsel (siehe lib/zeigerFenster.js).
+ */
+function starteKlickWache() {
+  clearInterval(klickWache);
+  klickWache = setInterval(async () => {
+    if (!letztesKlickziel) return;
+    if (!klickFenster || klickFenster.isDestroyed()) return;
+    const erlaubt = await schrankUnterZeiger();
+    if (!letztesKlickziel) return; // waehrend des Fragens weitergewandert
+    if (erlaubt === klickFenster.isVisible()) return;
+
+    if (erlaubt) {
+      zeigeFaenger(letztesKlickziel);
+    } else {
+      logger.debug('Klickfänger verborgen - über dem Schrank liegt ein fremdes Fenster');
+      verbergeFaenger();
+    }
+  }, 250);
 }
 
 /**
@@ -849,22 +935,9 @@ function schliesseKlickFenster() {
  * @param {{appId:number, name:string, x:number, y:number, breite:number, hoehe:number}|null} ziel
  *        Lage in Fensterkoordinaten des Schranks.
  */
-function setzeKlickziel(ziel) {
-  if (!schrankWindow || schrankWindow.isDestroyed() || !ziel) {
-    klickSpiel = null;
-    if (klickFenster && !klickFenster.isDestroyed()) klickFenster.hide();
-    return;
-  }
-
-  // Waehrend ein Spiel laeuft, geht hier gar nichts auf. Ein neues Fenster
-  // ueber einem Vollbildspiel minimiert es - das ist die Regel, an der auch
-  // die Uebersicht haengt.
-  if (trackedAppId !== null) {
-    klickSpiel = null;
-    if (klickFenster && !klickFenster.isDestroyed()) klickFenster.hide();
-    return;
-  }
-
+/** Den Faenger ueber die Packung legen. Prueft nichts mehr - das ist geklaert. */
+function zeigeFaenger(ziel) {
+  if (!schrankWindow || schrankWindow.isDestroyed()) return;
   const b = schrankWindow.getBounds();
   const fenster = createKlickFenster();
   klickSpiel = { appId: ziel.appId, name: ziel.name };
@@ -882,7 +955,40 @@ function setzeKlickziel(ziel) {
   fenster.setAlwaysOnTop(true, 'screen-saver', 1);
 }
 
-ipcMain.on('schrank:klickziel', (_e, ziel) => setzeKlickziel(ziel));
+async function setzeKlickziel(ziel) {
+  letztesKlickziel = null;
+
+  if (!schrankWindow || schrankWindow.isDestroyed() || !ziel) {
+    verbergeFaenger();
+    return;
+  }
+
+  // Waehrend ein Spiel laeuft, geht hier gar nichts auf. Ein neues Fenster
+  // ueber einem Vollbildspiel minimiert es - das ist die Regel, an der auch
+  // die Uebersicht haengt.
+  if (trackedAppId !== null) {
+    verbergeFaenger();
+    return;
+  }
+
+  letztesKlickziel = ziel;
+  starteKlickWache();
+
+  // NUR dort, wo der Schrank auch zu sehen ist. Die Begruendung samt Messung
+  // steht bei schrankUnterZeiger().
+  if (!(await schrankUnterZeiger())) {
+    verbergeFaenger();
+    return;
+  }
+  // Waehrend des Fragens kann der Zeiger weitergewandert sein.
+  if (letztesKlickziel !== ziel) return;
+
+  zeigeFaenger(ziel);
+}
+
+ipcMain.on('schrank:klickziel', (_e, ziel) => {
+  setzeKlickziel(ziel);
+});
 
 /**
  * Doppelklick auf eine Packung: Steam startet das Spiel.
@@ -3354,6 +3460,9 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => {
   globalShortcut.unregisterAll();
   stopLocalWatcher();
+  // Der Helfer, der nachsieht, was unter dem Zeiger liegt, ist ein eigener
+  // PowerShell-Prozess. Ohne das bliebe er stehen, wenn die App endet.
+  zeigerFenster.beende();
   if (backendChild) backendChild.kill();
 });
 

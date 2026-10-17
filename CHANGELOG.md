@@ -2,6 +2,42 @@
 
 ## Noch nicht veröffentlicht
 
+### Der Schrank schluckt keine fremden Klicks mehr
+
+Gemeldet: Der Hintergrund ist durch Fenster hindurch anklickbar. Stimmt, und es
+war schlimmer als es klingt.
+
+Der Klickfänger — das unsichtbare Fenster, das den Doppelklick auf eine
+Packung entgegennimmt — lag auf der obersten Fensterebene. Damit lag er auch
+über einem Browser oder Editor, in dem gerade gearbeitet wurde. Nachgemessen,
+mit einem fokussierten Arbeitsfenster darunter:
+
+| | Doppelklick |
+|---|---|
+| Klickfänger | 1× |
+| Arbeitsfenster | 0× |
+
+Bei dieser Messung hat es prompt *Rise of the Triad* gestartet — ein Spiel, das
+irgendwo hinter dem Arbeitsfenster im Schrank stand. Verschärft wurde es
+dadurch, dass dein zweiter Bildschirm gerade aus ist: Der Schrank liegt dann
+auf dem Hauptbildschirm und war vollständig von Chrome, Discord und dem Spiel
+verdeckt — und der Fänger ging trotzdem oben auf.
+
+**Jetzt gilt eine Regel: Der Schrank reagiert nur dort, wo er auch zu sehen
+ist.** Vor dem Aufgehen fragt die App Windows, welches Fenster unter dem Zeiger
+liegt. Zulässig sind nur der Desktop selbst (samt Symbolliste — sonst wäre der
+Schrank ausgerechnet dort tot, wo die Symbole stehen) und unsere eigenen
+Fenster. Kommt keine Antwort, bleibt der Fänger zu: lieber kein
+Doppelklick-Start als geschluckte Fremdklicks.
+
+Dieselbe Frage läuft alle 250 ms weiter, solange eine Packung heraussteht —
+holt man ein Fenster nach vorn, schließt sich der Fänger, und klickt man es
+wieder weg, geht er von selbst wieder auf.
+
+Damit das bezahlbar bleibt, läuft dafür ein dauerhafter kleiner Helfer statt
+eines PowerShell-Starts je Frage (der kostete rund 200 ms). Gemessen: **20
+Fragen in 3 ms**.
+
 ### Die Erkennung greift jetzt auch bei frisch begonnenen Spielen
 
 Im Protokoll stand bei *Tenebris Somnia* tagelang „lokale Datei passte nicht —

@@ -213,6 +213,38 @@ davon nichts (Helligkeit an der Stelle: 15,5 ohne, 17,4 mit Fänger). Und
 solange ein Spiel läuft, geht der Fänger gar nicht erst auf: Ein neues Fenster
 über einem Vollbildspiel minimiert es.
 
+**Nur dort, wo der Schrank auch zu sehen ist.** Der Fänger liegt auf der
+obersten Fensterebene — und lag damit anfangs auch über einem Browser oder
+Editor, in dem gerade gearbeitet wurde. Nachgemessen, mit einem fokussierten
+Arbeitsfenster darunter:
+
+| | Doppelklick |
+|---|---|
+| Fänger | 1× |
+| Arbeitsfenster | 0× |
+
+Ein Doppelklick im Arbeitsfenster hat damit ein Spiel gestartet, das irgendwo
+dahinter im Schrank stand. Seitdem gilt eine Regel: **Der Schrank reagiert nur
+dort, wo er auch zu sehen ist.** Was unter dem Zeiger liegt, sagt Windows
+(`WindowFromPoint` plus `GetAncestor`, siehe `lib/zeigerFenster.js`). Zulässig
+sind nur der Desktop selbst (`Progman`, `WorkerW`, und die Symbolliste
+`SHELLDLL_DefView`/`SysListView32` — sonst wäre der Schrank ausgerechnet dort
+tot, wo die Symbole stehen) und unsere eigenen Fenster. Kommt keine Antwort,
+geht der Fänger nicht auf: lieber kein Doppelklick-Start als geschluckte
+Fremdklicks.
+
+Gefragt wird oft — bei jeder anderen Packung und danach alle 250 ms, solange
+eine heraussteht, damit ein später nach vorn geholtes Fenster den Fänger wieder
+schließt. Ein PowerShell-Start je Frage (rund 200 ms) wäre dafür untauglich,
+deshalb läuft ein **dauerhafter Helfer**: einmal gestartet, danach eine Antwort
+je Zeile auf der Standardeingabe. Gemessen: **20 Fragen in 3 ms**.
+
+Im Hintergrundmodus ist der Schrank ein *Kind* von `WorkerW`; unter dem Zeiger
+liegt dann unser eigenes Fenster, und sein oberster Vorfahr ist der
+Desktop-Hintergrund — nachgemessen: `ELTERN 66606 WorkerW | WURZEL 66606
+WorkerW`. Als gewöhnliches Fenster ist es seine eigene Wurzel. Beide Fälle
+greifen.
+
 ### Warum der Schrank selbst keine Mausereignisse bekommt
 
 Das Fenster ist **nicht fokussierbar** — ein Klick darauf darf ein Spiel auf dem
