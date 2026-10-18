@@ -666,6 +666,7 @@ function setzeHeraus(feld) {
     ausgabeEl.classList.remove('ausgabe--an');
     if (deckelEl) deckelEl.classList.remove('deckel--an');
     meldeKlickziel(null);
+    zeigeFehlende(null);
     return;
   }
 
@@ -676,6 +677,84 @@ function setzeHeraus(feld) {
   ausgabeZeit.textContent = ausgabeText(feld.spiel);
   ausgabeEl.classList.add('ausgabe--an');
   meldeKlickziel(feld);
+  planeFehlende(feld);
+}
+
+/* ---------------------------------------------------------------------------
+   Was fehlt noch?
+   ---------------------------------------------------------------------------
+   Das Fach "Fast geschafft" sagt, DASS noch drei fehlen - nicht welche. Genau
+   das will man wissen, bevor man ein Spiel noch einmal anfaengt.
+
+   Erst auf Nachfrage, und erst nach einem Moment Verweilen: Beim Streifen ueber
+   ein Regal mit 600 Ruecken waere sonst je Packung eine Steam-Abfrage faellig.
+   Einmal geholte Listen bleiben gemerkt.
+   --------------------------------------------------------------------------- */
+
+const FEHLENDE_NACH_MS = 700;
+const fehlendeSpeicher = new Map(); // appId -> Antwort (auch null = "nichts zu holen")
+let fehlendeUhr = null;
+let fehlendeEl = null;
+let fehlendeFuer = null;
+
+function holeFehlendeEl() {
+  if (fehlendeEl) return fehlendeEl;
+  fehlendeEl = document.createElement('div');
+  fehlendeEl.className = 'fehlende';
+  document.getElementById('raum').appendChild(fehlendeEl);
+  return fehlendeEl;
+}
+
+function planeFehlende(feld) {
+  clearTimeout(fehlendeUhr);
+  zeigeFehlende(null);
+
+  const spiel = feld.spiel;
+  // Nur wo wirklich etwas offen ist. Ein fertiges Spiel hat nichts zu zeigen,
+  // und bei einem nie begonnenen waere die Liste schlicht die ganze Liste.
+  if (!Number.isFinite(spiel.erreicht) || !(spiel.gesamt > 0)) return;
+  if (spiel.erreicht >= spiel.gesamt || spiel.erreicht === 0) return;
+
+  fehlendeUhr = setTimeout(async () => {
+    if (!herausgezogen || herausgezogen.spiel.appId !== spiel.appId) return;
+    let antwort = fehlendeSpeicher.get(spiel.appId);
+    if (antwort === undefined) {
+      antwort = window.schrankAPI ? await window.schrankAPI.fehlende(spiel.appId) : null;
+      fehlendeSpeicher.set(spiel.appId, antwort);
+    }
+    // Waehrend des Holens kann der Zeiger laengst woanders stehen.
+    if (!herausgezogen || herausgezogen.spiel.appId !== spiel.appId) return;
+    zeigeFehlende(antwort);
+  }, FEHLENDE_NACH_MS);
+}
+
+function zeigeFehlende(antwort) {
+  if (!antwort || !antwort.fehlende || antwort.fehlende.length === 0) {
+    if (fehlendeEl) fehlendeEl.classList.remove('fehlende--an');
+    fehlendeFuer = null;
+    return;
+  }
+  if (fehlendeFuer === antwort.appId) return;
+  fehlendeFuer = antwort.appId;
+
+  const el = holeFehlendeEl();
+  const offen = antwort.gesamt - antwort.erreicht;
+  el.innerHTML =
+    `<span class="fehlende__kopf">Es fehlen noch ${offen}</span>` +
+    antwort.fehlende
+      .map(
+        (a) =>
+          `<span class="fehlende__zeile">${escape(a.name)}` +
+          (Number.isFinite(a.prozent)
+            ? `<span class="fehlende__anteil">${a.prozent.toFixed(1)} %</span>`
+            : '') +
+          '</span>'
+      )
+      .join('') +
+    (offen > antwort.fehlende.length
+      ? `<span class="fehlende__rest">… und ${offen - antwort.fehlende.length} weitere</span>`
+      : '');
+  el.classList.add('fehlende--an');
 }
 
 /**

@@ -1,6 +1,54 @@
 # Änderungen heute
 
-## Noch nicht veröffentlicht
+## 1.3.0 — 18.10.2026
+
+Die großen Stücke seit 1.2.0: der **Spieleschrank** als interaktiver
+Desktop-Hintergrund, die **Stream-Schnittstelle** für OBS, Meldungen **im
+Vollbild auf allen Bildschirmen**, und eine Achievement-Erkennung, die bei
+frisch begonnenen Spielen endlich greift. Die Einzelheiten stehen unten,
+neueste zuerst.
+
+### Das Spiel wird am Steam-Client erkannt, nicht mehr nur bei Steam erfragt
+
+Bisher fragte die App alle paar Sekunden die Steam-Web-API, ob du spielst —
+rund 360 Anfragen je Stunde, rund um die Uhr, für diese eine Frage. Und sie
+antwortet nur, wenn im Profil die Spieldetails öffentlich stehen und dein
+Status nicht auf „Unsichtbar" ist. Genau daran lag es schon einmal, dass die
+App scheinbar nichts tat.
+
+Steam schreibt dieselbe Angabe lokal in die Registry:
+
+```
+HKCU\Software\Valve\Steam  ->  RunningAppID
+```
+
+Das kostet keine Abfrage, hängt an keiner Datenschutzeinstellung und ist
+sofort da — gemessen 22,7 ms. Sobald dieser Weg einmal geantwortet hat, geht
+die Web-Abfrage von alle 5 auf alle 30 Sekunden: rund **120 Anfragen je Stunde
+weniger**. Sie bleibt als Rückfall und liefert weiterhin den Spielnamen.
+
+Zwei Regeln, von Tests festgehalten: Eine fehlende Antwort ist **kein**
+Spielende (sonst endete mitten im Spiel die Sitzung samt Bilanz), und eine
+unverständliche Ausgabe wird nicht geraten.
+
+### Der Schrank bleibt weg, wenn sein Bildschirm fehlt
+
+Gestern aufgefallen, als dein zweiter Monitor aus war: Der Schrank wich auf
+den Hauptbildschirm aus und lag dort hinter Chrome, Discord und dem
+Spielfenster — unsichtbar, aber er rechnete mit. Jetzt bleibt er zu, bis ein
+Bildschirm da ist, auf dem er auch zu sehen wäre. Kommt der Monitor zurück,
+steht er wieder da.
+
+Dasselbe im Kleinen: Liegt ein Fenster über ihm, zieht er keine Packungen mehr
+heraus und lädt keine Titelbilder.
+
+### „Es fehlen noch 3" — und welche
+
+Bleibt der Zeiger einen Moment auf einer Packung stehen, steht jetzt da,
+**welche** Trophäen fehlen: bis zu sechs, die häufigste zuerst, mit ihrem
+weltweiten Anteil. Das ist die, die am ehesten zu schaffen ist. Geholt wird
+erst auf Nachfrage — für alle 611 Spiele auf Vorrat wären es drei
+Steam-Abfragen je Spiel.
 
 ### Der Schrank schluckt keine fremden Klicks mehr
 

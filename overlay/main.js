@@ -20,6 +20,8 @@ const schrankFarben = require('./lib/schrankFarben');
 const hintergrund = require('./lib/hintergrund');
 const streamBruecke = require('./lib/streamBruecke');
 const zeigerFenster = require('./lib/zeigerFenster');
+const steamLauf = require('./lib/steamLauf');
+const { waehleBildschirm: waehleSchrankBildschirm } = require('./lib/schrankBildschirm');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -506,23 +508,34 @@ let schrankDatenTimer = null;
 let letzterZeiger = '';
 
 /**
- * Auf welchem Bildschirm der Schrank steht.
+ * Auf welchem Bildschirm der Schrank steht - oder null.
  *
- * Ohne Einstellung: ein ANDERER als der, auf dem die Meldungen erscheinen -
- * der Schrank gehoert auf den Nebenbildschirm, sonst liegt er unter dem
- * Spiel. Gibt es nur einen, bekommt der ihn.
+ * NULL IST HIER EIN ERGEBNIS, KEIN FEHLER. Frueher wich der Schrank auf den
+ * Hauptbildschirm aus, wenn sein Bildschirm fehlte. Das sah in der Praxis so
+ * aus: Der zweite Monitor war aus, der Schrank lag auf dem Hauptbildschirm
+ * hinter Browser, Discord und Spielfenster - unsichtbar, aber er rechnete
+ * mit. Ein Hintergrundbild, das man nie zu sehen bekommt, soll gar nicht
+ * erst aufgebaut werden.
+ *
+ * Ohne Einstellung ("automatisch"): ein ANDERER als der, auf dem die
+ * Meldungen erscheinen. Gibt es keinen, bleibt der Schrank zu. Wer ihn
+ * ausdruecklich auf dem Hauptbildschirm will, waehlt ihn in den Einstellungen
+ * - eine ausdrueckliche Wahl wird immer befolgt, solange es den Bildschirm
+ * gibt.
+ *
+ * @returns {object|null}
  */
 function schrankBildschirm() {
-  const alle = screen.getAllDisplays();
-  const gewaehlt = alle.find((d) => d.id === einstellungen.schrankBildschirm);
-  if (gewaehlt) return gewaehlt;
-
-  const meldungen = gewaehlterBildschirm();
-  return alle.find((d) => d.id !== meldungen.id) || meldungen;
+  return waehleSchrankBildschirm(
+    screen.getAllDisplays(),
+    einstellungen.schrankBildschirm,
+    gewaehlterBildschirm().id
+  );
 }
 
 function createSchrankWindow() {
   const anzeige = schrankBildschirm();
+  if (!anzeige) return;
   const b = anzeige.bounds;
 
   schrankWindow = new BrowserWindow({
@@ -612,6 +625,8 @@ function schliesseSchrank() {
  * Rand oder bei anderer Hoehe.
  */
 function schrankRaender(anzeige) {
+  // Ohne Bildschirm kein Rand - der Schrank steht dann ohnehin nicht.
+  if (!anzeige) return { oben: 0, unten: 0, links: 0, rechts: 0 };
   const b = anzeige.bounds;
   const a = anzeige.workArea;
   return {
@@ -650,6 +665,40 @@ async function sendeSchrankDaten() {
  * und kostet praktisch nichts. Geschickt wird nur, was sich geaendert hat -
  * ein stehender Zeiger erzeugt keine einzige Nachricht.
  */
+/*
+ * Liegt der Schrank an der Zeigerstelle frei - oder ein fremdes Fenster
+ * darueber?
+ *
+ * Die Antwort wird GEMERKT und nebenher aufgefrischt, nicht abgewartet: Der
+ * Zeigertakt laeuft 25-mal je Sekunde und darf auf nichts warten. Die Frage
+ * selbst kostet dank des dauerhaften Helfers weniger als eine Millisekunde
+ * (gemessen: 20 Fragen in 3 ms), aber sie ist nun einmal asynchron.
+ *
+ * Anfangs "sichtbar": Solange noch keine Antwort da ist, soll sich der
+ * Schrank normal anfuehlen. Eine falsch herausgezogene Packung ist harmlos -
+ * der Klickfaenger prueft ohnehin noch einmal selbst.
+ */
+let schrankSichtbar = true;
+let sichtbarkeitGeprueft = 0;
+let sichtbarkeitLaeuft = false;
+const SICHTBARKEIT_FRISCH_MS = 250;
+
+function frischeSichtbarkeit() {
+  if (sichtbarkeitLaeuft) return;
+  if (Date.now() - sichtbarkeitGeprueft < SICHTBARKEIT_FRISCH_MS) return;
+  sichtbarkeitLaeuft = true;
+  schrankUnterZeiger()
+    .then((frei) => {
+      // null heisst "weiss nicht" - dann bleibt es beim bisherigen Stand.
+      if (frei !== null) schrankSichtbar = frei;
+    })
+    .catch(() => {})
+    .finally(() => {
+      sichtbarkeitGeprueft = Date.now();
+      sichtbarkeitLaeuft = false;
+    });
+}
+
 function starteZeigerTakt() {
   clearInterval(schrankZeiger);
 
@@ -668,7 +717,14 @@ function starteZeigerTakt() {
     if (!schrankWindow || schrankWindow.isDestroyed()) return;
     const b = schrankWindow.getBounds();
     const p = screen.getCursorScreenPoint();
-    const drin = p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+    const imFenster = p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+    // Nur dort, wo der Schrank auch zu sehen ist. Liegt ein Browser darueber,
+    // zog er bisher Packungen heraus und lud Titelbilder - Arbeit, die
+    // niemand sieht. Die Antwort kommt aus dem Zwischenspeicher, die Abfrage
+    // laeuft nebenher (siehe frischeSichtbarkeit).
+    const drin = imFenster && schrankSichtbar;
+    if (imFenster) frischeSichtbarkeit();
+    else schrankSichtbar = true; // ausserhalb nichts zu klaeren - wieder offen starten
 
     const gewuenscht = drin ? SCHNELL : LANGSAM;
     if (gewuenscht !== takt) {
@@ -707,6 +763,24 @@ function wendeSchrankAn(vorher) {
     schliesseSchrank();
     return;
   }
+
+  // Kein passender Bildschirm, kein Schrank. Das passiert im Alltag: Der
+  // zweite Monitor ist aus. Frueher wich der Schrank auf den Hauptbildschirm
+  // aus und lag dort unsichtbar hinter allem - siehe schrankBildschirm().
+  const anzeige = schrankBildschirm();
+  if (!anzeige) {
+    const hatte = !!schrankWindow;
+    schliesseSchrank();
+    if (hatte || !vorher) {
+      logger.info(
+        einstellungen.schrankBildschirm === null
+          ? 'Spieleschrank bleibt zu: Es gibt nur einen Bildschirm, und darauf erscheinen die Meldungen.'
+          : 'Spieleschrank bleibt zu: Der eingestellte Bildschirm ist nicht da.'
+      );
+    }
+    return;
+  }
+
   // Das Umhaengen laesst sich im laufenden Fenster nicht sauber rueckgaengig
   // machen - ein neues Fenster ist der ehrlichere Weg.
   if (schrankWindow && !bildschirmGewechselt && !hintergrundGewechselt) return;
@@ -833,6 +907,12 @@ let letztesKlickziel = null;
 async function schrankUnterZeiger() {
   if (!schrankWindow || schrankWindow.isDestroyed()) return false;
   const antwort = await zeigerFenster.unterZeiger();
+  // KEINE Antwort ist etwas anderes als "verdeckt", und die beiden Aufrufer
+  // brauchen es unterschiedlich: Der Klickfaenger geht ohne Antwort NICHT auf
+  // (lieber kein Doppelklick-Start als geschluckte Fremdklicks), das
+  // Herausziehen laeuft dagegen weiter wie bisher (sonst waere der Schrank
+  // auf einem Rechner ohne PowerShell stumm).
+  if (!antwort) return null;
   const eigene = [];
   const nummer = (fenster) => {
     if (!fenster || fenster.isDestroyed()) return;
@@ -916,7 +996,8 @@ function starteKlickWache() {
   klickWache = setInterval(async () => {
     if (!letztesKlickziel) return;
     if (!klickFenster || klickFenster.isDestroyed()) return;
-    const erlaubt = await schrankUnterZeiger();
+    // Ohne klare Antwort bleibt der Faenger zu.
+    const erlaubt = (await schrankUnterZeiger()) === true;
     if (!letztesKlickziel) return; // waehrend des Fragens weitergewandert
     if (erlaubt === klickFenster.isVisible()) return;
 
@@ -976,7 +1057,7 @@ async function setzeKlickziel(ziel) {
 
   // NUR dort, wo der Schrank auch zu sehen ist. Die Begruendung samt Messung
   // steht bei schrankUnterZeiger().
-  if (!(await schrankUnterZeiger())) {
+  if ((await schrankUnterZeiger()) !== true) {
     verbergeFaenger();
     return;
   }
@@ -988,6 +1069,43 @@ async function setzeKlickziel(ziel) {
 
 ipcMain.on('schrank:klickziel', (_e, ziel) => {
   setzeKlickziel(ziel);
+});
+
+/**
+ * Welche Trophaeen fehlen in diesem Spiel noch?
+ *
+ * Das Fach "Fast geschafft" sagt, DASS noch drei fehlen - aber nicht welche.
+ * Genau das will man wissen, bevor man ein Spiel noch einmal anfaengt.
+ *
+ * Die Liste kommt erst auf Nachfrage, naemlich wenn eine Packung einen
+ * Moment lang heraussteht. Sie fuer alle 611 Spiele auf Vorrat zu holen waere
+ * eine Steam-Abfrage je Spiel; so ist es eine einzige, und das Backend merkt
+ * sie sich ohnehin.
+ *
+ * Sortiert nach weltweitem Anteil, die haeufigste zuerst: Das ist die, die am
+ * ehesten zu schaffen ist.
+ */
+const FEHLENDE_HOECHSTENS = 6;
+
+ipcMain.handle('schrank:fehlende', async (_e, appId) => {
+  const nummer = Number(appId);
+  if (!Number.isFinite(nummer) || !steamClient) return null;
+  try {
+    const stand = await steamClient.gameAchievements(nummer);
+    const offen = (stand.achievements || []).filter((a) => !a.unlocked);
+    return {
+      appId: nummer,
+      erreicht: stand.unlockedCount,
+      gesamt: stand.totalCount,
+      fehlende: offen
+        .sort((a, b) => (b.globalPercent || 0) - (a.globalPercent || 0))
+        .slice(0, FEHLENDE_HOECHSTENS)
+        .map((a) => ({ name: a.name, prozent: a.globalPercent })),
+    };
+  } catch (err) {
+    logger.debug(`Fehlende Trophäen für ${nummer} nicht abrufbar: ${err.message}`);
+    return null;
+  }
 });
 
 /**
@@ -1292,6 +1410,15 @@ async function checkPresence() {
     if (presence.appId !== trackedAppId) {
       logger.info(`Spiel erkannt: ${presence.gameName || '?'} (AppID ${presence.appId})`);
       await startAchievementTracking(presence.appId, presence.gameName);
+    } else if (presence.gameName && presence.gameName !== trackedGameName) {
+      // Den Namen nachtragen. Der lokale Weg kennt nur die Nummer; stand sie
+      // im Zwischenspeicher nicht, hiess das Spiel bis hierher "App 1186".
+      logger.info(`Spielname nachgetragen: ${presence.gameName} (AppID ${presence.appId})`);
+      trackedGameName = presence.gameName;
+      merkeSpielname(presence.appId, presence.gameName);
+      if (sitzung) sitzung.gameName = presence.gameName;
+      updateTrayStatus(`Verfolge: ${presence.gameName}`);
+      sendeSchrankSpiel();
     }
   } catch (err) {
     console.error('Presence-Fehler:', err.message);
@@ -1744,8 +1871,87 @@ async function checkAchievements() {
   }
 }
 
+/* ==========================================================================
+   Spielerkennung ueber den Steam-Client auf diesem Rechner
+   ==========================================================================
+   Der schnelle Weg: Steam schreibt die laufende AppID lokal in die Registry
+   (siehe lib/steamLauf.js). Das kostet keine Steam-Anfrage und haengt an
+   keiner Datenschutzeinstellung - anders als die Web-Abfrage, die nur
+   antwortet, wenn Spieldetails oeffentlich sind und der Status nicht auf
+   "Unsichtbar" steht.
+
+   Die Web-Abfrage bleibt trotzdem: Von dort kommt der Spielname, und sie ist
+   der Rueckfall. Nur ihr Takt wird grosszuegiger, solange der lokale Weg
+   traegt.
+   ========================================================================== */
+
+let laufWache = null;
+// Traegt der lokale Weg auf diesem Rechner? Erst wenn er einmal geantwortet
+// hat, wird die Web-Abfrage heruntergetaktet.
+let laufWegTauglich = false;
+
+/** Den Namen zum Spiel finden, ohne ihn zu erfinden. */
+async function spielnameZu(appId) {
+  const gemerkt = gemerkteSpielnamen[String(appId)];
+  if (gemerkt) return gemerkt;
+  try {
+    // Die Bibliothek liegt im Zwischenspeicher des Backends - in der Regel
+    // also keine echte Steam-Anfrage.
+    const spiele = await steamClient.library();
+    const treffer = (spiele || []).find((s) => s.appId === appId);
+    if (treffer && treffer.name) {
+      merkeSpielname(appId, treffer.name);
+      return treffer.name;
+    }
+  } catch (err) {
+    /* dann steht erst einmal die Nummer da - die Web-Abfrage holt den Namen nach */
+  }
+  return null;
+}
+
+function starteLaufWache() {
+  if (laufWache) laufWache.stop();
+  laufWache = steamLauf.ueberwache({
+    onTauglich: () => {
+      // Der erste verstaendliche Wert belegt, dass dieser Weg hier traegt.
+      // Erst jetzt darf die Web-Abfrage in den Schongang - vorher waere es
+      // eine Wette.
+      laufWegTauglich = true;
+      logger.info(
+        'Spielerkennung über den Steam-Client auf diesem Rechner ist aktiv - ' +
+          'die Web-Abfrage läuft nur noch alle 30 s'
+      );
+      schedulePresence();
+    },
+    onStart: async (appId) => {
+      if (!currentUser || trackedAppId === appId) return;
+      const name = await spielnameZu(appId);
+      if (trackedAppId === appId) return; // die Web-Abfrage war schneller
+      logger.info(`Spiel erkannt (lokal): ${name || '?'} (AppID ${appId})`);
+      await startAchievementTracking(appId, name);
+    },
+    onEnde: () => {
+      if (trackedAppId === null) return;
+      logger.info(`Spiel beendet (lokal erkannt): ${trackedGameName || trackedAppId}`);
+      // VOR dem Aufraeumen: stopAchievementTracking() wirft Namen und
+      // Achievement-Index weg, und beides steckt in der Bilanz.
+      zeigeSitzungsbilanz();
+      stopAchievementTracking();
+      updateTrayStatus('Eingeloggt · aktuell kein Spiel offen');
+    },
+    onUnbrauchbar: () => {
+      logger.warn(
+        'Spielerkennung über die Registry liefert nichts - es bleibt bei der Steam-Web-Abfrage'
+      );
+      laufWegTauglich = false;
+      schedulePresence();
+    },
+  });
+}
+
 function startPolling() {
   stopPolling();
+  starteLaufWache();
   checkPresence();
   schedulePresence();
 }
@@ -1757,7 +1963,11 @@ function startPolling() {
  */
 function schedulePresence() {
   if (presenceTimer) clearInterval(presenceTimer);
-  const interval = trackedAppId === null ? 5000 : PRESENCE_POLL_INTERVAL_MS;
+  // Traegt der lokale Weg, muss die Web-Abfrage den Spielstart nicht mehr
+  // als Erste bemerken - sie liefert dann nur noch den Namen und dient als
+  // Rueckfall. Aus 5 Sekunden werden 30: rund 120 Anfragen je Stunde weniger.
+  const ohneSpiel = laufWegTauglich ? 30000 : 5000;
+  const interval = trackedAppId === null ? ohneSpiel : PRESENCE_POLL_INTERVAL_MS;
   presenceTimer = setInterval(async () => {
     const before = trackedAppId;
     await checkPresence();
@@ -1770,6 +1980,8 @@ function schedulePresence() {
 function stopPolling() {
   if (presenceTimer) clearInterval(presenceTimer);
   presenceTimer = null;
+  if (laufWache) laufWache.stop();
+  laufWache = null;
   stopAchievementTracking();
 }
 
@@ -2445,6 +2657,19 @@ async function handleDiagnose() {
 
   const watcherLines = await watcher.diagnose(trackedAppId);
   lines.push(...watcherLines);
+
+  lines.push('');
+  lines.push('Spielerkennung:');
+  const laufendeId = laufWache ? laufWache.letzte() : null;
+  if (laufendeId === null) {
+    lines.push('  Über den Steam-Client: keine Antwort - es gilt die Web-Abfrage.');
+  } else {
+    lines.push(
+      `  Über den Steam-Client (Registry): ${laufendeId === 0 ? 'kein Spiel' : 'AppID ' + laufendeId}`
+    );
+    lines.push('  Das spart Steam-Abfragen und wirkt auch bei privatem Profil.');
+  }
+  lines.push(`  Web-Abfrage alle ${laufWegTauglich ? 30 : 5} s, solange kein Spiel läuft.`);
 
   lines.push('');
   lines.push('Zweitmeldung im Vollbild:');

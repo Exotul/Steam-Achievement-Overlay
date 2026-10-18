@@ -416,6 +416,69 @@ body {
   text-transform: uppercase;
 }
 
+/*
+ * Die Liste der fehlenden Trophäen.
+ *
+ * Sie steht ÜBER der Namenszeile, nicht darin: Die Zeile ist eine Zeile, und
+ * eine Liste darin würde sie bei jedem Spiel anders hoch werden lassen. So
+ * wächst die Liste nach oben weg und die Zeile bleibt, wo sie ist.
+ */
+.fehlende {
+  position: absolute;
+  left: 50%;
+  bottom: calc(1.4vh + 64px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 260px;
+  max-width: 44vw;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(14, 11, 9, 0.9);
+  border: 1px solid rgba(168, 196, 140, 0.3);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
+  font-size: clamp(11px, 0.78vw, 16px);
+  color: #d8cbb4;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.fehlende--an {
+  opacity: 1;
+}
+
+.fehlende__kopf {
+  margin-bottom: 3px;
+  color: #a8c48c;
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fehlende__zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+/* Der weltweite Anteil - je höher, desto eher zu schaffen. */
+.fehlende__anteil {
+  flex-shrink: 0;
+  color: #8e7c64;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.86em;
+}
+
+.fehlende__rest {
+  margin-top: 2px;
+  color: #8e7c64;
+  font-size: 0.82em;
+}
+
 .hinweis {
   position: absolute;
   right: 14px;

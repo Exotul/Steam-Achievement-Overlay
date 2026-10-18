@@ -160,6 +160,28 @@ fallen in der Levelberechnung ohnehin an (sie geht durch jede einzelne Trophäe)
 und werden dort mitgezählt; sie getrennt zu erheben hieße, die ganze Bibliothek
 erneut abzufragen.
 
+### Wann der Schrank gar nicht erst aufgeht
+
+**Ohne passenden Bildschirm bleibt er zu.** „Automatisch" heißt: ein anderer
+als der, auf dem die Meldungen erscheinen. Gibt es keinen — zweiter Monitor
+aus —, dann steht kein Schrank. Vorher wich er auf den Hauptbildschirm aus und
+lag dort hinter Browser, Discord und Spielfenster: unsichtbar, aber er
+rechnete mit, zog Packungen heraus und lud Titelbilder. Ein Hintergrundbild,
+das niemand zu sehen bekommt, soll gar nicht erst aufgebaut werden.
+
+Wer ihn ausdrücklich auf dem Hauptbildschirm will, wählt ihn in den
+Einstellungen — eine ausdrückliche Wahl wird befolgt. Verschwindet dieser
+Bildschirm, wird *nicht* ausgewichen; kommt er zurück, steht der Schrank
+wieder da (die Entscheidung in `lib/schrankBildschirm.js`).
+
+**Und nur dort, wo er zu sehen ist.** Liegt ein Fenster über ihm, zieht er
+keine Packungen mehr heraus und lädt keine Titelbilder — Arbeit, die niemand
+sieht. Gefragt wird derselbe Helfer wie beim Klickfänger (siehe unten); die
+Antwort wird gemerkt und nebenher aufgefrischt, damit der Zeigertakt auf nichts
+warten muss. Kommt keine Antwort, bleibt es beim alten Verhalten: Ein Schrank,
+der auf einem Rechner ohne PowerShell stumm wäre, wäre schlechter als einer,
+der einmal zu viel reagiert.
+
 ### Zwei Fächer, die dieselben Spiele noch einmal zeigen
 
 **„Fast geschafft"** und **„Zuletzt gespielt"** sind keine Sammlungen, sondern
@@ -183,6 +205,19 @@ Die Achievement-Zahlen je Spiel kommen aus dem Zwischenspeicher der
 XP-Berechnung. Sie fallen dort ohnehin an, weil die Berechnung durch jede
 einzelne Trophäe geht; sie getrennt zu erheben hieße, die ganze Bibliothek
 erneut bei Steam abzufragen.
+
+### „Es fehlen noch 3" — und welche
+
+Bleibt der Zeiger einen Moment auf einer Packung stehen (0,7 s), erscheint über
+der Namenszeile, **welche** Trophäen noch fehlen — bis zu sechs, die häufigste
+zuerst, mit ihrem weltweiten Anteil. Das ist die, die am ehesten zu schaffen
+ist.
+
+Erst auf Nachfrage, und nur dort, wo wirklich etwas offen ist: Für alle 611
+Spiele auf Vorrat wären es drei Steam-Abfragen je Spiel (Spielerstand, Schema,
+weltweite Anteile). So ist es eine Anfrage für genau das Spiel, auf das man
+schaut; einmal geholte Listen bleiben für die Sitzung gemerkt, und das Backend
+merkt sich die Steam-Antworten ohnehin.
 
 ### Ein Spiel aus dem Schrank starten
 
@@ -352,7 +387,38 @@ weist beim Einschalten selbst darauf hin.
 
 Zwei Wege, die zusammenarbeiten.
 
-### Voraussetzung: Steam muss das laufende Spiel veröffentlichen
+### Der schnelle Weg: der Steam-Client auf diesem Rechner
+
+Steam schreibt die laufende AppID lokal in die Registry:
+
+```
+HKCU\Software\Valve\Steam  ->  RunningAppID  (REG_DWORD, 0 = kein Spiel)
+```
+
+Das kostet **keine Steam-Abfrage**, hängt an **keiner Datenschutzeinstellung**
+und ist sofort da. Abgefragt wird alle 3 Sekunden mit `reg.exe` — nachgemessen
+22,7 ms je Abfrage, also billiger als die Netzanfrage, die es ersetzt.
+
+Sobald dieser Weg einmal geantwortet hat (auch mit 0), geht die Web-Abfrage in
+den Schongang: statt alle 5 Sekunden nur noch alle 30. Das sind rund **120
+Anfragen je Stunde weniger**, rund um die Uhr. Sie bleibt als Rückfall und
+liefert weiterhin den Spielnamen — die Registry kennt nur die Nummer, und steht
+sie nicht im Zwischenspeicher, heißt das Spiel für einen Moment „App 1186",
+bis die Web-Abfrage den Namen nachträgt.
+
+Zwei Regeln, die dabei zählen (beide in `lib/steamLauf.js` und von Tests
+festgehalten):
+
+- Eine **fehlende Antwort ist kein Spielende**. Sonst beendete ein einzelner
+  Fehlschlag der Abfrage mitten im Spiel die Sitzung samt Bilanz — und die
+  gibt es pro Sitzung nur einmal.
+- Eine **unverständliche Ausgabe wird nicht geraten**. Sonst verfolgte die App
+  ein Spiel, das es nicht gibt.
+
+Antwortet die Registry dreimal hintereinander nicht, steht das im Protokoll und
+die Web-Abfrage bleibt im schnellen Takt.
+
+### Voraussetzung für die Web-Abfrage: Steam muss das laufende Spiel veröffentlichen
 
 Die App kann nur verfolgen, was Steam über deinen Status meldet. Steam gibt
 das laufende Spiel **nicht** heraus, wenn:

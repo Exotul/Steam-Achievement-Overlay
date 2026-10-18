@@ -25,5 +25,12 @@ contextBridge.exposeInMainWorld('schrankAPI', {
    * genau dorthin; ein Doppelklick darauf startet das Spiel.
    */
   klickziel: (ziel) => ipcRenderer.send('schrank:klickziel', ziel),
+  /**
+   * Welche Trophaeen fehlen in diesem Spiel noch?
+   *
+   * Erst auf Nachfrage, wenn eine Packung einen Moment lang heraussteht - fuer
+   * alle Spiele auf Vorrat waere es eine Steam-Abfrage je Spiel.
+   */
+  fehlende: (appId) => ipcRenderer.invoke('schrank:fehlende', appId),
   bereit: () => ipcRenderer.send('schrank:bereit'),
 });
