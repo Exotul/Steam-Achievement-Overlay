@@ -431,3 +431,123 @@ body {
     transition: none;
   }
 }
+
+/* ---------- Farbwahl für den Schrank ---------- */
+
+/*
+ * Ein paar Töne zum Anklicken, daneben der freie Wähler. Wer keine Farbe
+ * aussuchen will, nimmt einen der vorgeschlagenen; wer genau weiß, was er
+ * will, öffnet den Wähler.
+ */
+.farbwahl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.farbwahl__vorrat {
+  display: flex;
+  gap: 5px;
+}
+
+.farbwahl__probe {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.farbwahl__probe:hover {
+  transform: scale(1.12);
+}
+
+.farbwahl__probe:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 147, 224, 0.3);
+}
+
+/* Der Systemwähler bringt seinen eigenen Rahmen mit - der passt hier nicht. */
+.farbwahl__feld,
+.sammlung__farbe {
+  width: 38px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  background: none;
+  cursor: pointer;
+}
+
+.farbwahl__feld::-webkit-color-swatch-wrapper,
+.sammlung__farbe::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.farbwahl__feld::-webkit-color-swatch,
+.sammlung__farbe::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+/* ---------- Die Liste der Sammlungen ---------- */
+
+/*
+ * Sie steht UNTER der Beschriftung, nicht rechts daneben: Bei 31 Sammlungen
+ * wäre eine Spalte rechts eine sehr schmale, sehr lange Liste.
+ */
+.zeile--sammlungsfarben {
+  display: block;
+}
+
+.sammlungen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 14px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.sammlung {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sammlung__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+}
+
+.sammlung__anzahl {
+  flex-shrink: 0;
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+}
+
+.sammlung__zurueck {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  color: var(--ink-dim);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.sammlung__zurueck:hover {
+  color: var(--ink);
+  border-color: var(--akzent);
+}

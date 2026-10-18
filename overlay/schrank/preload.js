@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('schrankAPI', {
   // Der Schrank liegt im Hintergrund und bekommt deshalb keine Mausereignisse
   // vom Fenstersystem; der Hauptprozess meldet die Zeigerposition.
   onZeiger: (fn) => ipcRenderer.on('schrank:zeiger', (_e, punkt) => fn(punkt)),
+  // Holz, Wand, Schrift, Rueckenfarben - geaendert in den Einstellungen.
+  onAussehen: (fn) => ipcRenderer.on('schrank:aussehen', (_e, a) => fn(a)),
   farbenMerken: (farben) => ipcRenderer.send('schrank:farben', farben),
   /**
    * Wo die herausgezogene Packung liegt - und welches Spiel das ist.

@@ -25,6 +25,33 @@ const DATEI = path.join(ORDNER, 'einstellungen.json');
 
 const POSITIONEN = ['oben-rechts', 'oben-links', 'unten-rechts', 'unten-links'];
 const ABZEICHEN = ['steam-overlay', 'spiel', 'aus'];
+const RUECKEN_ARTEN = ['bild', 'sammlung', 'zufall'];
+
+const { istFarbe, SCHRIFT_NAMEN } = require('./schrankAussehen');
+
+/**
+ * Die eigenen Sammlungsfarben saeubern.
+ *
+ * Die Datei laesst sich von Hand bearbeiten, und die Werte gehen in CSS.
+ * Deshalb: Nur Eintraege, deren Wert wie eine Farbe aussieht, und ein Deckel
+ * auf der Anzahl - ein Sammlungsname ist hier der Schluessel, und niemand hat
+ * tausend Sammlungen.
+ */
+const SAMMLUNGEN_HOECHSTENS = 200;
+
+function sauberesFarbwerk(roh) {
+  const raus = {};
+  if (!roh || typeof roh !== 'object') return raus;
+  let n = 0;
+  for (const [name, farbe] of Object.entries(roh)) {
+    if (n >= SAMMLUNGEN_HOECHSTENS) break;
+    if (typeof name !== 'string' || !name.trim()) continue;
+    if (!istFarbe(farbe)) continue;
+    raus[name] = farbe.trim();
+    n += 1;
+  }
+  return raus;
+}
 
 // Grenzen, innerhalb derer ein Wert noch sinnvoll ist. Sie sind nicht
 // Geschmackssache, sondern verhindern eine unbedienbare App.
@@ -104,6 +131,28 @@ function standard() {
     // er in beiden Faellen.
     schrankHintergrund: true,
 
+    // --- Aussehen des Schranks ---
+    // Eine Holzfarbe, aus der vier Toene abgeleitet werden (Lichtkante,
+    // Flaeche, Schattenseite, Innenraum) - siehe lib/schrankAussehen.js.
+    // Vier einzelne Regler waeren vier Farben, die man aufeinander abstimmen
+    // muesste, um ein Regal zu bekommen, das nach Holz aussieht.
+    schrankHolz: '#a97b4a',
+    // Die Wand hinter dem Schrank.
+    schrankWand: '#171310',
+    // Woher die Farbe eines Spielrueckens kommt:
+    //   bild     = kraeftigste Farbe aus dem Titelbild (wie bisher)
+    //   sammlung = alle Spiele eines Fachs in einer Farbe
+    //   zufall   = eine feste Farbe je Spiel, aus der AppID abgeleitet
+    schrankRuecken: 'bild',
+    // Eigene Farben je Sammlung, z. B. { "Horror": "#6b3b8a" }. Was hier
+    // nicht steht, bekommt einen aus dem Namen abgeleiteten Ton - derselbe
+    // Name ergibt immer dieselbe Farbe.
+    schrankSammlungsfarben: {},
+    // Verlauf ueber den Ruecken (Lichtkante) oder flache Farbe.
+    schrankVerlauf: true,
+    // Schriftart im Schrank. Nur Schriften, die unter Windows ohnehin da sind.
+    schrankSchrift: 'standard',
+
     // --- Meldungen im Stream (OBS) ---
     // Standardmaessig aus: Es geht etwas ueber das Netz hinaus, und das
     // schaltet man selbst ein.
@@ -179,6 +228,19 @@ function bereinige(roh) {
       e.schrankRuheImSpiel === undefined ? s.schrankRuheImSpiel : !!e.schrankRuheImSpiel,
     schrankHintergrund:
       e.schrankHintergrund === undefined ? s.schrankHintergrund : !!e.schrankHintergrund,
+
+    // Farbwerte landen in CSS - was nicht wie eine Farbe aussieht, kommt gar
+    // nicht erst an.
+    schrankHolz: istFarbe(e.schrankHolz) ? e.schrankHolz.trim() : s.schrankHolz,
+    schrankWand: istFarbe(e.schrankWand) ? e.schrankWand.trim() : s.schrankWand,
+    schrankRuecken: RUECKEN_ARTEN.includes(e.schrankRuecken)
+      ? e.schrankRuecken
+      : s.schrankRuecken,
+    schrankSammlungsfarben: sauberesFarbwerk(e.schrankSammlungsfarben),
+    schrankVerlauf: e.schrankVerlauf === undefined ? s.schrankVerlauf : !!e.schrankVerlauf,
+    schrankSchrift: SCHRIFT_NAMEN.includes(e.schrankSchrift)
+      ? e.schrankSchrift
+      : s.schrankSchrift,
 
     streamAktiv: e.streamAktiv === undefined ? s.streamAktiv : !!e.streamAktiv,
     // Ein leerer Text heisst "Vorgabe" - sonst liesse sich die Adresse durch

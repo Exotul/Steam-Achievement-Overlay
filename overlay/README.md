@@ -160,6 +160,50 @@ fallen in der Levelberechnung ohnehin an (sie geht durch jede einzelne Trophäe)
 und werden dort mitgezählt; sie getrennt zu erheben hieße, die ganze Bibliothek
 erneut abzufragen.
 
+### Aussehen: Holz, Wand, Rücken, Schrift
+
+Einzustellen unter *Einstellungen → Aussehen des Schranks*.
+
+**Eine Holzfarbe, vier Töne.** Aus der gewählten Farbe entstehen Lichtkante,
+Fläche, Schattenseite und Innenraum. Vier einzelne Regler wären vier Farben,
+die man aufeinander abstimmen müsste, um ein Regal zu bekommen, das nach Holz
+aussieht. Aufgehellt wird dabei gegen *Weiß*, nicht über eine Multiplikation:
+Ein dunkles Braun mal 1,3 bleibt dunkles Braun, weil alle drei Kanäle gleich
+wachsen — erst das Mischen gegen Weiß ergibt die Lichtkante, die ein Brett hat.
+
+**Die Farbe der Spielrücken** kommt wahlweise
+
+- *aus dem Titelbild* (die Vorgabe): die kräftigste Farbe des Covers,
+- *nach Sammlung*: jedes Fach in einem Ton — so sieht man auf einen Blick, wo
+  ein Fach anfängt und aufhört,
+- *fest je Spiel*: ein Ton aus der Spielnummer.
+
+„Fest" und „nach Sammlung" heißen ausdrücklich **nicht** „jedes Mal anders":
+Dieselbe Sammlung und dasselbe Spiel bekommen immer denselben Ton, auch nach
+einem Neustart und auf einem anderen Rechner. Ein Regal, das sich bei jedem
+Start umfärbt, wäre unruhig.
+
+Die Töne je Sammlung leiten sich aus dem Namen ab und lassen sich einzeln
+überschreiben. (Dass „Horror" dabei von sich aus ein Violett ergibt, ist
+Zufall — aber ein hübscher.) Aufgelöst werden sie im Hauptprozess und fertig
+hineingereicht; dieselbe Formel ein zweites Mal im Schrankfenster wäre eine
+zweite Stelle, die auseinanderlaufen kann — und dann färbten
+Einstellungsfenster und Schrank unterschiedlich.
+
+**Farbwerte landen in einem Stylesheet.** Deshalb werden sie streng geprüft:
+Was nicht wie eine Farbe aussieht (`url(…)`, `expression(…)`, ein Semikolon),
+kommt gar nicht erst an — auch dann nicht, wenn es jemand von Hand in die
+Einstellungsdatei schreibt.
+
+**Schriftart:** nur solche, die Windows ohnehin mitbringt. Das Projekt liefert
+keine Schriftdateien mit, und eine Schrift aus dem Netz nachzuladen hieße, dass
+der Schrank beim Start kurz anders aussieht.
+
+Holz, Wand, Verlauf und Schrift sind CSS-Variablen und wirken **ohne
+Neuaufbau** — wer am Regler dreht, sieht die Farbe wandern, statt 611 Packungen
+neu entstehen zu sehen. Nur eine andere Herkunft der Rückenfarbe baut das
+Regal neu, weil die Farbe in jeder einzelnen Packung steckt.
+
 ### Wann der Schrank gar nicht erst aufgeht
 
 **Ohne passenden Bildschirm bleibt er zu.** „Automatisch" heißt: ein anderer

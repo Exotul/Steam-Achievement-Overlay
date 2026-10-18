@@ -28,6 +28,15 @@ let ruht = false;
 let stand = null; // Level, XP, Trophaeen je Stufe
 let laufendesSpiel = null;
 let herausgezogen = null;
+/*
+ * Das Aussehen kommt vom Hauptprozess (lib/schrankAussehen.js): Holztoene,
+ * Wandfarbe, Schrift und die Betriebsart der Rueckenfarbe. Bis es da ist,
+ * gilt, was im CSS steht - sonst staende der Schrank beim Start einen Moment
+ * lang farblos da.
+ */
+let aussehen = { ruecken: 'bild', verlauf: true, sammlungsfarben: {} };
+// Welches Fach gerade gebaut wird - fuer die Betriebsart "sammlung".
+let fachImBau = null;
 const felder = []; // { el, spiel, rechteck }
 const farbspeicher = new Map(); // appId -> Ruecken-Farbe
 let neueFarben = {};
@@ -221,6 +230,34 @@ function aktualisiereSpielFach() {
   }
 }
 
+/**
+ * Holz, Wand, Schrift und Verlauf setzen.
+ *
+ * Nur CSS-Variablen am Wurzelelement - kein Neuaufbau. Wer am Holzregler
+ * dreht, soll die Farbe wandern sehen, nicht 611 Packungen neu entstehen.
+ * Die RUECKENFARBE ist die Ausnahme: Sie steckt in jeder einzelnen Packung,
+ * deshalb wird bei einer Umstellung neu gebaut (siehe unten beim Empfang).
+ */
+function wendeAussehenAn(neu) {
+  if (!neu) return;
+  aussehen = { ...aussehen, ...neu };
+  const s = document.documentElement.style;
+  if (neu.holz) {
+    s.setProperty('--holz-hell', neu.holz.hell);
+    s.setProperty('--holz', neu.holz.normal);
+    s.setProperty('--holz-dunkel', neu.holz.dunkel);
+    s.setProperty('--holz-tief', neu.holz.tief);
+    s.setProperty('--holz-wand', neu.holz.wand);
+  }
+  if (neu.raum) {
+    s.setProperty('--raum', neu.raum.grund);
+    s.setProperty('--raum-oben', neu.raum.oben);
+    s.setProperty('--raum-unten', neu.raum.unten);
+  }
+  if (neu.schrift) s.setProperty('--schrift', neu.schrift);
+  document.body.classList.toggle('flach', neu.verlauf === false);
+}
+
 function baue(daten) {
   letzteDaten = daten;
   korpus.innerHTML = '';
@@ -319,6 +356,9 @@ function baue(daten) {
 function baueFach({ fach, jeBoden }, boeden) {
   const el = document.createElement('div');
   el.className = 'fach';
+  // Fuer die Betriebsart "sammlung": Die Packungen entstehen weiter unten und
+  // brauchen den Fachnamen.
+  fachImBau = fach.name;
 
   const kasten = document.createElement('div');
   kasten.className = 'fach__boeden';
@@ -356,16 +396,45 @@ function baueFach({ fach, jeBoden }, boeden) {
 function baueKarton(spiel) {
   const el = document.createElement('div');
   el.className = 'packung' + (spiel.favorit ? ' packung--favorit' : '');
-  el.style.setProperty('--spine', farbspeicher.get(spiel.appId) || notfarbe(spiel.appId));
+  el.style.setProperty('--spine', rueckenFarbe(spiel));
   el.innerHTML = `
     <div class="packung__ruecken"><span class="packung__titel">${escape(spiel.name)}</span></div>
   `;
   felder.push({ el, spiel, rechteck: null });
-  // Ein Bild NUR laden, wenn die Farbe noch fehlt. Beim ersten Start sind das
-  // alle - danach keines mehr. Das Titelbild selbst kommt erst, wenn der
-  // Zeiger die Packung herauszieht; 609 Bilder auf Vorrat waeren Unfug.
-  if (!farbspeicher.has(spiel.appId)) bestimmeFarbe(spiel, el);
+  // Ein Bild NUR laden, wenn die Farbe noch fehlt - und nur in der Betriebsart
+  // "bild". Beim ersten Start sind das alle, danach keines mehr. Das Titelbild
+  // selbst kommt erst, wenn der Zeiger die Packung herauszieht; 609 Bilder auf
+  // Vorrat waeren Unfug.
+  if (aussehen.ruecken === 'bild' && !farbspeicher.has(spiel.appId)) bestimmeFarbe(spiel, el);
   return el;
+}
+
+/**
+ * Woher die Farbe eines Rueckens kommt.
+ *
+ *   bild     - die kraeftigste Farbe des Titelbilds (die Vorgabe)
+ *   sammlung - alle Spiele eines Fachs in einem Ton; so sieht man auf einen
+ *              Blick, wo ein Fach anfaengt und aufhoert
+ *   zufall   - ein fester Ton je Spiel, aus der AppID abgeleitet. "Zufall"
+ *              heisst NICHT "jedes Mal anders": Ein Regal, das sich bei jedem
+ *              Start umfaerbt, waere unruhig.
+ */
+function rueckenFarbe(spiel) {
+  if (aussehen.ruecken === 'sammlung') return fachFarbe(fachImBau);
+  if (aussehen.ruecken === 'zufall') return notfarbe(spiel.appId);
+  return farbspeicher.get(spiel.appId) || notfarbe(spiel.appId);
+}
+
+/**
+ * Die Farbe einer Sammlung - nur nachgeschlagen, nicht gerechnet.
+ *
+ * Der Hauptprozess loest alle Fachfarben auf und schickt sie mit (eigene Wahl
+ * oder aus dem Namen abgeleitet, siehe lib/schrankAussehen.js). Dieselbe
+ * Formel hier ein zweites Mal waere eine zweite Stelle, die auseinanderlaufen
+ * kann - und dann faerbten Einstellungsfenster und Schrank unterschiedlich.
+ */
+function fachFarbe(name) {
+  return (aussehen.sammlungsfarben || {})[name] || '#4a4452';
 }
 
 /**
@@ -972,7 +1041,29 @@ function hinweisZu(grund) {
 // --- Anschluss an den Hauptprozess ---------------------------------------------
 
 if (window.schrankAPI) {
-  window.schrankAPI.onDaten((daten) => baue(daten));
+  window.schrankAPI.onDaten((daten) => {
+    // Das Aussehen VOR dem Bauen setzen: Die Rueckenfarben entstehen beim
+    // Bauen, und sie haengen an der Betriebsart.
+    if (daten && daten.aussehen) wendeAussehenAn(daten.aussehen);
+    baue(daten);
+  });
+
+  // Aenderungen aus den Einstellungen, ohne dass der Schrank neu geladen wird.
+  if (window.schrankAPI.onAussehen) {
+    window.schrankAPI.onAussehen((neu) => {
+      const vorher = aussehen.ruecken;
+      const vorherFarben = JSON.stringify(aussehen.sammlungsfarben || {});
+      wendeAussehenAn(neu);
+      // Neu bauen nur, wenn sich die RUECKENFARBEN geaendert haben - die
+      // stecken in jeder einzelnen Packung. Holz, Wand, Schrift und Verlauf
+      // sind Variablen und wirken ohne Neuaufbau.
+      const andereHerkunft = neu && neu.ruecken !== vorher;
+      const andereFachfarben =
+        aussehen.ruecken === 'sammlung' &&
+        JSON.stringify(aussehen.sammlungsfarben || {}) !== vorherFarben;
+      if ((andereHerkunft || andereFachfarben) && letzteDaten) baue(letzteDaten);
+    });
+  }
   window.schrankAPI.onZeiger((p) => zeigerBei(p ? p.x : null, p ? p.y : null));
   window.schrankAPI.onStand((neu) => {
     const vorher = stand && stand.level;

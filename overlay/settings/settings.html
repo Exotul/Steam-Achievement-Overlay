@@ -289,6 +289,94 @@
         </div>
       </section>
 
+      <!-- ---------------- Aussehen des Schranks ---------------- -->
+      <section class="gruppe">
+        <h2 class="gruppe__titel">Aussehen des Schranks</h2>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankHolz">Holz</label>
+            <p class="hilfe">
+              Aus dieser einen Farbe entstehen alle vier Töne des Regals — Lichtkante,
+              Fläche, Schattenseite und Innenraum.
+            </p>
+          </div>
+          <div class="farbwahl">
+            <div class="farbwahl__vorrat" id="holz-vorrat"></div>
+            <input id="schrankHolz" type="color" class="farbwahl__feld" />
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankWand">Wand dahinter</label>
+            <p class="hilfe">Der Raum, in dem der Schrank steht.</p>
+          </div>
+          <div class="farbwahl">
+            <div class="farbwahl__vorrat" id="wand-vorrat"></div>
+            <input id="schrankWand" type="color" class="farbwahl__feld" />
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankRuecken">Farbe der Spielrücken</label>
+            <p class="hilfe">
+              „Aus dem Titelbild“ nimmt die kräftigste Farbe des Covers. „Nach Sammlung“
+              gibt jedem Fach einen eigenen Ton — dann sieht man auf einen Blick, wo ein
+              Fach anfängt. „Fest je Spiel“ vergibt Töne aus der Spielnummer; die bleiben
+              gleich, wechseln also nicht bei jedem Start.
+            </p>
+          </div>
+          <select id="schrankRuecken" class="feld feld--auswahl">
+            <option value="bild">Aus dem Titelbild</option>
+            <option value="sammlung">Nach Sammlung</option>
+            <option value="zufall">Fest je Spiel</option>
+          </select>
+        </div>
+
+        <div class="zeile zeile--sammlungsfarben" id="sammlungsfarben-zeile" hidden>
+          <div class="zeile__text">
+            <label>Farbe je Sammlung</label>
+            <p class="hilfe">
+              Ohne eigene Wahl leitet sich der Ton aus dem Namen ab — dieselbe Sammlung
+              bekommt damit immer dieselbe Farbe. „Horror“ ergibt von sich aus ein
+              Violett.
+            </p>
+            <div class="sammlungen" id="sammlungen"></div>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankVerlauf">Verlauf auf den Rücken</label>
+            <p class="hilfe">
+              Mit Verlauf wirken die Rücken gewölbt, ohne Verlauf flach und ruhiger.
+            </p>
+          </div>
+          <label class="schalter">
+            <input id="schrankVerlauf" type="checkbox" />
+            <span class="schalter__bahn"></span>
+          </label>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankSchrift">Schriftart</label>
+            <p class="hilfe">
+              Nur Schriften, die Windows ohnehin mitbringt — so sieht der Schrank beim
+              Start nicht erst kurz anders aus.
+            </p>
+          </div>
+          <select id="schrankSchrift" class="feld feld--auswahl">
+            <option value="standard">Standard</option>
+            <option value="schmal">Schmal</option>
+            <option value="serifen">Mit Serifen</option>
+            <option value="maschine">Schreibmaschine</option>
+          </select>
+        </div>
+      </section>
+
       <section class="gruppe">
         <h2 class="gruppe__titel">Ton</h2>
 

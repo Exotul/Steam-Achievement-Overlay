@@ -1,5 +1,29 @@
 # Änderungen heute
 
+## Noch nicht veröffentlicht
+
+### Der Schrank lässt sich einrichten
+
+Neu unter *Einstellungen → Aussehen des Schranks*:
+
+- **Holz** — eine Farbe, aus der alle vier Töne des Regals entstehen
+  (Lichtkante, Fläche, Schattenseite, Innenraum). Dazu fünf Vorschläge zum
+  Anklicken: Eiche, Nussbaum, Kirsche, Grau, Anthrazit.
+- **Wand dahinter** — der Raum, in dem der Schrank steht.
+- **Farbe der Spielrücken** — aus dem Titelbild (wie bisher), nach Sammlung
+  oder fest je Spiel. „Nach Sammlung" gibt jedem Fach einen eigenen Ton; dann
+  sieht man auf einen Blick, wo ein Fach anfängt und aufhört.
+- **Farbe je Sammlung** — einzeln einstellbar. Ohne eigene Wahl leitet sich
+  der Ton aus dem Namen ab, und zwar immer derselbe. „Horror" ergibt von sich
+  aus ein Violett — Zufall, aber ein hübscher.
+- **Verlauf auf den Rücken** — mit Verlauf wirken sie gewölbt, ohne flach und
+  ruhiger.
+- **Schriftart** — Standard, Schmal, Mit Serifen, Schreibmaschine. Nur
+  Schriften, die Windows ohnehin mitbringt.
+
+Holz, Wand, Verlauf und Schrift wirken **ohne Neuaufbau**: Wer am Regler
+dreht, sieht die Farbe wandern, statt 611 Packungen neu entstehen zu sehen.
+
 ## 1.3.0 — 18.10.2026
 
 Die großen Stücke seit 1.2.0: der **Spieleschrank** als interaktiver

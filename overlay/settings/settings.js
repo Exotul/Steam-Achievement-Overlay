@@ -15,6 +15,9 @@ const els = {};
  'merklisteAktiv', 'merklisteGroesse', 'abzeichenGroesse', 'panelTaste', 'panelBeiSteamOverlay',
  'sitzungsbilanz', 'schrankAktiv', 'schrankBildschirm', 'schrankRuheImSpiel',
  'schrankHintergrund', 'streamAktiv', 'streamUrl', 'stream-test', 'stream-status',
+ // Aussehen des Schranks
+ 'schrankHolz', 'schrankWand', 'schrankRuecken', 'schrankVerlauf', 'schrankSchrift',
+ 'holz-vorrat', 'wand-vorrat', 'sammlungen', 'sammlungsfarben-zeile',
  // aus dem Tray-Menue hierher gezogen
  'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
  'updates', 'beenden', 'diagnose', 'keycheck', 'protokoll', 'protokollordner', 'aufzeichnung',
@@ -34,6 +37,7 @@ const REGLER = {
 // Einstellungen, die nur an oder aus kennen.
 const SCHALTER = [
   'vollbildZweitschirm',
+  'schrankVerlauf',
   'merklisteAktiv',
   'panelBeiSteamOverlay',
   'sitzungsbilanz',
@@ -66,6 +70,13 @@ function zeigeWerte(w) {
   if (document.activeElement !== els.streamUrl) els.streamUrl.value = w.streamUrl || '';
 
   els.statusAbzeichen.value = w.statusAbzeichen;
+  els.schrankRuecken.value = w.schrankRuecken;
+  els.schrankSchrift.value = w.schrankSchrift;
+  // Der Farbwähler kennt nur #rrggbb. Steht etwas anderes in der Datei
+  // (rgb(), hsl()), bleibt das Feld, wie es ist - der Schrank zeigt die Farbe
+  // trotzdem richtig an.
+  if (/^#[0-9a-f]{6}$/i.test(w.schrankHolz || '')) els.schrankHolz.value = w.schrankHolz;
+  if (/^#[0-9a-f]{6}$/i.test(w.schrankWand || '')) els.schrankWand.value = w.schrankWand;
   els.bildschirm.value = w.bildschirm === null ? 'haupt' : String(w.bildschirm);
   els.schrankBildschirm.value =
     w.schrankBildschirm === null ? 'auto' : String(w.schrankBildschirm);
@@ -229,6 +240,130 @@ els.schrankBildschirm.addEventListener('change', () => {
   aendere({ schrankBildschirm: v === 'auto' ? null : Number(v) });
 });
 
+/* ---------------------------------------------------------------------------
+   Aussehen des Schranks
+   --------------------------------------------------------------------------- */
+
+// Ein paar Hölzer und Wände zur Auswahl - wer keine Farbe aussuchen will,
+// klickt eines an. Die Namen sind das, was man beim Hinsehen denkt.
+const HOELZER = [
+  ['#a97b4a', 'Eiche'],
+  ['#7a4b2a', 'Nussbaum'],
+  ['#93362a', 'Kirsche'],
+  ['#5d5a55', 'Grau'],
+  ['#2e2b28', 'Anthrazit'],
+];
+const WAENDE = [
+  ['#171310', 'Dunkel'],
+  ['#101418', 'Blaugrau'],
+  ['#181014', 'Weinrot'],
+  ['#0e1410', 'Tannengrün'],
+  ['#000000', 'Schwarz'],
+];
+
+function baueVorrat(behaelter, liste, feld, name) {
+  behaelter.innerHTML = '';
+  liste.forEach(([farbe, titel]) => {
+    const knopf = document.createElement('button');
+    knopf.type = 'button';
+    knopf.className = 'farbwahl__probe';
+    knopf.style.background = farbe;
+    knopf.title = titel;
+    knopf.setAttribute('aria-label', titel);
+    knopf.addEventListener('click', () => {
+      feld.value = farbe;
+      aendere({ [name]: farbe });
+    });
+    behaelter.appendChild(knopf);
+  });
+}
+
+baueVorrat(els['holz-vorrat'], HOELZER, els.schrankHolz, 'schrankHolz');
+baueVorrat(els['wand-vorrat'], WAENDE, els.schrankWand, 'schrankWand');
+
+// Beim Ziehen im Farbwähler still anwenden, damit man die Farbe im Schrank
+// wandern sieht; die Bestätigung erst beim Loslassen.
+['schrankHolz', 'schrankWand'].forEach((name) => {
+  els[name].addEventListener('input', () => aendere({ [name]: els[name].value }, { still: true }));
+  els[name].addEventListener('change', () => bestaetige());
+});
+
+els.schrankSchrift.addEventListener('change', () =>
+  aendere({ schrankSchrift: els.schrankSchrift.value })
+);
+
+els.schrankRuecken.addEventListener('change', async () => {
+  await aendere({ schrankRuecken: els.schrankRuecken.value });
+  zeigeSammlungsfarben();
+});
+
+/**
+ * Die Farbwahl je Sammlung - nur in der Betriebsart "Nach Sammlung".
+ *
+ * Die Liste kommt aus dem Schrank selbst, samt der Farbe, die gerade gilt.
+ * Ohne sie stünden hier lauter leere Felder und man müsste raten, welcher Ton
+ * gerade wirkt.
+ */
+let sammlungenGeladen = false;
+
+async function zeigeSammlungsfarben() {
+  const an = els.schrankRuecken.value === 'sammlung';
+  els['sammlungsfarben-zeile'].hidden = !an;
+  if (!an || sammlungenGeladen) return;
+
+  els.sammlungen.textContent = 'Wird geladen…';
+  const liste = await window.settingsAPI.sammlungen();
+  sammlungenGeladen = true;
+  if (!liste || liste.length === 0) {
+    els.sammlungen.textContent = 'Keine Sammlungen gefunden.';
+    return;
+  }
+
+  els.sammlungen.innerHTML = '';
+  liste.forEach((s) => {
+    const zeile = document.createElement('div');
+    zeile.className = 'sammlung';
+
+    const feld = document.createElement('input');
+    feld.type = 'color';
+    feld.className = 'sammlung__farbe';
+    // Der Farbwähler kann nur Hex. Abgeleitete Töne sind hsl() - dann bleibt
+    // das Feld bei seiner Vorgabe, bis jemand etwas auswählt.
+    if (/^#[0-9a-f]{6}$/i.test(s.farbe)) feld.value = s.farbe;
+    feld.title = `Farbe für „${s.name}“`;
+
+    const name = document.createElement('span');
+    name.className = 'sammlung__name';
+    name.textContent = s.name;
+
+    const anzahl = document.createElement('span');
+    anzahl.className = 'sammlung__anzahl';
+    anzahl.textContent = s.anzahl;
+
+    // Ein Ton, den man selbst gesetzt hat, lässt sich wieder abgeben.
+    const zurueck = document.createElement('button');
+    zurueck.type = 'button';
+    zurueck.className = 'sammlung__zurueck';
+    zurueck.textContent = '×';
+    zurueck.title = 'Wieder aus dem Namen ableiten';
+    zurueck.hidden = !s.eigen;
+
+    const setze = (farbe) => {
+      const alle = { ...(werte.schrankSammlungsfarben || {}) };
+      if (farbe) alle[s.name] = farbe;
+      else delete alle[s.name];
+      zurueck.hidden = !farbe;
+      aendere({ schrankSammlungsfarben: alle });
+    };
+
+    feld.addEventListener('change', () => setze(feld.value));
+    zurueck.addEventListener('click', () => setze(null));
+
+    zeile.append(feld, name, anzahl, zurueck);
+    els.sammlungen.appendChild(zeile);
+  });
+}
+
 els.position.querySelectorAll('.ecke').forEach((knopf) => {
   knopf.addEventListener('click', () => aendere({ position: knopf.dataset.wert }));
 });
@@ -288,6 +423,9 @@ window.settingsAPI.laden().then(({ einstellungen, bildschirme, schluesselVorhand
   zeigeWerte(einstellungen);
   zeigeSchluessel(schluesselVorhanden);
   zeigeProgramm(programm);
+  // Die Sammlungsliste erst, wenn sie gebraucht wird - sie kostet eine
+  // Abfrage beim Hauptprozess.
+  zeigeSammlungsfarben();
 });
 
 // Der Stand kann sich aendern, waehrend das Fenster offen steht - etwa wenn

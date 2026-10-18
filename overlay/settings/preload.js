@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   /** Setzt alles auf die Vorgabewerte zurueck. */
   zuruecksetzen: () => ipcRenderer.invoke('einst:zuruecksetzen'),
 
+  /** Die Faecher des Schranks samt gerade geltender Farbe - fuer die Farbwahl. */
+  sammlungen: () => ipcRenderer.invoke('einst:sammlungen'),
+
   /** Oeffnet den Dateiauswahldialog fuer einen eigenen Ton. */
   tonWaehlen: () => ipcRenderer.invoke('einst:ton-waehlen'),
 

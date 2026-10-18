@@ -11,13 +11,25 @@
  * Farben, keine Dauerbewegung, Animationen nur dort, wo der Zeiger ist.
  */
 
+/*
+ * Die Farben stehen hier nur als VORGABE. Der Hauptprozess setzt dieselben
+ * Variablen aus den Einstellungen neu (siehe lib/schrankAussehen.js) - aus
+ * einer Holzfarbe werden die vier Toene abgeleitet. Wer hier etwas aendert,
+ * aendert also nur, wie der Schrank aussieht, solange noch keine Einstellung
+ * angekommen ist.
+ */
 :root {
   --holz-hell: #c89a63;
   --holz: #a97b4a;
   --holz-dunkel: #7c5733;
   --holz-tief: #4a3420;
+  /* Die Rueckwand IM Fach - eine Spur tiefer als der Innenraum. */
+  --holz-wand: #3c2a19;
   --fach-schatten: rgba(20, 12, 5, 0.75);
   --raum: #171310;
+  --raum-oben: #221b15;
+  --raum-unten: #141010;
+  --schrift: 'Inter', 'Segoe UI', sans-serif;
 
   /* Tiefe des Schranks - davon haengt ab, wie weit eine Packung heraussteht. */
   --tiefe: 46px;
@@ -34,7 +46,7 @@ body {
   height: 100%;
   overflow: hidden;
   background: var(--raum);
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--schrift);
   color: #f1e6d8;
   user-select: none;
   cursor: default;
@@ -55,7 +67,7 @@ body {
   background:
     radial-gradient(120% 70% at 50% -10%, rgba(255, 214, 160, 0.16), transparent 60%),
     radial-gradient(90% 60% at 50% 110%, rgba(0, 0, 0, 0.55), transparent 70%),
-    linear-gradient(180deg, #221b15, #141010 70%);
+    linear-gradient(180deg, var(--raum-oben), var(--raum-unten) 70%);
 }
 
 .schrank {
@@ -127,7 +139,7 @@ body {
       rgba(0, 0, 0, 0.14) 3px 4px,
       rgba(0, 0, 0, 0) 4px 26px
     ),
-    linear-gradient(180deg, var(--holz-tief), #3c2a19);
+    linear-gradient(180deg, var(--holz-tief), var(--holz-wand));
   box-shadow:
     inset 0 10px 18px -6px var(--fach-schatten),
     inset 0 -14px 16px -10px rgba(0, 0, 0, 0.8),
@@ -278,6 +290,22 @@ body {
     inset 0 -8px 10px -6px rgba(0, 0, 0, 0.8),
     1px 0 2px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+}
+
+/*
+ * Ohne Verlauf: eine flache Farbe.
+ *
+ * Die Kantenschatten bleiben - ohne sie stuenden die Ruecken nicht mehr
+ * nebeneinander, sondern verschmoelzen zu einer Farbflaeche. Nur das Licht
+ * ueber die Breite faellt weg.
+ */
+body.flach .packung__ruecken {
+  background: var(--spine, #5a4a6a);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset -2px 0 4px -2px rgba(0, 0, 0, 0.55),
+    inset 0 -8px 10px -6px rgba(0, 0, 0, 0.7),
+    1px 0 2px rgba(0, 0, 0, 0.5);
 }
 
 /* Der Titel laeuft hochkant ueber den Ruecken. */
@@ -532,7 +560,7 @@ body.ruhe .packung__front {
 
 
 .level__zahl {
-  font-family: 'Oswald', 'Inter', sans-serif;
+  font-family: var(--schrift);
   font-size: clamp(22px, 2.3vw, 46px);
   line-height: 0.95;
   color: #ffe9c9;
@@ -630,7 +658,7 @@ body.ruhe .packung__front {
 }
 
 .trophaee__zahl {
-  font-family: 'Oswald', 'Inter', sans-serif;
+  font-family: var(--schrift);
   font-size: clamp(12px, 1.05vw, 22px);
   line-height: 1;
   color: #ffeccd;

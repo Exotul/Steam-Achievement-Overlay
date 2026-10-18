@@ -22,6 +22,7 @@ const streamBruecke = require('./lib/streamBruecke');
 const zeigerFenster = require('./lib/zeigerFenster');
 const steamLauf = require('./lib/steamLauf');
 const { waehleBildschirm: waehleSchrankBildschirm } = require('./lib/schrankBildschirm');
+const schrankAussehen = require('./lib/schrankAussehen');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -506,6 +507,9 @@ let schrankWindow = null;
 let schrankZeiger = null;
 let schrankDatenTimer = null;
 let letzterZeiger = '';
+// Die zuletzt gelieferten Faecher - fuer das Aufloesen der Fachfarben, wenn
+// jemand in den Einstellungen eine Farbe aendert.
+let letzteFaecher = [];
 
 /**
  * Auf welchem Bildschirm der Schrank steht - oder null.
@@ -647,10 +651,24 @@ async function sendeSchrankDaten() {
   }
   try {
     const daten = await steamClient.schrank();
+    // Gemerkt fuer spaetere Farbaenderungen: Dann muss der Schrankinhalt
+    // nicht erneut geholt werden, nur weil jemand eine Fachfarbe umstellt.
+    letzteFaecher = daten.faecher || [];
     schrankWindow.webContents.send('schrank:daten', {
       ...daten,
       farben: schrankFarben.laden(),
       raender: schrankRaender(schrankBildschirm()),
+      // Holz, Wand, Schrift, Rueckenfarben - MIT den Daten, nicht danach:
+      // Die Rueckenfarben entstehen beim Aufbau und haengen daran. Die
+      // Fachfarben werden hier aufgeloest, damit das Schrankfenster nur noch
+      // nachschlaegt und nicht dieselbe Formel ein zweites Mal rechnet.
+      aussehen: {
+        ...schrankAussehen.ausSichtDesSchranks(einstellungen),
+        sammlungsfarben: schrankAussehen.fachFarben(
+          daten.faecher,
+          einstellungen.schrankSammlungsfarben
+        ),
+      },
     });
     logger.info(`Schrank: ${daten.anzahlSpiele} Spiele in ${daten.faecher.length} Faechern`);
   } catch (err) {
@@ -2996,6 +3014,18 @@ function wendeEinstellungenAn(vorher) {
   ) {
     wendeSchrankAn(vorher);
   }
+
+  // Das Aussehen geht ohne Neuaufbau hinein: Wer am Holzregler dreht, soll
+  // die Farbe wandern sehen, nicht 611 Packungen neu entstehen.
+  if (schrankWindow && !schrankWindow.isDestroyed()) {
+    schrankWindow.webContents.send('schrank:aussehen', {
+      ...schrankAussehen.ausSichtDesSchranks(einstellungen),
+      sammlungsfarben: schrankAussehen.fachFarben(
+        letzteFaecher,
+        einstellungen.schrankSammlungsfarben
+      ),
+    });
+  }
 }
 
 let loginWindow = null;
@@ -3215,6 +3245,31 @@ function zeigeEinstellungen() {
       schluesselVorhanden: !schluesselFehlt(),
       programm: programmStand(),
     }),
+
+    /**
+     * Die Faecher des Schranks - fuer die Farbwahl je Sammlung.
+     *
+     * Name UND die abgeleitete Vorgabefarbe: Ohne sie stuenden im
+     * Einstellungsfenster lauter leere Farbfelder, und man muesste raten,
+     * welcher Ton gerade gilt.
+     */
+    'einst:sammlungen': async () => {
+      if (!steamClient) return [];
+      try {
+        const daten = await steamClient.schrank();
+        return (daten.faecher || [])
+          .filter((f) => !f.spiegel)
+          .map((f) => ({
+            name: f.name,
+            anzahl: f.anzahl,
+            farbe: schrankAussehen.sammlungsFarbe(f.name, einstellungen.schrankSammlungsfarben),
+            eigen: !!(einstellungen.schrankSammlungsfarben || {})[f.name],
+          }));
+      } catch (err) {
+        logger.debug('Sammlungen für die Farbwahl nicht abrufbar: ' + err.message);
+        return [];
+      }
+    },
 
     // Alles ab hier ist aus dem Tray-Menue hierher gezogen. Es wird selten
     // gebraucht und braucht dann eine Erklaerung daneben - genau das, wofuer
