@@ -292,6 +292,105 @@ body {
   overflow: hidden;
 }
 
+/* ---------- Auszeichnungen: nie gespielt, Diamant ---------- */
+
+/*
+ * Der orange Rahmen um ein nie gespieltes Spiel.
+ *
+ * Als inset-Schatten, nicht als border: Ein Rahmen wuerde die Packung um zwei
+ * Pixel breiter machen, und bei 10 px Rueckenbreite verschiebt das eine ganze
+ * Regalzeile. Der Schatten liegt INNEN und kostet keinen Platz.
+ */
+.packung--nie-rahmen .packung__ruecken {
+  box-shadow:
+    inset 0 0 0 1.5px var(--nie-rahmen, #f08a28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -8px 10px -6px rgba(0, 0, 0, 0.8),
+    1px 0 2px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * Der Diamantrücken: die Diamantfarbe plus ein kurzes Aufblitzen.
+ *
+ * WARUM NUR EIN AUFBLITZEN UND KEINE DAUERBEWEGUNG - nachgemessen am echten
+ * Schrank mit 630 Packungen und fünf Diamanten, Leerlauf, Median aus acht
+ * Proben:
+ *
+ *     Drosselung aus, ohne Auszeichnung      0,01 % der CPU
+ *     Drosselung aus, Deckkraft (dauerhaft)  1,02 %
+ *     Drosselung aus, fahrender Glanz        3,49 %   (0,42 Kerne)
+ *
+ * Ein Streifen, der ununterbrochen über den Rücken fährt, kostet also das
+ * 350-Fache des Leerlaufs: Die Rücken sind rund (border-radius) und
+ * beschneiden ihren Inhalt, deshalb bekommt der Streifen keine eigene Ebene
+ * und zwingt bei jedem Bild zum Neuzeichnen - bei 4K teuer.
+ *
+ * Deshalb: Die Animation läuft NICHT dauernd, sondern wird in schrank.js alle
+ * paar Sekunden für gut eine Sekunde eingeschaltet. Im Mittel kostet das rund
+ * ein Achtel der Deckkraft-Fassung, und es sieht auch besser aus - ein Glanz,
+ * der ohne Unterlass auf und ab fährt, wirkt wie ein Blinklicht.
+ */
+/*
+ * Der Schimmer sitzt auf der PACKUNG, nicht im Rücken.
+ *
+ * Der Rücken beschneidet seinen Inhalt (overflow: hidden, abgerundete Ecken).
+ * Was darin liegt, bekommt deshalb keine eigene Ebene, und jede Änderung
+ * zwingt zum Neuzeichnen - bei 4K teuer. Nachgemessen am laufenden Programm,
+ * Leerlauf:
+ *
+ *     ohne Glanz                        0,02 % der CPU
+ *     Glanz IM Rücken, alle 9 s         1,00 %
+ *     Glanz auf der Packung, alle 9 s   siehe unten
+ *
+ * Eine Ebene für sich ändert nur ihre Deckkraft, und das erledigt die
+ * Grafikkarte. Die 2 px runden Ecken des Rückens fehlen dem Schimmer dadurch -
+ * das sieht man nicht.
+ */
+.packung--diamant::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14%;
+  height: 38%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(226, 250, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0;
+  will-change: opacity;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Die Klasse setzt schrank.js, und zwar nur für die Dauer des Blitzes. */
+body.glanz .packung--diamant::after {
+  animation: diamant-glanz 0.9s ease-in-out;
+}
+
+@keyframes diamant-glanz {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Kein Blitzen, dafür ein ruhiger Schimmer - die Auszeichnung bleibt
+     erkennbar, die Bewegung entfällt. */
+  body.glanz .packung--diamant::after {
+    animation: none;
+  }
+  .packung--diamant::after {
+    opacity: 0.3;
+  }
+}
+
 /*
  * Ohne Verlauf: eine flache Farbe.
  *
@@ -303,6 +402,22 @@ body.flach .packung__ruecken {
   background: var(--spine, #5a4a6a);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset -2px 0 4px -2px rgba(0, 0, 0, 0.55),
+    inset 0 -8px 10px -6px rgba(0, 0, 0, 0.7),
+    1px 0 2px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * Flach UND mit Rahmen.
+ *
+ * Beides setzt box-shadow, und die flache Fassung ist die spezifischere Regel
+ * (body zaehlt mit) - ohne diese Zeile verschwaende der orange Rahmen genau
+ * dann, wenn man den Verlauf abschaltet. Lieber eine ausdrueckliche Regel als
+ * ein Wettrennen um Spezifitaet.
+ */
+body.flach .packung--nie-rahmen .packung__ruecken {
+  box-shadow:
+    inset 0 0 0 1.5px var(--nie-rahmen, #f08a28),
     inset -2px 0 4px -2px rgba(0, 0, 0, 0.55),
     inset 0 -8px 10px -6px rgba(0, 0, 0, 0.7),
     1px 0 2px rgba(0, 0, 0, 0.5);

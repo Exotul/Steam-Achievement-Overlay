@@ -176,3 +176,77 @@ test('Der Verlauf lässt sich ausschalten, und nur ausdrücklich', () => {
   assert.strictEqual(A.ausSichtDesSchranks({ schrankVerlauf: false }).verlauf, false);
   assert.strictEqual(A.ausSichtDesSchranks({ schrankVerlauf: undefined }).verlauf, true);
 });
+
+/* ==========================================================================
+   Auszeichnungen: nie gespielt und Diamant
+   ========================================================================== */
+
+test('„Nie gespielt" heißt: keine Stunden UND kein Datum', () => {
+  // DER FALL, DER DAS NÖTIG MACHT: In dieser Bibliothek steht bei alten
+  // Titeln ein Datum von Steam, aber keine gezählten Stunden — Steam zählt
+  // sie erst seit 2009. Nur auf die Spielzeit zu sehen hieße, ein Spiel als
+  // „nie gespielt" zu markieren, bei dem daneben „zuletzt November 2015"
+  // steht.
+  assert.strictEqual(A.nieGespielt({ spielzeitMin: 0, zuletztGespielt: 0 }), true);
+  assert.strictEqual(A.nieGespielt({ spielzeitMin: 0 }), true, 'ohne Angabe zum Datum');
+  assert.strictEqual(
+    A.nieGespielt({ spielzeitMin: 0, zuletztGespielt: 1446000000 }),
+    false,
+    'Datum ohne Stunden ist gespielt'
+  );
+  assert.strictEqual(A.nieGespielt({ spielzeitMin: 12, zuletztGespielt: 0 }), false);
+  assert.strictEqual(A.nieGespielt(null), false);
+});
+
+test('Diamant heißt: alle Achievements, und es muss welche geben', () => {
+  assert.strictEqual(A.istDiamant({ erreicht: 24, gesamt: 24 }), true);
+  // Ein Spiel ganz ohne Achievements hätte sonst „alle" erreicht und strahlte
+  // als Diamant, obwohl es dort nichts zu holen gibt.
+  assert.strictEqual(A.istDiamant({ erreicht: 0, gesamt: 0 }), false);
+  assert.strictEqual(A.istDiamant({ erreicht: 23, gesamt: 24 }), false);
+  // Unbekannter Stand: lieber keine Auszeichnung als eine falsche.
+  assert.strictEqual(A.istDiamant({}), false);
+  assert.strictEqual(A.istDiamant({ erreicht: 5 }), false);
+  assert.strictEqual(A.istDiamant(null), false);
+});
+
+test('Die Auszeichnungen sind ausdrücklich abzuschalten', () => {
+  const aus = A.ausSichtDesSchranks({});
+  assert.strictEqual(aus.rahmenNie, false);
+  assert.strictEqual(aus.rueckenNie, false);
+  assert.strictEqual(aus.diamant, false);
+  const an = A.ausSichtDesSchranks({
+    schrankRahmenNie: true, schrankRueckenNie: true, schrankDiamant: true,
+  });
+  assert.strictEqual(an.rahmenNie && an.rueckenNie && an.diamant, true);
+});
+
+test('Schrankfenster und Modul benutzen dieselben Auszeichnungsfarben', () => {
+  // Zwei Stellen, zwei Farben - dann leuchtete der Rahmen anders als der
+  // Rücken, und niemand wüsste warum.
+  const quelle = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'schrank', 'schrank.js'),
+    'utf8'
+  );
+  assert.ok(quelle.includes(A.NIE_FARBE.ruecken), `Orange ${A.NIE_FARBE.ruecken} fehlt im Schrank`);
+  assert.ok(quelle.includes(A.DIAMANT_FARBE), `Diamantfarbe ${A.DIAMANT_FARBE} fehlt im Schrank`);
+
+  const css = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'schrank', 'schrank.css'),
+    'utf8'
+  );
+  assert.ok(css.includes(A.NIE_FARBE.rahmen), `Rahmenfarbe ${A.NIE_FARBE.rahmen} fehlt im CSS`);
+});
+
+test('Schrankfenster und Modul entscheiden „nie gespielt" gleich', () => {
+  // Hier steht die Regel bewusst zweimal: Die Schalter sollen sich umlegen
+  // lassen, ohne den Schrankinhalt neu zu holen. Dann müssen die beiden
+  // Fassungen aber auch dasselbe sagen.
+  const quelle = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'schrank', 'schrank.js'),
+    'utf8'
+  );
+  const code = quelle.slice(quelle.indexOf('function nieGespielt'));
+  assert.ok(/spielzeitMin > 0/.test(code) && /zuletztGespielt > 0/.test(code),
+    'beide Bedingungen müssen geprüft werden');
+});

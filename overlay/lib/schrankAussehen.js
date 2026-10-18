@@ -110,6 +110,21 @@ function hslZuHex(h, s, l) {
   return zuHex([(r + m) * 255, (g + m) * 255, (b + m) * 255]);
 }
 
+/*
+ * Die beiden Auszeichnungsfarben.
+ *
+ * Das Orange ist gedaempft, nicht leuchtend: Die Ruecken stehen zu Dutzenden
+ * nebeneinander, und bei rund 240 nie gespielten Titeln in dieser Bibliothek
+ * waere ein kraeftiges Orange die halbe Regalwand. Der Rahmen darf dagegen
+ * hell sein - er ist nur ein Strich.
+ *
+ * Das Blau ist dasselbe wie beim Diamanten im Trophaeenfach und in der
+ * Meldung. Eine zweite Diamantfarbe waere eine zweite Antwort auf dieselbe
+ * Frage.
+ */
+const NIE_FARBE = { ruecken: '#8d4f15', rahmen: '#f08a28' };
+const DIAMANT_FARBE = '#2c7f91';
+
 // Saettigung und Helligkeit der abgeleiteten Toene. Gedaempft: Die Ruecken
 // stehen zu Dutzenden nebeneinander, und kraeftige Farben in dieser Menge
 // sehen aus wie eine Tuete Bonbons.
@@ -196,7 +211,46 @@ function ausSichtDesSchranks(e = {}) {
     ruecken: e.schrankRuecken || 'bild',
     verlauf: e.schrankVerlauf !== false,
     sammlungsfarben: e.schrankSammlungsfarben || {},
+    rahmenNie: !!e.schrankRahmenNie,
+    rueckenNie: !!e.schrankRueckenNie,
+    diamant: !!e.schrankDiamant,
   };
+}
+
+/**
+ * Nie gespielt?
+ *
+ * Nicht allein an der Spielzeit: Bei alten Titeln liefert Steam ein Datum,
+ * aber keine gezaehlten Stunden (gezaehlt wird erst seit 2009). In der
+ * Bibliothek dieses Rechners stand deshalb "noch nie gespielt - zuletzt
+ * November 2015" bei ein und demselben Spiel. Beides zugleich, und beides von
+ * Steam. Hier gilt deshalb: nie gespielt heisst keine Stunden UND kein Datum.
+ *
+ * Dieselbe Regel wie in der Anzeige beim Darueberfahren.
+ *
+ * @param {{spielzeitMin?: number, zuletztGespielt?: number}} spiel
+ */
+function nieGespielt(spiel) {
+  if (!spiel) return false;
+  return !(spiel.spielzeitMin > 0) && !(spiel.zuletztGespielt > 0);
+}
+
+/**
+ * Diamant? - alle Achievements des Spiels erreicht.
+ *
+ * `gesamt > 0` ist nicht nur Vorsicht: Ein Spiel ganz ohne Achievements haette
+ * sonst "alle" erreicht und straehlte als Diamant, obwohl es dort nichts zu
+ * holen gibt. Ist der Stand unbekannt (die XP-Berechnung war noch nicht bei
+ * diesem Spiel), kommt false - lieber keine Auszeichnung als eine falsche.
+ */
+function istDiamant(spiel) {
+  if (!spiel) return false;
+  return (
+    typeof spiel.gesamt === 'number' &&
+    typeof spiel.erreicht === 'number' &&
+    spiel.gesamt > 0 &&
+    spiel.erreicht >= spiel.gesamt
+  );
 }
 
 module.exports = {
@@ -207,6 +261,10 @@ module.exports = {
   raumToene,
   sammlungsFarbe,
   fachFarben,
+  nieGespielt,
+  istDiamant,
+  NIE_FARBE,
+  DIAMANT_FARBE,
   SCHRIFTEN,
   SCHRIFT_NAMEN,
   schriftListe,

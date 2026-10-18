@@ -24,6 +24,55 @@ Neu unter *Einstellungen → Aussehen des Schranks*:
 Holz, Wand, Verlauf und Schrift wirken **ohne Neuaufbau**: Wer am Regler
 dreht, sieht die Farbe wandern, statt 611 Packungen neu entstehen zu sehen.
 
+### Nie gespielte und Diamanten hervorheben
+
+Drei weitere Schalter, einzeln und zusammen verwendbar:
+
+- **Nie gespielte mit Rahmen** — ein oranger Strich um den Rücken. Bei dir
+  betrifft das 243 Spiele.
+- **Nie gespielte orange färben** — gleich der ganze Rücken, gedämpft statt
+  leuchtend; bei 243 Titeln wäre ein kräftiges Orange die halbe Regalwand.
+- **Diamanten hervorheben** — die Diamantfarbe plus ein kurzes Aufblitzen. Bei
+  dir sind das 5 Spiele.
+
+„Nie gespielt" heißt: keine Spielzeit **und** kein Datum. Nur auf die Stunden
+zu sehen wäre falsch — bei alten Titeln liefert Steam ein Datum, aber keine
+gezählten Stunden. An ein und demselben Spiel stand deshalb „noch nie gespielt
+· zuletzt November 2015".
+
+**Das Aufblitzen statt einer Dauerbewegung ist kein Geschmacksurteil, sondern
+eine Messung.** Leerlauf der ganzen App, bei dir nachgemessen:
+
+| | CPU |
+|---|---|
+| ohne Auszeichnung | 0,02 % |
+| Glanz, der dauerhaft über den Rücken fährt | **3,5 %** (0,42 Kerne) |
+| Aufblitzen im Rücken, alle 9 s | 1,00 % |
+| Aufblitzen auf der Packung, alle 9 s | 0,71 % |
+| Aufblitzen auf der Packung, alle 20 s (so wie jetzt) | **0,20 %** |
+
+Teuer ist nicht der Schimmer, sondern dass überhaupt etwas animiert wird:
+Solange eine Animation läuft, setzt die Grafik das ganze 4K-Bild Bild für Bild
+neu zusammen. Deshalb selten und kurz — 0,95 Sekunden alle 20. Während ein
+Spiel läuft, blitzt gar nichts.
+
+### Nebenbei behoben: Im Hintergrundmodus lief keine Animation
+
+Chromium drosselt Fenster, die es für verdeckt hält — hinter den
+Desktop-Symbolen ist der Schrank so verdeckt, wie ein Fenster nur sein kann.
+Nachgemessen am selben Element, je drei Sekunden:
+
+| | |
+|---|---|
+| gewöhnliches Fenster | läuft |
+| im Hintergrund, Drosselung an | **steht still** |
+| im Hintergrund, Drosselung aus | läuft |
+
+Das betraf nicht nur den neuen Glanz: Auch das Herausziehen einer Packung wird
+per `requestAnimationFrame` berechnet, und gedrosselt läuft das nur noch
+einmal je Sekunde. Das Abschalten der Drosselung kostet nichts (0,01 % mit wie
+ohne).
+
 ## 1.3.0 — 18.10.2026
 
 Die großen Stücke seit 1.2.0: der **Spieleschrank** als interaktiver

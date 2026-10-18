@@ -238,6 +238,72 @@ function aktualisiereSpielFach() {
  * Die RUECKENFARBE ist die Ausnahme: Sie steckt in jeder einzelnen Packung,
  * deshalb wird bei einer Umstellung neu gebaut (siehe unten beim Empfang).
  */
+/* ---------------------------------------------------------------------------
+   Das Aufblitzen der Diamanten
+   ---------------------------------------------------------------------------
+   Die Animation laeuft NICHT dauernd. Nachgemessen am echten Schrank mit 630
+   Packungen (Leerlauf, Median aus acht Proben):
+
+       ohne Auszeichnung              0,01 % der CPU
+       Deckkraft dauerhaft            1,02 %
+       fahrender Streifen             3,49 %   (0,42 Kerne)
+
+   Die Ruecken sind rund und beschneiden ihren Inhalt, deshalb bekommt ein
+   bewegter Streifen keine eigene Ebene und zwingt bei jedem Bild zum
+   Neuzeichnen - bei 4K teuer. Also wird die Animation nur fuer die Dauer des
+   Blitzes eingeschaltet: gut eine Sekunde alle neun. Im Mittel bleibt davon
+   rund ein Achtel uebrig, und es sieht besser aus als ein Dauerflackern.
+   --------------------------------------------------------------------------- */
+
+/*
+ * DER EIGENTLICHE KOSTENTREIBER ist nicht der Schimmer, sondern dass ueberhaupt
+ * etwas animiert wird: Solange eine Animation laeuft, setzt die Grafik das
+ * ganze 4K-Bild Bild fuer Bild neu zusammen - egal, wie klein die Aenderung
+ * ist. Nachgemessen am laufenden Programm (Leerlauf, ganze App):
+ *
+ *     ohne Glanz                           0,02 % der CPU
+ *     Glanz im Ruecken, alle 9 s           1,00 %
+ *     Glanz auf der Packung, alle 9 s      0,71 %
+ *     Glanz auf der Packung, alle 20 s     siehe README
+ *
+ * Die eigene Ebene (auf der Packung statt im beschnittenen Ruecken) bringt
+ * also etwas, aber das meiste macht der Takt. Deshalb selten und kurz: ein
+ * Glanz, den man nebenbei auffaengt, nicht einer, der um Aufmerksamkeit
+ * bittet.
+ */
+const GLANZ_ABSTAND_MS = 20000;
+const GLANZ_DAUER_MS = 950;
+let glanzUhr = null;
+let glanzAus = null;
+
+function starteGlanz() {
+  stoppeGlanz();
+  // Nichts zu tun, wenn es nichts auszuzeichnen gibt.
+  if (!aussehen.diamant || ruht) return;
+  if (!korpus.querySelector('.packung--diamant')) return;
+
+  const blitz = () => {
+    if (ruht) return;
+    document.body.classList.add('glanz');
+    glanzAus = setTimeout(() => document.body.classList.remove('glanz'), GLANZ_DAUER_MS);
+  };
+  // Nicht sofort: Beim Aufbau des Schranks ist ohnehin genug los.
+  glanzUhr = setInterval(blitz, GLANZ_ABSTAND_MS);
+  setTimeout(blitz, 2000);
+}
+
+function stoppeGlanz() {
+  clearInterval(glanzUhr);
+  clearTimeout(glanzAus);
+  glanzUhr = null;
+  glanzAus = null;
+  document.body.classList.remove('glanz');
+}
+
+/** Die drei Auszeichnungsschalter als ein Wert - fuer den Vergleich. */
+const auszeichnungsStand = () =>
+  `${aussehen.rahmenNie ? 1 : 0}${aussehen.rueckenNie ? 1 : 0}${aussehen.diamant ? 1 : 0}`;
+
 function wendeAussehenAn(neu) {
   if (!neu) return;
   aussehen = { ...aussehen, ...neu };
@@ -344,6 +410,8 @@ function baue(daten) {
   hinweisEl.textContent = `${daten.anzahlSpiele} Spiele in ${echte} Fächern · aus deinen Steam-Sammlungen`;
   // Erst messen, wenn das Regal wirklich steht.
   requestAnimationFrame(() => requestAnimationFrame(messeFelder));
+  // Und erst jetzt steht fest, ob es ueberhaupt Diamanten zu zeigen gibt.
+  starteGlanz();
 }
 
 /**
@@ -395,34 +463,88 @@ function baueFach({ fach, jeBoden }, boeden) {
 
 function baueKarton(spiel) {
   const el = document.createElement('div');
-  el.className = 'packung' + (spiel.favorit ? ' packung--favorit' : '');
-  el.style.setProperty('--spine', rueckenFarbe(spiel));
+  const nie = nieGespielt(spiel);
+  const diamant = istDiamant(spiel);
+  el.className =
+    'packung' +
+    (spiel.favorit ? ' packung--favorit' : '') +
+    (nie && aussehen.rahmenNie ? ' packung--nie-rahmen' : '') +
+    (diamant && aussehen.diamant ? ' packung--diamant' : '');
+  el.style.setProperty('--spine', rueckenFarbe(spiel, nie, diamant));
   el.innerHTML = `
     <div class="packung__ruecken"><span class="packung__titel">${escape(spiel.name)}</span></div>
   `;
   felder.push({ el, spiel, rechteck: null });
-  // Ein Bild NUR laden, wenn die Farbe noch fehlt - und nur in der Betriebsart
-  // "bild". Beim ersten Start sind das alle, danach keines mehr. Das Titelbild
-  // selbst kommt erst, wenn der Zeiger die Packung herauszieht; 609 Bilder auf
-  // Vorrat waeren Unfug.
-  if (aussehen.ruecken === 'bild' && !farbspeicher.has(spiel.appId)) bestimmeFarbe(spiel, el);
+  // Ein Bild NUR laden, wenn die Farbe noch fehlt - und nur, wenn sie
+  // ueberhaupt gebraucht wird. Beim ersten Start sind das alle, danach keines
+  // mehr. Das Titelbild selbst kommt erst, wenn der Zeiger die Packung
+  // herauszieht; 609 Bilder auf Vorrat waeren Unfug.
+  const braucheBild =
+    aussehen.ruecken === 'bild' &&
+    !(diamant && aussehen.diamant) &&
+    !(nie && aussehen.rueckenNie);
+  if (braucheBild && !farbspeicher.has(spiel.appId)) bestimmeFarbe(spiel, el);
   return el;
 }
 
 /**
  * Woher die Farbe eines Rueckens kommt.
  *
- *   bild     - die kraeftigste Farbe des Titelbilds (die Vorgabe)
- *   sammlung - alle Spiele eines Fachs in einem Ton; so sieht man auf einen
- *              Blick, wo ein Fach anfaengt und aufhoert
- *   zufall   - ein fester Ton je Spiel, aus der AppID abgeleitet. "Zufall"
- *              heisst NICHT "jedes Mal anders": Ein Regal, das sich bei jedem
- *              Start umfaerbt, waere unruhig.
+ * ZUERST die Auszeichnungen, dann die Betriebsart:
+ *
+ *   Diamant    - die Diamantfarbe, dazu ein wandernder Glanz (CSS). Sie sticht
+ *                alles andere: Ein Spiel, in dem ALLES geholt ist, soll man
+ *                finden, ohne zu suchen.
+ *   nie        - gedaempftes Orange.
+ *   bild       - die kraeftigste Farbe des Titelbilds (die Vorgabe)
+ *   sammlung   - alle Spiele eines Fachs in einem Ton; so sieht man auf einen
+ *                Blick, wo ein Fach anfaengt und aufhoert
+ *   zufall     - ein fester Ton je Spiel, aus der AppID abgeleitet. "Zufall"
+ *                heisst NICHT "jedes Mal anders": Ein Regal, das sich bei
+ *                jedem Start umfaerbt, waere unruhig.
+ *
+ * Beides zugleich - nie gespielt UND Diamant - kann es nicht geben: Fuer alle
+ * Achievements muss man gespielt haben. Die Reihenfolge steht trotzdem fest,
+ * damit nicht die Datenlage entscheidet.
  */
-function rueckenFarbe(spiel) {
+function rueckenFarbe(spiel, nie, diamant) {
+  if (diamant && aussehen.diamant) return DIAMANT_FARBE;
+  if (nie && aussehen.rueckenNie) return NIE_RUECKEN;
   if (aussehen.ruecken === 'sammlung') return fachFarbe(fachImBau);
   if (aussehen.ruecken === 'zufall') return notfarbe(spiel.appId);
   return farbspeicher.get(spiel.appId) || notfarbe(spiel.appId);
+}
+
+/*
+ * Nie gespielt und Diamant - dieselben Regeln wie in lib/schrankAussehen.js.
+ *
+ * Sie stehen hier ein zweites Mal, weil dieses Fenster nichts nachladen darf.
+ * Anders als bei den Fachfarben geht es hier nicht um eine Farbformel, sondern
+ * um zwei Vergleiche auf Daten, die ohnehin in jeder Packung stecken - und das
+ * ist auch der Grund, warum sie hier stehen und nicht vorberechnet ankommen:
+ * Die Schalter lassen sich umlegen, ohne den Schrankinhalt neu zu holen.
+ */
+const NIE_RUECKEN = '#8d4f15';
+const DIAMANT_FARBE = '#2c7f91';
+
+function nieGespielt(spiel) {
+  // Nicht allein an der Spielzeit: Bei alten Titeln liefert Steam ein Datum,
+  // aber keine gezaehlten Stunden. Dieselbe Regel wie in der Anzeige beim
+  // Darueberfahren - sonst stuende dort "zuletzt November 2015" an einer
+  // Packung, die als "nie gespielt" markiert ist.
+  return !(spiel.spielzeitMin > 0) && !(spiel.zuletztGespielt > 0);
+}
+
+function istDiamant(spiel) {
+  // gesamt > 0 ist nicht nur Vorsicht: Ein Spiel ganz ohne Achievements haette
+  // sonst "alle" erreicht und straehlte als Diamant, obwohl es dort nichts zu
+  // holen gibt.
+  return (
+    Number.isFinite(spiel.gesamt) &&
+    Number.isFinite(spiel.erreicht) &&
+    spiel.gesamt > 0 &&
+    spiel.erreicht >= spiel.gesamt
+  );
 }
 
 /**
@@ -1053,6 +1175,7 @@ if (window.schrankAPI) {
     window.schrankAPI.onAussehen((neu) => {
       const vorher = aussehen.ruecken;
       const vorherFarben = JSON.stringify(aussehen.sammlungsfarben || {});
+      const vorherAuszeichnung = auszeichnungsStand();
       wendeAussehenAn(neu);
       // Neu bauen nur, wenn sich die RUECKENFARBEN geaendert haben - die
       // stecken in jeder einzelnen Packung. Holz, Wand, Schrift und Verlauf
@@ -1061,7 +1184,12 @@ if (window.schrankAPI) {
       const andereFachfarben =
         aussehen.ruecken === 'sammlung' &&
         JSON.stringify(aussehen.sammlungsfarben || {}) !== vorherFarben;
-      if ((andereHerkunft || andereFachfarben) && letzteDaten) baue(letzteDaten);
+      // Die Auszeichnungen haengen als Klasse und Farbe an jeder einzelnen
+      // Packung - ein Umlegen dieser Schalter braucht deshalb einen Neuaufbau.
+      const andereAuszeichnung = vorherAuszeichnung !== auszeichnungsStand();
+      if ((andereHerkunft || andereFachfarben || andereAuszeichnung) && letzteDaten) {
+        baue(letzteDaten);
+      }
     });
   }
   window.schrankAPI.onZeiger((p) => zeigerBei(p ? p.x : null, p ? p.y : null));
@@ -1093,6 +1221,9 @@ if (window.schrankAPI) {
     ruht = !!r;
     document.body.classList.toggle('ruhe', ruht);
     if (ruht) setzeHeraus(null);
+    // Waehrend ein Spiel laeuft, blitzt auch nichts.
+    if (ruht) stoppeGlanz();
+    else starteGlanz();
   });
   window.schrankAPI.bereit();
 

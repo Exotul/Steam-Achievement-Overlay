@@ -562,6 +562,22 @@ function createSchrankWindow() {
       preload: path.join(__dirname, 'schrank', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      /*
+       * NACHGEMESSEN: Chromium drosselt Fenster, die es fuer verdeckt haelt -
+       * und hinter den Desktop-Symbolen ist der Schrank so verdeckt, wie ein
+       * Fenster nur sein kann. Dasselbe Element, dreimal 3 Sekunden lang
+       * beobachtet:
+       *
+       *     gewoehnliches Fenster, Drosselung an    4 Werte  laeuft
+       *     im Hintergrund, Drosselung an           2 Werte  STEHT STILL
+       *     im Hintergrund, Drosselung aus          5 Werte  laeuft
+       *
+       * Ohne diese Zeile stuende der Diamantglanz genau dort still, wo der
+       * Schrank hingehoert. Es betrifft auch das Herausziehen: Das wird per
+       * requestAnimationFrame berechnet, und gedrosselt laeuft das nur noch
+       * einmal je Sekunde.
+       */
+      backgroundThrottling: false,
     },
   });
 

@@ -150,6 +150,19 @@ function standard() {
     schrankSammlungsfarben: {},
     // Verlauf ueber den Ruecken (Lichtkante) oder flache Farbe.
     schrankVerlauf: true,
+
+    // --- Spiele hervorheben ---
+    // "Nie gespielt" heisst: keine Spielzeit UND kein Datum von Steam. Nur
+    // die Spielzeit zu nehmen waere falsch - bei alten Titeln gibt es ein
+    // Datum, aber keine gezaehlten Stunden (Steam zaehlt sie erst seit 2009).
+    // Oranger Rahmen um den Ruecken.
+    schrankRahmenNie: false,
+    // Oder gleich der ganze Ruecken orange. Beides zusammen geht auch.
+    schrankRueckenNie: false,
+    // Spiele mit Diamantstatus (alle Achievements) in der Diamantfarbe, mit
+    // einem wandernden Glanz. Ausgeschaltet, solange ein Spiel laeuft - der
+    // Schrank soll dort keine Bilder pro Sekunde kosten.
+    schrankDiamant: false,
     // Schriftart im Schrank. Nur Schriften, die unter Windows ohnehin da sind.
     schrankSchrift: 'standard',
 
@@ -238,6 +251,11 @@ function bereinige(roh) {
       : s.schrankRuecken,
     schrankSammlungsfarben: sauberesFarbwerk(e.schrankSammlungsfarben),
     schrankVerlauf: e.schrankVerlauf === undefined ? s.schrankVerlauf : !!e.schrankVerlauf,
+    schrankRahmenNie:
+      e.schrankRahmenNie === undefined ? s.schrankRahmenNie : !!e.schrankRahmenNie,
+    schrankRueckenNie:
+      e.schrankRueckenNie === undefined ? s.schrankRueckenNie : !!e.schrankRueckenNie,
+    schrankDiamant: e.schrankDiamant === undefined ? s.schrankDiamant : !!e.schrankDiamant,
     schrankSchrift: SCHRIFT_NAMEN.includes(e.schrankSchrift)
       ? e.schrankSchrift
       : s.schrankSchrift,

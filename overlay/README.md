@@ -195,6 +195,73 @@ Was nicht wie eine Farbe aussieht (`url(…)`, `expression(…)`, ein Semikolon)
 kommt gar nicht erst an — auch dann nicht, wenn es jemand von Hand in die
 Einstellungsdatei schreibt.
 
+### Hervorhebungen: nie gespielt und Diamant
+
+Drei Schalter, einzeln und zusammen verwendbar:
+
+- **Nie gespielte mit Rahmen** — ein oranger Strich um den Rücken. Als
+  `inset`-Schatten, nicht als `border`: Ein Rahmen würde die Packung zwei
+  Pixel breiter machen, und bei 10 px Rückenbreite verschiebt das eine ganze
+  Regalzeile.
+- **Nie gespielte orange färben** — gleich der ganze Rücken. Das Orange ist
+  gedämpft, nicht leuchtend: Bei 243 nie gespielten Titeln in dieser
+  Bibliothek wäre ein kräftiges Orange die halbe Regalwand.
+- **Diamanten hervorheben** — die Diamantfarbe plus ein kurzes Aufblitzen.
+
+„Nie gespielt" heißt dabei: **keine Spielzeit und kein Datum**. Nur auf die
+Stunden zu sehen wäre falsch — bei alten Titeln liefert Steam ein Datum, aber
+keine gezählten Stunden (gezählt wird erst seit 2009). In dieser Bibliothek
+stand deshalb an ein und demselben Spiel „noch nie gespielt · zuletzt November
+2015". Dieselbe Regel gilt in der Anzeige beim Darüberfahren.
+
+„Diamant" heißt: alle Achievements erreicht, **und es muss welche geben** — ein
+Spiel ganz ohne Achievement-System hätte sonst „alle" und strahlte, obwohl es
+dort nichts zu holen gibt. Ist der Stand noch unbekannt, gibt es keine
+Auszeichnung: lieber keine als eine falsche.
+
+**Warum das Aufblitzen und keine Dauerbewegung.** Nachgemessen am laufenden
+Programm, Leerlauf, ganze App, fünf Diamanten unter 630 Packungen:
+
+| | CPU |
+|---|---|
+| ohne Auszeichnung | 0,02 % |
+| Streifen, der dauerhaft über den Rücken fährt | **3,5 %** (0,42 Kerne) |
+| Aufblitzen im Rücken, alle 9 s | 1,00 % |
+| Aufblitzen auf der Packung, alle 9 s | 0,71 % |
+| Aufblitzen auf der Packung, alle 20 s (so wie jetzt) | **0,20 %** |
+
+Zwei Erkenntnisse daraus, beide gegen die erste Vermutung:
+
+1. **Der Schimmer selbst ist nicht teuer.** Teuer ist, dass überhaupt etwas
+   animiert wird: Solange eine Animation läuft, setzt die Grafik das ganze
+   4K-Bild Bild für Bild neu zusammen — egal, wie klein die Änderung ist.
+   Deshalb bringt der Takt mehr als jede Feinarbeit am Effekt.
+2. **Die eigene Ebene hilft trotzdem.** Der Schimmer sitzt auf der *Packung*,
+   nicht im Rücken: Der Rücken beschneidet seinen Inhalt (`overflow: hidden`,
+   abgerundete Ecken), und was darin liegt, bekommt keine eigene Ebene. Das
+   allein waren 1,00 % gegen 0,71 %.
+
+Also selten und kurz: 0,95 Sekunden alle 20. Das ist nebenbei auch das
+schönere Bild — ein Glanz, der ohne Unterlass auf und ab fährt, wirkt wie ein
+Blinklicht. Während ein Spiel läuft, blitzt gar nichts.
+
+**Und eine Entdeckung am Rande:** Chromium drosselt Fenster, die es für
+verdeckt hält — und hinter den Desktop-Symbolen ist der Schrank so verdeckt,
+wie ein Fenster nur sein kann. Dasselbe Element, dreimal drei Sekunden lang
+beobachtet:
+
+| Fenster | verschiedene Werte |
+|---|---|
+| gewöhnlich, Drosselung an | 4 — läuft |
+| im Hintergrund, Drosselung an | 2 — **steht still** |
+| im Hintergrund, Drosselung aus | 5 — läuft |
+
+Ohne `backgroundThrottling: false` stünde die Animation also genau dort still,
+wo der Schrank hingehört. Es betrifft nicht nur den Glanz: Auch das
+Herausziehen wird per `requestAnimationFrame` berechnet, und gedrosselt läuft
+das nur noch einmal je Sekunde. Das Abschalten selbst kostet nichts
+(nachgemessen: 0,01 % mit wie ohne).
+
 **Schriftart:** nur solche, die Windows ohnehin mitbringt. Das Projekt liefert
 keine Schriftdateien mit, und eine Schrift aus dem Netz nachzuladen hieße, dass
 der Schrank beim Start kurz anders aussieht.
