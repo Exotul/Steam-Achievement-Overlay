@@ -330,6 +330,30 @@ weltweite Anteile). So ist es eine Anfrage für genau das Spiel, auf das man
 schaut; einmal geholte Listen bleiben für die Sitzung gemerkt, und das Backend
 merkt sich die Steam-Antworten ohnehin.
 
+### Rechtsklick: alle Achievements eines Spiels
+
+Rechtsklick auf eine herausgezogene Packung öffnet ein Fenster mit **allen**
+Achievements des Spiels — anders als die Anzeige beim Verweilen, die bis zu
+sechs nennt. Offene zuerst, darin die häufigsten oben: Das ist die Reihenfolge,
+in der man sie sich vornehmen würde. Darunter die erreichten, die seltensten
+zuerst — dort ist es eine Trophäenwand, keine Arbeitsliste.
+
+Zwei Auflagen, beide ausdrücklich gewünscht:
+
+- **Es liegt nicht über anderen Fenstern.** Kein `alwaysOnTop` — anders als
+  der Klickfänger, der genau deshalb einmal Fremdklicks geschluckt hat. Das
+  Fenster verhält sich wie jedes andere: Es geht auf, man klickt es weg, dann
+  ist es weg (Esc oder ein Klick daneben).
+- **Es ragt nicht über den Bildschirmrand hinaus.** Der Schrank reicht bis an
+  alle Ränder, eine Packung kann also ganz außen stehen. Die Lage rechnet
+  `lib/schrankListe.js`: zuerst rechts neben die Packung, sonst links davon,
+  und zum Schluss in jedem Fall in die **Arbeitsfläche** geschoben — nicht nur
+  auf den Bildschirm, sonst läge der untere Rand hinter der Taskleiste.
+  Geprüft an allen vier Ecken.
+
+Solange die Liste offen ist, geht der Klickfänger nicht auf: Er liegt oben, die
+Liste nicht — er würde ihr die Klicks wegnehmen.
+
 ### Ein Spiel aus dem Schrank starten
 
 Doppelklick auf eine herausgezogene Packung startet sie über

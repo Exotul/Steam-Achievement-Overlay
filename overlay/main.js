@@ -23,6 +23,7 @@ const zeigerFenster = require('./lib/zeigerFenster');
 const steamLauf = require('./lib/steamLauf');
 const { waehleBildschirm: waehleSchrankBildschirm } = require('./lib/schrankBildschirm');
 const schrankAussehen = require('./lib/schrankAussehen');
+const schrankListe = require('./lib/schrankListe');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -631,6 +632,7 @@ function schliesseSchrank() {
   // Kein Schrank, kein Klickfaenger - sonst bliebe ein unsichtbares Fenster
   // stehen, das Klicks auf den Desktop schluckt.
   schliesseKlickFenster();
+  schliesseListe();
 }
 
 /** Schrankinhalt holen und hineinreichen. */
@@ -1029,11 +1031,20 @@ function starteKlickWache() {
   clearInterval(klickWache);
   klickWache = setInterval(async () => {
     if (!letztesKlickziel) return;
-    if (!klickFenster || klickFenster.isDestroyed()) return;
     // Ohne klare Antwort bleibt der Faenger zu.
     const erlaubt = (await schrankUnterZeiger()) === true;
     if (!letztesKlickziel) return; // waehrend des Fragens weitergewandert
-    if (erlaubt === klickFenster.isVisible()) return;
+
+    /*
+     * ACHTUNG, hier stand ein Fehler: Die Wache stieg aus, wenn es das
+     * Faengerfenster noch gar nicht gab ("!klickFenster -> return"). Sie
+     * konnte es also nur ein- und ausblenden, nicht anlegen. Scheiterte die
+     * erste Pruefung - etwa weil der Zeigerhelfer noch startete, was ein bis
+     * zwei Sekunden dauert -, blieb der Faenger fuer diese Packung fuer immer
+     * weg: Ein Rechtsklick kam nicht an, und ein Doppelklick auch nicht.
+     */
+    const sichtbar = !!(klickFenster && !klickFenster.isDestroyed() && klickFenster.isVisible());
+    if (erlaubt === sichtbar) return;
 
     if (erlaubt) {
       zeigeFaenger(letztesKlickziel);
@@ -1086,6 +1097,13 @@ async function setzeKlickziel(ziel) {
     return;
   }
 
+  // Und auch nicht, solange die Achievement-Liste offen steht: Der Faenger
+  // liegt oben, die Liste nicht - er wuerde ihr die Klicks wegnehmen.
+  if (listeFenster && !listeFenster.isDestroyed()) {
+    verbergeFaenger();
+    return;
+  }
+
   letztesKlickziel = ziel;
   starteKlickWache();
 
@@ -1103,6 +1121,122 @@ async function setzeKlickziel(ziel) {
 
 ipcMain.on('schrank:klickziel', (_e, ziel) => {
   setzeKlickziel(ziel);
+});
+
+/* ==========================================================================
+   Die Achievement-Liste eines Spiels (Rechtsklick im Schrank)
+   ==========================================================================
+   Zwei ausdrueckliche Auflagen, und beide stehen hier:
+
+     1. NICHT ueber anderen Fenstern. Also kein alwaysOnTop - anders als beim
+        Klickfaenger, der genau deshalb vorher Fremdklicks geschluckt hat. Das
+        Fenster verhaelt sich wie jedes andere: Es geht auf, man kann es
+        wegklicken, und dann ist es weg.
+     2. NICHT ueber den Bildschirmrand hinaus. Der Schrank reicht bis an alle
+        Raender, eine Packung kann also ganz aussen stehen. Die Lage rechnet
+        lib/schrankListe.js aus, geprueft an allen vier Ecken.
+   ========================================================================== */
+
+let listeFenster = null;
+// Die zuletzt geholten Achievements - die Seite meldet sich manchmal erst,
+// wenn die Antwort schon da ist.
+let listeDaten = null;
+const LISTE_MASSE = { breite: 560, hoehe: 760 };
+
+function schliesseListe() {
+  if (listeFenster && !listeFenster.isDestroyed()) listeFenster.destroy();
+  listeFenster = null;
+  // Den gemerkten Stand mitnehmen: Sonst bekaeme das naechste Fenster beim
+  // Aufgehen fuer einen Moment die Achievements des vorigen Spiels.
+  listeDaten = null;
+}
+
+/**
+ * @param {{appId:number, name:string}} spiel
+ * @param {{x:number,y:number,breite:number,hoehe:number}} beiPackung - Bildschirmkoordinaten
+ */
+async function zeigeListe(spiel, beiPackung) {
+  schliesseListe();
+  const anzeige = schrankBildschirm() || screen.getPrimaryDisplay();
+  const lage = schrankListe.listeRechteck(beiPackung, anzeige.workArea, LISTE_MASSE);
+
+  listeFenster = new BrowserWindow({
+    ...lage,
+    show: false,
+    frame: false,
+    transparent: false,
+    backgroundColor: '#171310',
+    resizable: false,
+    // Ausdruecklich NICHT oben - siehe oben.
+    alwaysOnTop: false,
+    // Fokussierbar, damit Esc ankommt und das Fenster sich beim Wegklicken
+    // selbst schliesst. Gefahrlos: Der Rechtsklick kommt nur ueber den
+    // Klickfaenger, und der geht nie auf, waehrend ein Spiel laeuft.
+    focusable: true,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'schrank', 'liste-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  listeFenster.loadFile(path.join(__dirname, 'schrank', 'liste.html'));
+  listeFenster.once('ready-to-show', () => {
+    if (listeFenster && !listeFenster.isDestroyed()) listeFenster.show();
+  });
+  // Wie ein Kontextmenue: weggeklickt heisst zu.
+  listeFenster.on('blur', () => schliesseListe());
+  listeFenster.on('closed', () => {
+    listeFenster = null;
+  });
+
+  logger.info(`Schrank: Achievement-Liste für ${spiel.name} (AppID ${spiel.appId})`);
+
+  // Erst das Fenster, dann die Daten: Sonst sieht man eine halbe Sekunde
+  // nichts und fragt sich, ob der Klick angekommen ist.
+  let daten = { appId: spiel.appId, name: spiel.name, achievements: [] };
+  try {
+    const stand = await steamClient.gameAchievements(spiel.appId);
+    daten = {
+      appId: spiel.appId,
+      name: spiel.name,
+      libraryUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${spiel.appId}/library_600x900.jpg`,
+      achievements: schrankListe.sortiere(stand.achievements),
+    };
+  } catch (err) {
+    logger.warn(`Achievement-Liste für ${spiel.name} nicht abrufbar: ${err.message}`);
+  }
+  if (listeFenster && !listeFenster.isDestroyed()) {
+    listeFenster.webContents.send('liste:daten', daten);
+    // Gemerkt, falls die Seite erst nach der Antwort fertig wird.
+    listeDaten = daten;
+  }
+}
+
+// Die Seite meldet sich, sobald sie steht - dann liegen die Daten oft schon da.
+ipcMain.on('liste:bereit', () => {
+  if (listeDaten && listeFenster && !listeFenster.isDestroyed()) {
+    listeFenster.webContents.send('liste:daten', listeDaten);
+  }
+});
+ipcMain.on('liste:schliessen', () => schliesseListe());
+
+ipcMain.on('schrank:liste', () => {
+  const spiel = klickSpiel;
+  const ziel = letztesKlickziel;
+  if (!spiel || !ziel || !schrankWindow || schrankWindow.isDestroyed()) return;
+  const b = schrankWindow.getBounds();
+  // Den Faenger aus dem Weg nehmen: Er liegt auf der obersten Ebene, die
+  // Liste bewusst nicht - ohne das laege ein unsichtbarer Klickfaenger ueber
+  // dem Fenster, sobald der Zeiger auf dem Weg dorthin eine Packung streift.
+  verbergeFaenger();
+  zeigeListe(spiel, {
+    x: b.x + ziel.x,
+    y: b.y + ziel.y,
+    breite: ziel.breite,
+    hoehe: ziel.hoehe,
+  });
 });
 
 /**

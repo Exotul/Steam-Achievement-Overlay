@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Achievements</title>
+    <link rel="stylesheet" href="liste.css" />
+  </head>
+  <body>
+    <!--
+      Die Achievement-Liste eines Spiels aus dem Schrank, geöffnet per
+      Rechtsklick auf eine Packung.
+
+      Sie zeigt ALLE Achievements, nicht nur die offenen — anders als die
+      Anzeige beim Darüberfahren, die bis zu sechs nennt.
+
+      Zwei Auflagen, beide ausdrücklich gewünscht und beide nicht hier, sondern
+      in main.js umgesetzt: Das Fenster liegt NICHT über anderen Fenstern, und
+      es ragt NICHT über den Bildschirmrand hinaus (lib/schrankListe.js).
+    -->
+    <header class="kopf">
+      <img class="kopf__bild" id="bild" alt="" />
+      <div class="kopf__text">
+        <h1 class="kopf__name" id="name">…</h1>
+        <p class="kopf__stand" id="stand"></p>
+        <div class="balken"><span id="balken"></span></div>
+      </div>
+      <button class="kopf__zu" id="zu" type="button" title="Schließen (Esc)">×</button>
+    </header>
+
+    <p class="laedt" id="laedt">Wird geladen…</p>
+    <ul class="liste" id="liste"></ul>
+
+    <script src="liste.js"></script>
+  </body>
+</html>

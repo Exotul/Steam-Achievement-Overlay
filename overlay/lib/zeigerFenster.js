@@ -75,6 +75,16 @@ let bereit = false;
 let warteschlange = [];
 let puffer = '';
 let gemeldet = false;
+/*
+ * Wie viele Antworten noch kommen, auf die niemand mehr wartet.
+ *
+ * DER FEHLER, DEN DAS BEHEBT: Eine Frage, die in die Zeitgrenze lief, wurde
+ * aus der Schlange genommen - ihre Antwort kam aber trotzdem und landete beim
+ * NAECHSTEN Frager. Von da an war jede Antwort eine zu alt, und der
+ * Klickfaenger entschied anhand einer Zeigerposition von vorhin. Antworten
+ * kommen in der Reihenfolge der Fragen, also laesst sich das genau abzaehlen.
+ */
+let ueberspringen = 0;
 
 function beende() {
   if (prozess) {
@@ -86,6 +96,8 @@ function beende() {
   }
   prozess = null;
   bereit = false;
+  ueberspringen = 0;
+  puffer = '';
   // Offene Fragen beantworten, sonst wartet der Aufrufer ewig.
   warteschlange.splice(0).forEach((f) => f(null));
 }
@@ -128,6 +140,13 @@ function starte() {
         bereit = true;
         continue;
       }
+      // Die Antwort auf eine Frage, die niemand mehr hoert, wegwerfen - sonst
+      // bekaeme sie der naechste Frager, und der fragt nach einer anderen
+      // Zeigerposition.
+      if (ueberspringen > 0) {
+        ueberspringen -= 1;
+        continue;
+      }
       const naechster = warteschlange.shift();
       if (naechster) naechster(deuteZeile(zeile));
     }
@@ -165,10 +184,13 @@ function unterZeiger() {
     // Eine Antwort, die zu spaet kommt, ist wertlos: Der Zeiger steht dann
     // woanders. Lieber "weiss nicht" - dann geht der Faenger nicht auf.
     const uhr = setTimeout(() => {
-      // Den Platz in der Schlange raeumen, sonst bekommt die naechste Frage
-      // diese Antwort.
+      // Den Platz in der Schlange raeumen - und merken, dass noch eine
+      // Antwort unterwegs ist, die niemand mehr hoeren will.
       const i = warteschlange.indexOf(antworte);
-      if (i >= 0) warteschlange.splice(i, 1);
+      if (i >= 0) {
+        warteschlange.splice(i, 1);
+        ueberspringen += 1;
+      }
       antworte(null);
     }, 400);
 

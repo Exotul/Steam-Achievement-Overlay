@@ -1,0 +1,228 @@
+/*
+ * Die Achievement-Liste eines Spiels aus dem Schrank.
+ *
+ * Sie gehoert zum Schrank, also dessen Farben: warmes Dunkel, Messing fuer
+ * die Beschriftung. Die Stufenfarben sind dieselben wie in den Meldungen und
+ * im Trophaeenfach - eine dritte Antwort auf "welche Farbe hat Gold" waere
+ * eine zu viel.
+ */
+
+:root {
+  --papier: #171310;
+  --papier-hell: #211a15;
+  --linie: rgba(214, 178, 128, 0.18);
+  --schrift: #e8dccb;
+  --schrift-leise: #a8927a;
+  --messing: #d6b280;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--papier);
+  color: var(--schrift);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  user-select: none;
+  /* Der Rahmen ist abgeschaltet (frame: false) - die Kante zeichnen wir
+     selbst, sonst steht das Fenster ohne Begrenzung im Bild. */
+  border: 1px solid rgba(214, 178, 128, 0.3);
+  border-radius: 10px;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--linie);
+  background: linear-gradient(180deg, var(--papier-hell), var(--papier));
+  /* Der Kopf ist der Griff: Das Fenster hat keine Titelleiste. */
+  -webkit-app-region: drag;
+}
+
+.kopf__bild {
+  width: 46px;
+  height: 69px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #0d0a08;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.kopf__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.kopf__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kopf__stand {
+  margin: 3px 0 7px;
+  color: var(--schrift-leise);
+  font-size: 0.82rem;
+}
+
+.balken {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.balken span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #b0864f, var(--messing));
+}
+
+.kopf__zu {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--schrift-leise);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  /* Der Kopf ist Griff - der Knopf darin darf es nicht sein, sonst zieht man
+     das Fenster statt zu klicken. */
+  -webkit-app-region: no-drag;
+}
+
+.kopf__zu:hover {
+  color: var(--schrift);
+  border-color: var(--messing);
+}
+
+/* ---------- Die Liste ---------- */
+
+.laedt {
+  margin: 0;
+  padding: 22px 16px;
+  color: var(--schrift-leise);
+}
+
+.liste {
+  height: calc(100% - 98px);
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.liste::-webkit-scrollbar {
+  width: 10px;
+}
+
+.liste::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  background: rgba(214, 178, 128, 0.22);
+}
+
+.eintrag {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 14px 7px 11px;
+  border-left: 3px solid transparent;
+}
+
+/* Die Stufe gibt den Strich links - erkennbar, ohne zu lesen. */
+.eintrag--erreicht {
+  border-left-color: var(--stufe, #7a6a58);
+}
+
+.eintrag--offen {
+  opacity: 0.62;
+}
+
+.eintrag__icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: #0d0a08;
+}
+
+/* Offene Achievements zeigt Steam grau - das ist hier erwünscht und spart
+   eine zweite Auszeichnung. */
+.eintrag--offen .eintrag__icon {
+  filter: grayscale(1) brightness(0.8);
+}
+
+.eintrag__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.eintrag__name {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eintrag__desc {
+  margin: 1px 0 0;
+  color: var(--schrift-leise);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eintrag__meta {
+  flex-shrink: 0;
+  text-align: right;
+  font-family: 'Space Mono', Consolas, monospace;
+  font-size: 0.74rem;
+  color: var(--schrift-leise);
+}
+
+.eintrag__stufe {
+  display: block;
+  color: var(--stufe, #7a6a58);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Eine Zwischenüberschrift trennt Offenes von Erreichtem. */
+.trenner {
+  padding: 12px 14px 5px;
+  color: var(--messing);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.leer {
+  padding: 18px 16px;
+  color: var(--schrift-leise);
+}

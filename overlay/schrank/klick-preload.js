@@ -10,4 +10,6 @@ const { contextBridge, ipcRenderer } = require('electron');
  */
 contextBridge.exposeInMainWorld('klickAPI', {
   starten: () => ipcRenderer.send('schrank:starten'),
+  /** Rechtsklick: die Achievement-Liste dieses Spiels aufmachen. */
+  liste: () => ipcRenderer.send('schrank:liste'),
 });

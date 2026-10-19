@@ -110,3 +110,53 @@ test('Das PowerShell-Skript liegt neben dem Modul und antwortet je Zeile', () =>
   assert.ok(/ReadLine/.test(skript), 'muss dauerhaft auf Zeilen warten');
   assert.ok(/BEREIT/.test(skript), 'muss seine Bereitschaft melden');
 });
+
+/* ==========================================================================
+   Verspätete Antworten
+   ==========================================================================
+   DER FEHLER: Eine Frage, die in die Zeitgrenze lief, wurde aus der Schlange
+   genommen — ihre Antwort kam aber trotzdem und landete beim NÄCHSTEN Frager.
+   Von da an war jede Antwort eine zu alt, und der Klickfänger entschied anhand
+   einer Zeigerposition von vorhin.
+
+   Beim Messen fiel es so auf: Drei Abfragen an drei verschiedenen Stellen
+   lieferten dreimal dasselbe Fenster.
+   ========================================================================== */
+
+test('Eine verspätete Antwort wird übersprungen, nicht weitergereicht', () => {
+  // Geprüft am Quelltext, weil der Ablauf an einem laufenden PowerShell-Prozess
+  // hängt: Was zählt, ist dass die Zeitgrenze sich die Antwort vormerkt und
+  // der Empfang sie wegwirft.
+  const fs = require('node:fs');
+  const quelle = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'lib', 'zeigerFenster.js'),
+    'utf8'
+  );
+  assert.ok(/ueberspringen \+= 1/.test(quelle), 'die Zeitgrenze muss sich das vormerken');
+  assert.ok(
+    /if \(ueberspringen > 0\)[\s\S]{0,80}continue/.test(quelle),
+    'der Empfang muss eine vorgemerkte Antwort wegwerfen'
+  );
+  // Und beim Neustart des Helfers darf nichts davon übrig bleiben.
+  const beende = quelle.slice(quelle.indexOf('function beende'));
+  assert.ok(/ueberspringen = 0/.test(beende.slice(0, 400)), 'beim Beenden zurücksetzen');
+});
+
+test('main.js: Die Wache kann den Fänger auch anlegen, nicht nur zeigen', () => {
+  // DER FEHLER: Sie stieg aus, wenn es das Fenster noch gar nicht gab. Nach
+  // einem Fehlschlag der ersten Prüfung - etwa während der ein bis zwei
+  // Sekunden, die der Zeigerhelfer zum Starten braucht - blieb der Fänger für
+  // diese Packung für immer weg.
+  const fs = require('node:fs');
+  const quelle = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'main.js'),
+    'utf8'
+  );
+  const wache = quelle.slice(quelle.indexOf('function starteKlickWache'));
+  const code = wache.slice(0, wache.indexOf('}, 250);'));
+  assert.ok(
+    !/if \(!klickFenster \|\| klickFenster\.isDestroyed\(\)\) return;/.test(code),
+    'die Wache darf bei fehlendem Fenster nicht aussteigen'
+  );
+  assert.ok(/zeigeFaenger\(letztesKlickziel\)/.test(code), 'sie muss ihn anlegen können');
+});

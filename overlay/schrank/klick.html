@@ -33,8 +33,14 @@
       window.addEventListener('dblclick', () => {
         if (window.klickAPI) window.klickAPI.starten();
       });
-      // Die mittlere Taste und das Kontextmenü haben hier nichts zu suchen.
-      window.addEventListener('contextmenu', (e) => e.preventDefault());
+      // Rechtsklick öffnet die Achievement-Liste des Spiels. Das
+      // Standard-Kontextmenü von Chromium bleibt unterdrückt - es hätte hier
+      // nichts anzubieten als "Neu laden".
+      window.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (window.klickAPI) window.klickAPI.liste();
+      });
+      // Die mittlere Taste hat hier nichts zu suchen.
       window.addEventListener('auxclick', (e) => e.preventDefault());
     </script>
   </body>

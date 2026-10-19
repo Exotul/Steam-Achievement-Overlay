@@ -2,6 +2,33 @@
 
 ## Noch nicht veröffentlicht
 
+### Rechtsklick im Schrank zeigt alle Achievements
+
+Rechtsklick auf eine herausgezogene Packung öffnet die vollständige Liste —
+offene zuerst, darin die häufigsten oben, darunter die erreichten mit den
+seltensten voran. Mit Symbol, Beschreibung, Stufe und weltweitem Anteil.
+
+Deine beiden Auflagen sind eingehalten und nachgemessen:
+
+- **Nicht über anderen Fenstern.** Kein `alwaysOnTop`; das Fenster verhält
+  sich wie jedes andere und schließt sich, sobald du daneben klickst (oder mit
+  Esc).
+- **Nicht über den Rand hinaus.** Die Lage wird in die Arbeitsfläche
+  geschoben, nicht nur auf den Bildschirm — sonst läge der untere Rand hinter
+  der Taskleiste. An allen vier Ecken geprüft.
+
+**Dabei zwei Fehler gefunden, die es schon vorher gab:**
+
+1. Eine verspätete Antwort des Zeigerhelfers landete beim nächsten Frager. Von
+   da an war jede Antwort eine zu alt, und der Klickfänger entschied anhand
+   einer Zeigerposition von vorhin. Aufgefallen beim Messen: Drei Abfragen an
+   drei verschiedenen Stellen lieferten dreimal dasselbe Fenster.
+2. Die Wache, die den Klickfänger überwacht, konnte ihn nur ein- und
+   ausblenden, nicht anlegen. Scheiterte die erste Prüfung — etwa während der
+   ein bis zwei Sekunden, die der Helfer zum Starten braucht —, blieb der
+   Fänger für diese Packung **für immer** weg: kein Rechtsklick, kein
+   Doppelklick-Start. Das dürfte dir gestern beim Ausprobieren begegnet sein.
+
 ### Der Schrank lässt sich einrichten
 
 Neu unter *Einstellungen → Aussehen des Schranks*:
