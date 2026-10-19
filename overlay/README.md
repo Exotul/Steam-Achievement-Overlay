@@ -195,9 +195,14 @@ Was nicht wie eine Farbe aussieht (`url(…)`, `expression(…)`, ein Semikolon)
 kommt gar nicht erst an — auch dann nicht, wenn es jemand von Hand in die
 Einstellungsdatei schreibt.
 
-### Hervorhebungen: nie gespielt und Diamant
+### Hervorhebungen: installiert, nie gespielt, Diamant
 
-Drei Schalter, einzeln und zusammen verwendbar:
+Vier Schalter, einzeln und zusammen verwendbar:
+
+- **Installierte markieren** — ein hellgrüner Balken am unteren Rand des
+  Rückens, wenn das Spiel auf diesem Rechner liegt und sofort zu starten ist.
+  Unten, weil dort die Rücken im Regal aufstehen: Der Balken liest sich wie
+  ein Aufkleber auf der Unterkante, nicht wie Teil des Titels.
 
 - **Nie gespielte mit Rahmen** — ein oranger Strich um den Rücken. Als
   `inset`-Schatten, nicht als `border`: Ein Rahmen würde die Packung zwei
@@ -218,6 +223,38 @@ stand deshalb an ein und demselben Spiel „noch nie gespielt · zuletzt Novembe
 Spiel ganz ohne Achievement-System hätte sonst „alle" und strahlte, obwohl es
 dort nichts zu holen gibt. Ist der Stand noch unbekannt, gibt es keine
 Auszeichnung: lieber keine als eine falsche.
+
+**„Installiert" kommt von der Platte, nicht aus dem Netz** — die Steam-Web-API
+kennt die Angabe gar nicht; ob etwas installiert ist, weiß nur dieser Rechner.
+Steam führt je installiertem Spiel eine Datei
+`<Bibliothek>/steamapps/appmanifest_<appid>.acf`; wo die Bibliotheken liegen,
+steht in `<Steam>/steamapps/libraryfolders.vdf`. Auf diesem Rechner
+nachgesehen:
+
+```
+D:\Programme\Steam_Programm\steamapps    85 Manifeste
+E:\SteamLibrary\steamapps                94 Manifeste
+```
+
+**Die Datei allein genügt nicht.** Ein Manifest entsteht auch für ein Spiel,
+das gerade erst heruntergeladen wird — spielbar ist es dann nicht. Maßgeblich
+ist das Bitfeld `StateFlags`; Bit 4 heißt „vollständig installiert".
+Nachgezählt an denselben 179 Manifesten:
+
+| StateFlags | | Bedeutung |
+|---|---|---|
+| 4 | 172× | fertig |
+| 6 | 6× | fertig, Update fällig (4 + 2) |
+| 518 | 1× | fertig, Update pausiert (4 + 2 + 512) |
+
+Alle drei haben Bit 4 — genau danach wird gefragt. Gemessen: **179 installierte
+Spiele in 31 ms**, einmal je Schrankaufbau. Eine frische Installation erscheint
+also beim nächsten Aufbau (spätestens nach zehn Minuten), nicht in der Sekunde
+— Installationen ändern sich selten genug.
+
+Wird Steam nicht gefunden, bleibt der Zustand **unbekannt** und es wird
+nichts gezeichnet. Das ist etwas anderes als „nicht installiert": Ein fehlender
+Balken wäre sonst eine Aussage statt einer Lücke.
 
 **Warum das Aufblitzen und keine Dauerbewegung.** Nachgemessen am laufenden
 Programm, Leerlauf, ganze App, fünf Diamanten unter 630 Packungen:

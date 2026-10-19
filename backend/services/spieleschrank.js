@@ -19,6 +19,7 @@
 const steamApi = require('./steamApi');
 const sammlungen = require('./steamSammlungen');
 const xpSummary = require('./xpSummary');
+const steamInstalliert = require('./steamInstalliert');
 
 // Sammlungen, die kein Fach bekommen. "Versteckt" fuehrt Steam selbst - was
 // dort liegt, will der Anwender nicht sehen. Die Namen sind das, was man in
@@ -83,14 +84,21 @@ const ZULETZT_ANZAHL = 12;
  *
  * @param {Array} alleSammlungen - aus steamSammlungen.deuteSammlungen()
  * @param {Array<{appid: number, name: string, playtime_forever: number}>} spiele
- * @param {{stand?: (appId: number) => ({erreicht?: number, gesamt?: number}|null)}} [zusatz]
+ * @param {object} [zusatz]
+ * @param {(appId: number) => ({erreicht?: number, gesamt?: number}|null)} [zusatz.stand]
  *        Zugriff auf den gemerkten Achievement-Stand je Spiel. Fehlt er,
  *        entsteht das Fach "Fast geschafft" eben nicht - der Schrank
  *        funktioniert auch ohne.
+ * @param {Set<number>} [zusatz.installiert]
+ *        AppIDs der auf diesem Rechner installierten Spiele. Fehlt die Menge,
+ *        bleibt `installiert` bei jedem Spiel undefined - das heisst
+ *        ausdruecklich "unbekannt" und nicht "nicht installiert", sonst
+ *        behauptete der Schrank etwas, das er nicht weiss.
  * @returns {{faecher: Array, anzahlSpiele: number}}
  */
 function ordneSpiele(alleSammlungen, spiele, zusatz = {}) {
   const standVon = typeof zusatz.stand === 'function' ? zusatz.stand : () => null;
+  const installiert = zusatz.installiert instanceof Set ? zusatz.installiert : null;
   const bibliothek = new Map((spiele || []).map((s) => [s.appid, s]));
 
   const versteckt = new Set();
@@ -161,6 +169,10 @@ function ordneSpiele(alleSammlungen, spiele, zusatz = {}) {
       // als "null von null".
       erreicht: typeof stand.erreicht === 'number' ? stand.erreicht : undefined,
       gesamt: typeof stand.gesamt === 'number' ? stand.gesamt : undefined,
+      // Auf diesem Rechner installiert? undefined heisst "unbekannt" (Steam
+      // nicht gefunden) - der Schrank zeichnet dann nichts, statt "nicht
+      // installiert" zu behaupten.
+      installiert: installiert ? installiert.has(spiel.appid) : undefined,
       // Dieselben Bildquellen wie im Dashboard: das hochformatige Bild ist
       // die Packung, header.jpg der Rueckfall fuer Titel ohne eigenes.
       libraryUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${spiel.appid}/library_600x900.jpg`,
@@ -293,9 +305,12 @@ function spiegelFaecher(kartons) {
  * Schrank laeuft dauerhaft und darf nicht bei jedem Blick Steam befragen.
  */
 async function baueSchrank(steamId) {
-  const [stand, spiele] = await Promise.all([
+  const [stand, spiele, installiert] = await Promise.all([
     sammlungen.leseSammlungen(steamId),
     steamApi.getOwnedGames(steamId),
+    // Von der Platte, nicht aus dem Netz: Ob etwas installiert ist, weiss nur
+    // dieser Rechner. Gemessen 31 ms fuer 179 Manifeste in zwei Bibliotheken.
+    steamInstalliert.installierteAppIds().catch(() => null),
   ]);
 
   // Der Achievement-Stand kommt aus dem Zwischenspeicher der XP-Berechnung -
@@ -303,6 +318,7 @@ async function baueSchrank(steamId) {
   // fehlt eben im Fach "Fast geschafft", bis die Berechnung durch ist.
   const { faecher, anzahlSpiele } = ordneSpiele(stand.sammlungen, spiele, {
     stand: (appId) => xpSummary.spielStand(steamId, appId),
+    installiert: installiert || undefined,
   });
   return {
     faecher,

@@ -163,6 +163,10 @@ function standard() {
     // einem wandernden Glanz. Ausgeschaltet, solange ein Spiel laeuft - der
     // Schrank soll dort keine Bilder pro Sekunde kosten.
     schrankDiamant: false,
+    // Hellgruener Balken am unteren Rand des Rueckens, wenn das Spiel auf
+    // diesem Rechner installiert ist. An, weil er ausdruecklich gewuenscht
+    // wurde - und weil er nichts kostet: ein Strich, keine Bewegung.
+    schrankBalkenInstalliert: true,
     // Schriftart im Schrank. Nur Schriften, die unter Windows ohnehin da sind.
     schrankSchrift: 'standard',
 
@@ -256,6 +260,10 @@ function bereinige(roh) {
     schrankRueckenNie:
       e.schrankRueckenNie === undefined ? s.schrankRueckenNie : !!e.schrankRueckenNie,
     schrankDiamant: e.schrankDiamant === undefined ? s.schrankDiamant : !!e.schrankDiamant,
+    schrankBalkenInstalliert:
+      e.schrankBalkenInstalliert === undefined
+        ? s.schrankBalkenInstalliert
+        : !!e.schrankBalkenInstalliert,
     schrankSchrift: SCHRIFT_NAMEN.includes(e.schrankSchrift)
       ? e.schrankSchrift
       : s.schrankSchrift,

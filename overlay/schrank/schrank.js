@@ -300,9 +300,11 @@ function stoppeGlanz() {
   document.body.classList.remove('glanz');
 }
 
-/** Die drei Auszeichnungsschalter als ein Wert - fuer den Vergleich. */
+/** Die Auszeichnungsschalter als ein Wert - fuer den Vergleich. */
 const auszeichnungsStand = () =>
-  `${aussehen.rahmenNie ? 1 : 0}${aussehen.rueckenNie ? 1 : 0}${aussehen.diamant ? 1 : 0}`;
+  [aussehen.rahmenNie, aussehen.rueckenNie, aussehen.diamant, aussehen.balkenInstalliert]
+    .map((an) => (an ? 1 : 0))
+    .join('');
 
 function wendeAussehenAn(neu) {
   if (!neu) return;
@@ -469,7 +471,10 @@ function baueKarton(spiel) {
     'packung' +
     (spiel.favorit ? ' packung--favorit' : '') +
     (nie && aussehen.rahmenNie ? ' packung--nie-rahmen' : '') +
-    (diamant && aussehen.diamant ? ' packung--diamant' : '');
+    (diamant && aussehen.diamant ? ' packung--diamant' : '') +
+    // Nur bei einem ausdruecklichen true: undefined heisst "unbekannt"
+    // (Steam nicht gefunden) und darf keinen Balken ergeben.
+    (spiel.installiert === true && aussehen.balkenInstalliert ? ' packung--installiert' : '');
   el.style.setProperty('--spine', rueckenFarbe(spiel, nie, diamant));
   el.innerHTML = `
     <div class="packung__ruecken"><span class="packung__titel">${escape(spiel.name)}</span></div>

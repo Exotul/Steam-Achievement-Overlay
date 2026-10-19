@@ -214,6 +214,7 @@ function ausSichtDesSchranks(e = {}) {
     rahmenNie: !!e.schrankRahmenNie,
     rueckenNie: !!e.schrankRueckenNie,
     diamant: !!e.schrankDiamant,
+    balkenInstalliert: e.schrankBalkenInstalliert !== false,
   };
 }
 

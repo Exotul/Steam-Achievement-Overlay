@@ -250,3 +250,27 @@ test('Schrankfenster und Modul entscheiden „nie gespielt" gleich', () => {
   assert.ok(/spielzeitMin > 0/.test(code) && /zuletztGespielt > 0/.test(code),
     'beide Bedingungen müssen geprüft werden');
 });
+
+test('Der Balken für Installierte ist an, solange er nicht abgeschaltet wird', () => {
+  // Ausdrücklich gewünscht, deshalb die Vorgabe - und er kostet nichts: ein
+  // Strich, keine Bewegung.
+  assert.strictEqual(A.ausSichtDesSchranks({}).balkenInstalliert, true);
+  assert.strictEqual(
+    A.ausSichtDesSchranks({ schrankBalkenInstalliert: false }).balkenInstalliert,
+    false
+  );
+});
+
+test('Der Schrank zeichnet den Balken nur bei einem ausdrücklichen Ja', () => {
+  // undefined heißt „unbekannt" und darf keinen Balken ergeben - sonst sähe
+  // ein Rechner ohne gefundenes Steam so aus, als wäre nichts installiert,
+  // oder schlimmer: als wäre alles installiert.
+  const quelle = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'schrank', 'schrank.js'),
+    'utf8'
+  );
+  assert.ok(
+    /spiel\.installiert === true/.test(quelle),
+    'es muss auf genau true geprüft werden, nicht auf Wahrheitswert'
+  );
+});

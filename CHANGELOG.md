@@ -2,6 +2,30 @@
 
 ## Noch nicht veröffentlicht
 
+### Grüner Balken für installierte Spiele
+
+Am unteren Rand des Rückens ein hellgrüner Balken, wenn das Spiel auf diesem
+Rechner liegt. Bei dir sind das **179 von 614** — im Horror-Fach etwa 41 von
+113. Unten, weil dort die Rücken aufstehen: Der Balken liest sich wie ein
+Aufkleber auf der Unterkante und nicht wie Teil des Titels.
+
+Woher die Angabe kommt, ist nachgesehen und nicht geraten: Steam führt je
+installiertem Spiel eine Datei `appmanifest_<appid>.acf`, und wo die
+Bibliotheken liegen, steht in `libraryfolders.vdf` — bei dir zwei Stück
+(`D:\Programme\Steam_Programm` und `E:\SteamLibrary`). **Keine einzige
+Steam-Abfrage**; die Web-API kennt die Angabe gar nicht.
+
+Die Datei allein genügt aber nicht — ein Manifest entsteht auch für ein Spiel,
+das gerade erst heruntergeladen wird. Maßgeblich ist `StateFlags`, Bit 4
+(„vollständig installiert"). An deinen 179 Manifesten nachgezählt: 172× der
+Wert 4, 6× der Wert 6 (Update fällig), 1× 518 (Update pausiert) — alle drei
+haben Bit 4. Gemessen: 179 Spiele in 31 ms, einmal je Schrankaufbau.
+
+Abschaltbar unter *Einstellungen → Aussehen des Schranks → „Installierte
+markieren"*. Wird Steam nicht gefunden, bleibt der Zustand unbekannt und es
+wird nichts gezeichnet — ein fehlender Balken wäre sonst eine Aussage statt
+einer Lücke.
+
 ### Rechtsklick im Schrank zeigt alle Achievements
 
 Rechtsklick auf eine herausgezogene Packung öffnet die vollständige Liste —

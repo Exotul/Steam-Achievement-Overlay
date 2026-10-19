@@ -17,7 +17,7 @@ const els = {};
  'schrankHintergrund', 'streamAktiv', 'streamUrl', 'stream-test', 'stream-status',
  // Aussehen des Schranks
  'schrankHolz', 'schrankWand', 'schrankRuecken', 'schrankVerlauf', 'schrankSchrift',
- 'schrankRahmenNie', 'schrankRueckenNie', 'schrankDiamant',
+ 'schrankRahmenNie', 'schrankRueckenNie', 'schrankDiamant', 'schrankBalkenInstalliert',
  'holz-vorrat', 'wand-vorrat', 'sammlungen', 'sammlungsfarben-zeile',
  // aus dem Tray-Menue hierher gezogen
  'test-diamant', 'konto-status', 'abmelden', 'autostart', 'autostart-zeile', 'version',
@@ -42,6 +42,7 @@ const SCHALTER = [
   'schrankRahmenNie',
   'schrankRueckenNie',
   'schrankDiamant',
+  'schrankBalkenInstalliert',
   'merklisteAktiv',
   'panelBeiSteamOverlay',
   'sitzungsbilanz',

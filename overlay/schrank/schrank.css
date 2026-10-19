@@ -292,7 +292,34 @@ body {
   overflow: hidden;
 }
 
-/* ---------- Auszeichnungen: nie gespielt, Diamant ---------- */
+/* ---------- Auszeichnungen: installiert, nie gespielt, Diamant ---------- */
+
+/*
+ * Der hellgrüne Balken ganz unten am Rücken: Das Spiel liegt auf dieser
+ * Maschine und ist sofort zu starten.
+ *
+ * Unten, weil dort die Rücken im Regal aufstehen - der Balken liest sich wie
+ * ein Aufkleber auf der Unterkante und nicht wie Teil des Titels. Als eigenes
+ * Element statt als Rahmen: Ein border unten würde den Rücken um zwei Pixel
+ * höher machen und damit die Zeile verschieben (dieselbe Überlegung wie beim
+ * orangen Rahmen).
+ *
+ * Woher „installiert" kommt, steht in backend/services/steamInstalliert.js -
+ * aus den appmanifest-Dateien auf der Platte, ohne jede Steam-Abfrage.
+ */
+.packung--installiert .packung__ruecken::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #a7f07a, #5fbf3c);
+  box-shadow: 0 0 5px rgba(140, 240, 110, 0.45);
+  pointer-events: none;
+  z-index: 1;
+}
 
 /*
  * Der orange Rahmen um ein nie gespieltes Spiel.

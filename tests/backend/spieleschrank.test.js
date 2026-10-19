@@ -266,3 +266,32 @@ test('Wenig fehlt allein genügt nicht - das meiste muss geschafft sein', () => 
     'Oblivion', // 6 fehlen, aber die Hälfte ist geschafft
   ]);
 });
+
+/* ==========================================================================
+   Installierte Spiele
+   ========================================================================== */
+
+test('Installierte Spiele werden als solche gekennzeichnet', () => {
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, { installiert: new Set([1, 5]) });
+  const re4 = fach(e, 'Horror').spiele.find((s) => s.appId === 1);
+  const sh2 = fach(e, 'Horror').spiele.find((s) => s.appId === 2);
+  assert.strictEqual(re4.installiert, true);
+  assert.strictEqual(sh2.installiert, false);
+});
+
+test('Ohne Angabe bleibt es ausdrücklich unbekannt', () => {
+  // undefined heißt „weiß ich nicht" (Steam nicht gefunden) und NICHT „nicht
+  // installiert" — sonst behauptete der Schrank etwas, das er nicht weiß, und
+  // ein fehlender grüner Balken wäre eine Aussage statt einer Lücke.
+  const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK);
+  const re4 = fach(e, 'Horror').spiele.find((s) => s.appId === 1);
+  assert.strictEqual(re4.installiert, undefined);
+});
+
+test('Eine unbrauchbare Angabe wird nicht als Menge missverstanden', () => {
+  for (const unsinn of [[1, 2], 'alles', 42, {}]) {
+    const e = ordneSpiele(SAMMLUNGEN, BIBLIOTHEK, { installiert: unsinn });
+    const re4 = fach(e, 'Horror').spiele.find((s) => s.appId === 1);
+    assert.strictEqual(re4.installiert, undefined, JSON.stringify(unsinn));
+  }
+});
