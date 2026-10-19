@@ -274,3 +274,84 @@ test('Der Schrank zeichnet den Balken nur bei einem ausdrücklichen Ja', () => {
     'es muss auf genau true geprüft werden, nicht auf Wahrheitswert'
   );
 });
+
+/* ==========================================================================
+   Die Tönung über allem
+   ==========================================================================
+   EIN Regler statt vieler Farbwerte: Wer den Schrank schwarz haben will, soll
+   nicht ein halbes Dutzend Werte aufeinander abstimmen müssen. Die
+   Feineinstellungen bleiben daneben bestehen.
+   ========================================================================== */
+
+test('Stärke 0 lässt jede Farbe unverändert', () => {
+  // Das ist die Vorgabe: Sie darf an einem eingerichteten Schrank nichts ändern.
+  assert.strictEqual(A.toene('#a97b4a', { farbe: '#000000', staerke: 0 }), '#a97b4a');
+  assert.strictEqual(A.toene('#a97b4a', null), '#a97b4a');
+  assert.strictEqual(A.toene('#a97b4a', { farbe: 'url(x)', staerke: 80 }), '#a97b4a');
+});
+
+test('Stärke 100 ergibt genau die Tönungsfarbe', () => {
+  assert.strictEqual(A.toene('#a97b4a', { farbe: '#000000', staerke: 100 }), '#000000');
+  assert.strictEqual(A.toene('#123456', { farbe: '#ffffff', staerke: 100 }), '#ffffff');
+});
+
+test('Dazwischen wird gemischt', () => {
+  const halb = A.toene('#ffffff', { farbe: '#000000', staerke: 50 });
+  const [r, g, b] = halb.slice(1).match(/../g).map((h) => parseInt(h, 16));
+  assert.ok(r > 118 && r < 138, `etwa 50 % Grau erwartet, ist ${halb}`);
+  assert.strictEqual(r, g);
+  assert.strictEqual(g, b);
+});
+
+test('Das Relief bleibt auch in Schwarz erhalten', () => {
+  // Erst abstufen, dann tönen: Lichtkante und Schattenseite müssen auch bei
+  // 80 % Schwarz noch auseinanderliegen, sonst ist das Regal eine Fläche.
+  const t = A.holzToene('#a97b4a', { farbe: '#000000', staerke: 80 });
+  const hell = (hex) => hex.slice(1).match(/../g).reduce((s, h) => s + parseInt(h, 16), 0);
+  assert.ok(hell(t.hell) > hell(t.normal), 'Lichtkante heller');
+  assert.ok(hell(t.normal) > hell(t.dunkel), 'Schattenseite dunkler');
+  assert.ok(hell(t.tief) > hell(t.wand) - 1, 'Innenraum am tiefsten');
+  // Und deutlich dunkler als ohne Tönung.
+  assert.ok(hell(t.normal) < hell(A.holzToene('#a97b4a').normal) / 2);
+});
+
+test('Wand und Schild werden mitgetönt', () => {
+  const stark = { farbe: '#000000', staerke: 100 };
+  assert.strictEqual(A.raumToene('#171310', stark).grund, '#000000');
+  assert.deepStrictEqual(A.schildToene(stark), { hell: '#000000', dunkel: '#000000' });
+  // Ohne Tönung bleibt das Messing, wie es war.
+  assert.deepStrictEqual(A.schildToene(null), A.SCHILD);
+});
+
+test('Für die Rücken kommen die Anteile als Prozentangaben heraus', () => {
+  // Die Rücken mischt das Stylesheet selbst (color-mix) - ihre Farben
+  // entstehen zum Teil erst dort, aus dem Titelbild oder der Spielnummer.
+  const a = A.ausSichtDesSchranks({ schrankTon: '#000000', schrankTonStaerke: 40 });
+  assert.deepStrictEqual(a.ton, { farbe: '#000000', anteil: '40%', gegenanteil: '60%' });
+  // Vorgabe: aus.
+  assert.strictEqual(A.ausSichtDesSchranks({}).ton.anteil, '0%');
+});
+
+test('Unsinnige Stärken werden in die Grenzen geholt', () => {
+  const E = require(path.resolve(__dirname, '..', '..', 'overlay', 'lib', 'einstellungen.js'));
+  assert.strictEqual(E.bereinige({ schrankTonStaerke: 500 }).schrankTonStaerke, 100);
+  assert.strictEqual(E.bereinige({ schrankTonStaerke: -20 }).schrankTonStaerke, 0);
+  assert.strictEqual(E.bereinige({ schrankTonStaerke: 'viel' }).schrankTonStaerke, 0);
+  assert.strictEqual(E.bereinige({ schrankTon: 'expression(1)' }).schrankTon, '#000000');
+});
+
+test('Auszeichnungen bleiben von der Tönung verschont', () => {
+  // Sie sind eine Aussage, keine Zierde: Ein schwarz getönter Schrank voller
+  // schwarzer Diamanten hätte die Information verloren.
+  const quelle = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'schrank', 'schrank.js'),
+    'utf8'
+  );
+  assert.ok(/packung--signal/.test(quelle), 'der Schrank muss die Klasse setzen');
+  const css = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'overlay', 'schrank', 'schrank.css'),
+    'utf8'
+  );
+  const regel = css.slice(css.indexOf('.packung--signal'));
+  assert.ok(/--ton-anteil:\s*0%/.test(regel.slice(0, 200)), 'und das CSS muss sie ausnehmen');
+});

@@ -2,6 +2,29 @@
 
 ## Noch nicht veröffentlicht
 
+### Eine Tönung für den ganzen Schrank
+
+Ein Regler statt vieler Farbwerte: *Einstellungen → Aussehen des Schranks →
+„Tönung über allem"*, dazu eine Stärke. Für einen schwarzen Schrank stellst du
+Schwarz ein und schiebst die Stärke hoch — Holz, Wand, Schilder, Vitrinen und
+Spielrücken gehen gemeinsam mit. Bei 0 % (der Vorgabe) ändert sich nichts, und
+die einzelnen Farben darunter bleiben als Feineinstellung erhalten.
+
+Zwei Dinge, die dabei absichtlich so sind:
+
+- **Erst abstufen, dann tönen.** Lichtkante und Schattenseite liegen auch bei
+  80 % Schwarz noch auseinander — sonst wäre das Regal eine Fläche statt eines
+  Möbels.
+- **Auszeichnungen bleiben farbig.** Grüner Balken, oranger Rahmen und Diamant
+  sind eine Aussage, keine Zierde; ein schwarz getönter Schrank voller
+  schwarzer Diamanten hätte die Information verloren. Bei 100 % Schwarz steht
+  also ein komplett schwarzes Regal da, in dem genau die Markierungen noch
+  leuchten.
+
+Beim Nachsehen fiel auf, dass die beiden großen Vitrinen („Dein Stand",
+„Deine Trophäen") braun blieben, während alles andere schon schwarz war — sie
+hatten feste Farbwerte statt der Holztöne. Behoben.
+
 ### Grüner Balken für installierte Spiele
 
 Am unteren Rand des Rückens ein hellgrüner Balken, wenn das Spiel auf diesem

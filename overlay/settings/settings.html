@@ -295,6 +295,35 @@
 
         <div class="zeile">
           <div class="zeile__text">
+            <label for="schrankTon">Tönung über allem</label>
+            <p class="hilfe">
+              Ein Regler für den ganzen Schrank: Holz, Wand, Schilder und Spielrücken
+              werden in diese Farbe gezogen. Für einen schwarzen Schrank stellst du hier
+              Schwarz ein und schiebst die Stärke hoch — die einzelnen Farben darunter
+              bleiben als Feineinstellung erhalten. Bei 0 % ändert sich nichts.
+              Auszeichnungen (installiert, nie gespielt, Diamant) bleiben außen vor; sie
+              sind eine Aussage, keine Zierde.
+            </p>
+          </div>
+          <div class="farbwahl">
+            <div class="farbwahl__vorrat" id="ton-vorrat"></div>
+            <input id="schrankTon" type="color" class="farbwahl__feld" />
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
+            <label for="schrankTonStaerke">Stärke der Tönung</label>
+            <p class="hilfe">0 % lässt alles, wie es ist. 100 % färbt den ganzen Schrank ein.</p>
+          </div>
+          <div class="regler">
+            <input id="schrankTonStaerke" class="schieber" type="range" min="0" max="100" step="1" />
+            <output id="schrankTonStaerke-wert" class="regler__wert"></output>
+          </div>
+        </div>
+
+        <div class="zeile">
+          <div class="zeile__text">
             <label for="schrankHolz">Holz</label>
             <p class="hilfe">
               Aus dieser einen Farbe entstehen alle vier Töne des Regals — Lichtkante,

@@ -62,6 +62,9 @@ const GRENZEN = {
   lautstaerke: { min: 0, max: 1 },
   merklisteGroesse: { min: 0.6, max: 1.6 },
   abzeichenGroesse: { min: 0.6, max: 1.6 },
+  // Toenung des Schranks in Prozent. 0 heisst aus, 100 heisst: alles in
+  // dieser einen Farbe.
+  schrankTonStaerke: { min: 0, max: 100 },
 };
 
 /**
@@ -139,6 +142,13 @@ function standard() {
     schrankHolz: '#a97b4a',
     // Die Wand hinter dem Schrank.
     schrankWand: '#171310',
+    // Toenung ueber allem: EIN Regler, der Holz, Wand, Schild und Ruecken in
+    // eine Richtung zieht. Wer den Schrank schwarz haben will, stellt hier
+    // Schwarz ein, statt ein halbes Dutzend Farbwerte aufeinander
+    // abzustimmen. Staerke 0 heisst "aus" - die Vorgabe aendert also nichts
+    // an dem, was schon eingestellt ist.
+    schrankTon: '#000000',
+    schrankTonStaerke: 0,
     // Woher die Farbe eines Spielrueckens kommt:
     //   bild     = kraeftigste Farbe aus dem Titelbild (wie bisher)
     //   sammlung = alle Spiele eines Fachs in einer Farbe
@@ -250,6 +260,8 @@ function bereinige(roh) {
     // nicht erst an.
     schrankHolz: istFarbe(e.schrankHolz) ? e.schrankHolz.trim() : s.schrankHolz,
     schrankWand: istFarbe(e.schrankWand) ? e.schrankWand.trim() : s.schrankWand,
+    schrankTon: istFarbe(e.schrankTon) ? e.schrankTon.trim() : s.schrankTon,
+    schrankTonStaerke: zahlIn(e.schrankTonStaerke, GRENZEN.schrankTonStaerke, s.schrankTonStaerke),
     schrankRuecken: RUECKEN_ARTEN.includes(e.schrankRuecken)
       ? e.schrankRuecken
       : s.schrankRuecken,

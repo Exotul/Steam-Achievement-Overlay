@@ -164,6 +164,31 @@ erneut abzufragen.
 
 Einzustellen unter *Einstellungen → Aussehen des Schranks*.
 
+**Eine Tönung über allem.** Ein Regler für den ganzen Schrank: Holz, Wand,
+Schilder, Vitrinen und Spielrücken werden in eine Farbe gezogen. Für einen
+schwarzen Schrank stellt man Schwarz ein und schiebt die Stärke hoch, statt ein
+halbes Dutzend Farbwerte aufeinander abzustimmen. Bei 0 % — der Vorgabe —
+ändert sich nichts; die einzelnen Farben darunter bleiben als Feineinstellung
+erhalten.
+
+Zwei Entscheidungen dabei:
+
+- **Erst abstufen, dann tönen.** So bleibt das Relief erhalten: Lichtkante und
+  Schattenseite liegen auch bei 80 % Schwarz noch auseinander, statt zu einer
+  Fläche zu verschmelzen.
+- **Auszeichnungen bleiben außen vor** (installiert, nie gespielt, Diamant).
+  Sie sind eine *Aussage*, keine Zierde — ein schwarz getönter Schrank voller
+  schwarzer Diamanten hätte die Information verloren. Für Rücken, deren Farbe
+  von einer Auszeichnung kommt, schaltet die Klasse `.packung--signal` die
+  Tönung ab.
+
+Holz, Wand, Schild und Vitrinen tönt der Hauptprozess; die **Rücken mischt das
+Stylesheet selbst** (`color-mix`). Grund: Ihre Farben entstehen zum Teil erst
+im Schrankfenster — aus dem Titelbild oder aus der Spielnummer —, und die
+müssten sonst alle einzeln durch den Hauptprozess laufen. Übergeben werden zwei
+Prozentangaben statt einer Rechnung mit `calc()`: Eine Variable, die als
+Prozentwert eingesetzt wird, ist in `color-mix` zuverlässiger.
+
 **Eine Holzfarbe, vier Töne.** Aus der gewählten Farbe entstehen Lichtkante,
 Fläche, Schattenseite und Innenraum. Vier einzelne Regler wären vier Farben,
 die man aufeinander abstimmen müsste, um ein Regal zu bekommen, das nach Holz

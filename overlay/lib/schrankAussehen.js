@@ -59,33 +59,75 @@ function mische(farbe, anteil) {
 }
 
 /**
+ * Eine Farbe in Richtung eines Tons ziehen.
+ *
+ * WOFUER: Wer den ganzen Schrank schwarz haben will, soll EINEN Regler
+ * umlegen und nicht ein halbes Dutzend Farbwerte aufeinander abstimmen. Die
+ * Toenung liegt deshalb ueber allem - Holz, Wand, Schild, Ruecken - und die
+ * einzelnen Farben bleiben daneben als Feineinstellung bestehen.
+ *
+ * Bei 0 % kommt die Farbe unveraendert zurueck; die Vorgabe aendert also
+ * nichts an dem, was schon eingestellt ist.
+ *
+ * @param {string} farbe
+ * @param {{farbe: string, staerke: number}|null} ton - staerke in Prozent
+ */
+function toene(farbe, ton) {
+  if (!ton || !(ton.staerke > 0) || !istFarbe(ton.farbe)) return farbe;
+  const a = zuRgb(farbe);
+  const b = zuRgb(ton.farbe);
+  // Nur Hex laesst sich hier rechnen. rgb() und hsl() bleiben unveraendert -
+  // besser unveraendert als verrechnet.
+  if (!a || !b) return farbe;
+  const anteil = Math.min(100, ton.staerke) / 100;
+  return zuHex(a.map((v, i) => v + (b[i] - v) * anteil));
+}
+
+/**
  * Die vier Holztoene aus einer Grundfarbe.
  *
  * Die Anteile sind an der urspruenglichen Palette abgelesen (#c89a63 / #a97b4a
  * / #7c5733 / #4a3420): die Lichtkante gut ein Viertel heller, die
  * Schattenseite ein Viertel dunkler, der Innenraum deutlich tiefer.
  */
-function holzToene(basis) {
+function holzToene(basis, ton = null) {
   const grund = istFarbe(basis) ? basis.trim() : '#a97b4a';
+  // Erst die Abstufung, dann die Toenung: So bleibt das Relief erhalten -
+  // Lichtkante und Schattenseite liegen auch in Schwarz noch auseinander.
+  const t = (farbe) => toene(farbe, ton);
   return {
-    hell: mische(grund, 0.28),
-    normal: grund,
-    dunkel: mische(grund, -0.26),
-    tief: mische(grund, -0.56),
+    hell: t(mische(grund, 0.28)),
+    normal: t(grund),
+    dunkel: t(mische(grund, -0.26)),
+    tief: t(mische(grund, -0.56)),
     // Die Rueckwand im Fach - noch eine Spur tiefer als der Innenraum.
-    wand: mische(grund, -0.64),
+    wand: t(mische(grund, -0.64)),
   };
 }
 
 /** Die beiden Toene der Wand hinter dem Schrank. */
-function raumToene(basis) {
+function raumToene(basis, ton = null) {
   const grund = istFarbe(basis) ? basis.trim() : '#171310';
+  const t = (farbe) => toene(farbe, ton);
   return {
-    grund,
+    grund: t(grund),
     // Oben faellt Licht ein, unten liegt Schatten.
-    oben: mische(grund, 0.09),
-    unten: mische(grund, -0.3),
+    oben: t(mische(grund, 0.09)),
+    unten: t(mische(grund, -0.3)),
   };
+}
+
+/*
+ * Das Messingschild an jedem Fach.
+ *
+ * Es steht hier und nicht nur im CSS, weil es mitgetoent werden muss: Ein
+ * schwarzer Schrank mit messingglaenzenden Schildern saehe halb fertig aus.
+ * Die beiden Werte sind die bisherigen aus schrank.css.
+ */
+const SCHILD = { hell: '#d9b887', dunkel: '#b0864f' };
+
+function schildToene(ton = null) {
+  return { hell: toene(SCHILD.hell, ton), dunkel: toene(SCHILD.dunkel, ton) };
 }
 
 /**
@@ -202,11 +244,29 @@ function schriftListe(name) {
  * @param {object} e - Einstellungen
  */
 function ausSichtDesSchranks(e = {}) {
-  const holz = holzToene(e.schrankHolz);
-  const raum = raumToene(e.schrankWand);
+  const ton = {
+    farbe: istFarbe(e.schrankTon) ? e.schrankTon.trim() : '#000000',
+    staerke: Number.isFinite(Number(e.schrankTonStaerke)) ? Number(e.schrankTonStaerke) : 0,
+  };
+  const holz = holzToene(e.schrankHolz, ton);
+  const raum = raumToene(e.schrankWand, ton);
   return {
     holz,
     raum,
+    schild: schildToene(ton),
+    /*
+     * Fuer die Ruecken macht die Toenung das Stylesheet selbst (color-mix):
+     * Ihre Farben entstehen zum Teil erst im Schrankfenster - aus dem
+     * Titelbild oder aus der Spielnummer -, und die muessten sonst alle
+     * einzeln hier durchlaufen. Zwei Anteile statt einer Rechnung mit calc():
+     * eine Prozentangabe, die als Variable eingesetzt wird, ist in color-mix
+     * zuverlaessiger.
+     */
+    ton: {
+      farbe: ton.farbe,
+      anteil: `${Math.max(0, Math.min(100, ton.staerke))}%`,
+      gegenanteil: `${100 - Math.max(0, Math.min(100, ton.staerke))}%`,
+    },
     schrift: schriftListe(e.schrankSchrift),
     ruecken: e.schrankRuecken || 'bild',
     verlauf: e.schrankVerlauf !== false,
@@ -257,9 +317,12 @@ function istDiamant(spiel) {
 module.exports = {
   istFarbe,
   mische,
+  toene,
   hslZuHex,
+  SCHILD,
   holzToene,
   raumToene,
+  schildToene,
   sammlungsFarbe,
   fachFarben,
   nieGespielt,

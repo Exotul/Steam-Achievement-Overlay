@@ -16,7 +16,7 @@ const els = {};
  'sitzungsbilanz', 'schrankAktiv', 'schrankBildschirm', 'schrankRuheImSpiel',
  'schrankHintergrund', 'streamAktiv', 'streamUrl', 'stream-test', 'stream-status',
  // Aussehen des Schranks
- 'schrankHolz', 'schrankWand', 'schrankRuecken', 'schrankVerlauf', 'schrankSchrift',
+ 'schrankHolz', 'schrankWand', 'schrankTon', 'schrankTonStaerke', 'ton-vorrat', 'schrankRuecken', 'schrankVerlauf', 'schrankSchrift',
  'schrankRahmenNie', 'schrankRueckenNie', 'schrankDiamant', 'schrankBalkenInstalliert',
  'holz-vorrat', 'wand-vorrat', 'sammlungen', 'sammlungsfarben-zeile',
  // aus dem Tray-Menue hierher gezogen
@@ -33,6 +33,8 @@ const REGLER = {
   lautstaerke: (v) => (Number(v) === 0 ? 'stumm' : `${Math.round(v * 100)} %`),
   merklisteGroesse: (v) => `${Math.round(v * 100)} %`,
   abzeichenGroesse: (v) => `${Math.round(v * 100)} %`,
+  // Die Toenung ist schon in Prozent - nicht noch einmal mal hundert.
+  schrankTonStaerke: (v) => (Number(v) === 0 ? `aus` : `${Math.round(v)} %`),
 };
 
 // Einstellungen, die nur an oder aus kennen.
@@ -82,6 +84,7 @@ function zeigeWerte(w) {
   // trotzdem richtig an.
   if (/^#[0-9a-f]{6}$/i.test(w.schrankHolz || '')) els.schrankHolz.value = w.schrankHolz;
   if (/^#[0-9a-f]{6}$/i.test(w.schrankWand || '')) els.schrankWand.value = w.schrankWand;
+  if (/^#[0-9a-f]{6}$/i.test(w.schrankTon || '')) els.schrankTon.value = w.schrankTon;
   els.bildschirm.value = w.bildschirm === null ? 'haupt' : String(w.bildschirm);
   els.schrankBildschirm.value =
     w.schrankBildschirm === null ? 'auto' : String(w.schrankBildschirm);
@@ -265,6 +268,15 @@ const WAENDE = [
   ['#0e1410', 'Tannengrün'],
   ['#000000', 'Schwarz'],
 ];
+// Töne für den ganzen Schrank. Schwarz zuerst - das ist der Fall, für den der
+// Regler überhaupt gebaut wurde.
+const TOENE = [
+  ['#000000', 'Schwarz'],
+  ['#ffffff', 'Ausgeblichen'],
+  ['#0f2436', 'Stahlblau'],
+  ['#2a1030', 'Violett'],
+  ['#102a18', 'Waldgrün'],
+];
 
 function baueVorrat(behaelter, liste, feld, name) {
   behaelter.innerHTML = '';
@@ -285,10 +297,11 @@ function baueVorrat(behaelter, liste, feld, name) {
 
 baueVorrat(els['holz-vorrat'], HOELZER, els.schrankHolz, 'schrankHolz');
 baueVorrat(els['wand-vorrat'], WAENDE, els.schrankWand, 'schrankWand');
+baueVorrat(els['ton-vorrat'], TOENE, els.schrankTon, 'schrankTon');
 
 // Beim Ziehen im Farbwähler still anwenden, damit man die Farbe im Schrank
 // wandern sieht; die Bestätigung erst beim Loslassen.
-['schrankHolz', 'schrankWand'].forEach((name) => {
+['schrankHolz', 'schrankWand', 'schrankTon'].forEach((name) => {
   els[name].addEventListener('input', () => aendere({ [name]: els[name].value }, { still: true }));
   els[name].addEventListener('change', () => bestaetige());
 });

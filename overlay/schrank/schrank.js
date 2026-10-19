@@ -322,6 +322,17 @@ function wendeAussehenAn(neu) {
     s.setProperty('--raum-oben', neu.raum.oben);
     s.setProperty('--raum-unten', neu.raum.unten);
   }
+  if (neu.schild) {
+    s.setProperty('--schild-hell', neu.schild.hell);
+    s.setProperty('--schild-dunkel', neu.schild.dunkel);
+  }
+  if (neu.ton) {
+    // Die Ruecken toent das Stylesheet selbst (color-mix) - hier kommen nur
+    // die Zutaten an.
+    s.setProperty('--ton', neu.ton.farbe);
+    s.setProperty('--ton-anteil', neu.ton.anteil);
+    s.setProperty('--ton-gegenanteil', neu.ton.gegenanteil);
+  }
   if (neu.schrift) s.setProperty('--schrift', neu.schrift);
   document.body.classList.toggle('flach', neu.verlauf === false);
 }
@@ -474,7 +485,11 @@ function baueKarton(spiel) {
     (diamant && aussehen.diamant ? ' packung--diamant' : '') +
     // Nur bei einem ausdruecklichen true: undefined heisst "unbekannt"
     // (Steam nicht gefunden) und darf keinen Balken ergeben.
-    (spiel.installiert === true && aussehen.balkenInstalliert ? ' packung--installiert' : '');
+    (spiel.installiert === true && aussehen.balkenInstalliert ? ' packung--installiert' : '') +
+    // Kommt die Rueckenfarbe von einer AUSZEICHNUNG, bleibt sie von der
+    // Toenung verschont - sonst waere ein schwarz getoenter Schrank voller
+    // schwarzer Diamanten, und damit waere die Aussage weg.
+    (signalFarbe(nie, diamant) ? ' packung--signal' : '');
   el.style.setProperty('--spine', rueckenFarbe(spiel, nie, diamant));
   el.innerHTML = `
     <div class="packung__ruecken"><span class="packung__titel">${escape(spiel.name)}</span></div>
@@ -512,6 +527,11 @@ function baueKarton(spiel) {
  * Achievements muss man gespielt haben. Die Reihenfolge steht trotzdem fest,
  * damit nicht die Datenlage entscheidet.
  */
+/** Kommt die Rueckenfarbe von einer Auszeichnung statt vom Spiel? */
+function signalFarbe(nie, diamant) {
+  return (diamant && aussehen.diamant) || (nie && aussehen.rueckenNie);
+}
+
 function rueckenFarbe(spiel, nie, diamant) {
   if (diamant && aussehen.diamant) return DIAMANT_FARBE;
   if (nie && aussehen.rueckenNie) return NIE_RUECKEN;
