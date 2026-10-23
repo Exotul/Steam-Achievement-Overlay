@@ -33,6 +33,32 @@ const { execFile } = require('child_process');
 const SCHLUESSEL = 'HKCU\\Software\\Valve\\Steam';
 
 /**
+ * Eine AppID als Zahl - egal, woher sie kommt.
+ *
+ * WARUM DAS NOETIG IST: Steam liefert dieselbe Nummer je nach Weg
+ * unterschiedlich. Die Registry gibt eine Zahl, die Web-Abfrage einen TEXT:
+ *
+ *     GetPlayerSummaries -> "gameid": "3373660"   (typeof string)
+ *     RunningAppID       ->  3373660              (typeof number)
+ *
+ * Solange nur ein Weg benutzt wurde, fiel das nie auf. Seit beide laufen,
+ * verglich die App Text mit Zahl - und "3373660" !== 3373660 ist wahr. Die
+ * Folge: Hatte der lokale Weg das Spiel erkannt, hielt die naechste
+ * Web-Abfrage es fuer ein ANDERES Spiel und begann die Verfolgung noch
+ * einmal. Die Meldung zum Spielstart kam dann zweimal.
+ *
+ * Deshalb geht jede AppID durch diese Funktion, bevor sie verglichen oder
+ * gemerkt wird.
+ *
+ * @param {string|number|null|undefined} wert
+ * @returns {number|null} null, wenn es keine brauchbare AppID ist
+ */
+function appNummer(wert) {
+  const n = Number(wert);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
  * Deutet die Ausgabe von reg.exe.
  *
  * Eigene Funktion, weil das der Teil ist, der sich ohne Windows pruefen
@@ -149,4 +175,4 @@ function ueberwache({ takt = 3000, onStart, onEnde, onTauglich, onUnbrauchbar } 
   };
 }
 
-module.exports = { SCHLUESSEL, deuteAusgabe, leseAppId, wechsel, ueberwache };
+module.exports = { SCHLUESSEL, appNummer, deuteAusgabe, leseAppId, wechsel, ueberwache };

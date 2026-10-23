@@ -1575,15 +1575,24 @@ async function checkPresence() {
       return;
     }
 
-    if (presence.appId !== trackedAppId) {
-      logger.info(`Spiel erkannt: ${presence.gameName || '?'} (AppID ${presence.appId})`);
-      await startAchievementTracking(presence.appId, presence.gameName);
+    /*
+     * ALS ZAHL vergleichen. Steam liefert die AppID hier als TEXT
+     * ("gameid": "3373660"), die Registry als Zahl - und "3373660" !== 3373660
+     * ist wahr. Hatte der lokale Weg das Spiel erkannt, hielt diese Abfrage es
+     * deshalb fuer ein anderes und begann die Verfolgung noch einmal: Die
+     * Meldung zum Spielstart kam zweimal. Siehe lib/steamLauf.js.
+     */
+    const appId = steamLauf.appNummer(presence.appId);
+
+    if (appId !== trackedAppId) {
+      logger.info(`Spiel erkannt: ${presence.gameName || '?'} (AppID ${appId})`);
+      await startAchievementTracking(appId, presence.gameName);
     } else if (presence.gameName && presence.gameName !== trackedGameName) {
       // Den Namen nachtragen. Der lokale Weg kennt nur die Nummer; stand sie
       // im Zwischenspeicher nicht, hiess das Spiel bis hierher "App 1186".
-      logger.info(`Spielname nachgetragen: ${presence.gameName} (AppID ${presence.appId})`);
+      logger.info(`Spielname nachgetragen: ${presence.gameName} (AppID ${appId})`);
       trackedGameName = presence.gameName;
-      merkeSpielname(presence.appId, presence.gameName);
+      merkeSpielname(appId, presence.gameName);
       if (sitzung) sitzung.gameName = presence.gameName;
       updateTrayStatus(`Verfolge: ${presence.gameName}`);
       sendeSchrankSpiel();
@@ -1597,7 +1606,23 @@ async function checkPresence() {
 
 // --- Schnelle Schleife: nur solange aktiv, wie ein Spiel läuft -------------
 
-async function startAchievementTracking(appId, gameName) {
+async function startAchievementTracking(rohAppId, gameName) {
+  /*
+   * Die AppID IMMER als Zahl merken - egal, von welchem Weg sie kommt.
+   *
+   * Hier laufen beide Erkennungen zusammen: die Registry (Zahl) und die
+   * Web-Abfrage (Text). Wuerde hier einmal ein Text landen, verglichen
+   * spaetere Abfragen Text mit Zahl, und das Spiel gaelte als ein anderes -
+   * mit zwei Meldungen zum Spielstart als sichtbarer Folge. Auch
+   * `diamondCelebrated` haengt daran: Eine Menge mit "123" UND 123 feierte
+   * denselben Diamanten zweimal.
+   */
+  const appId = steamLauf.appNummer(rohAppId);
+  if (appId === null) {
+    logger.warn(`Unbrauchbare AppID beim Spielstart: ${JSON.stringify(rohAppId)}`);
+    return;
+  }
+
   trackedAppId = appId;
   trackedGameName = gameName;
   // Der Schrank haelt still, solange gespielt wird - er soll keine Bilder

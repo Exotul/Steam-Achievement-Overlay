@@ -95,3 +95,58 @@ test('Unveränderter Stand meldet nichts', () => {
 test('Der Schlüssel ist der von Steam', () => {
   assert.strictEqual(L.SCHLUESSEL, 'HKCU\\Software\\Valve\\Steam');
 });
+
+/* ==========================================================================
+   Text oder Zahl - derselbe AppID-Wert auf zwei Wegen
+   ==========================================================================
+   DER FEHLER, DEN DAS BEHEBT: Steam liefert dieselbe Nummer je nach Weg
+   unterschiedlich.
+
+       GetPlayerSummaries -> "gameid": "3373660"   (Text)
+       RunningAppID       ->  3373660              (Zahl)
+
+   Solange nur ein Weg benutzt wurde, fiel das nie auf. Seit beide laufen,
+   verglich die App Text mit Zahl — und "3373660" !== 3373660 ist wahr. Hatte
+   der lokale Weg das Spiel erkannt, hielt die nächste Web-Abfrage es für ein
+   ANDERES Spiel und begann die Verfolgung noch einmal: Die Meldung zum
+   Spielstart kam zweimal. Im Protokoll stand es schwarz auf weiß:
+
+       19:08:17  Spiel erkannt (lokal): Brotato (AppID 1942280)
+       19:08:45  Spiel erkannt: Brotato (AppID 1942280)
+   ========================================================================== */
+
+test('Text und Zahl ergeben dieselbe AppID', () => {
+  assert.strictEqual(L.appNummer('3373660'), 3373660);
+  assert.strictEqual(L.appNummer(3373660), 3373660);
+  assert.strictEqual(L.appNummer('3373660'), L.appNummer(3373660));
+});
+
+test('Was keine AppID ist, wird zu null - nicht zu 0', () => {
+  // 0 wäre fatal: Es ist eine gültige Zahl und würde als Spiel durchgehen.
+  for (const unsinn of ['', '  ', null, undefined, 'Look Outside', NaN, 0, -5, {}, []]) {
+    assert.strictEqual(L.appNummer(unsinn), null, JSON.stringify(unsinn));
+  }
+});
+
+test('main.js vergleicht die AppID als Zahl, nicht als Text', () => {
+  // Die beiden Stellen, an denen die Wege zusammenlaufen. Ginge eine davon
+  // verloren, käme die Meldung wieder doppelt - und das sieht man erst beim
+  // nächsten Spielstart.
+  const fs = require('node:fs');
+  const quelle = fs.readFileSync(
+    require('node:path').resolve(__dirname, '..', '..', 'overlay', 'main.js'),
+    'utf8'
+  );
+  assert.ok(
+    /const appId = steamLauf\.appNummer\(presence\.appId\)/.test(quelle),
+    'checkPresence muss die AppID der Web-Abfrage umwandeln'
+  );
+  assert.ok(
+    !/presence\.appId !== trackedAppId/.test(quelle),
+    'der rohe Vergleich darf nicht zurückkommen'
+  );
+  assert.ok(
+    /const appId = steamLauf\.appNummer\(rohAppId\)/.test(quelle),
+    'startAchievementTracking muss sie ebenfalls umwandeln'
+  );
+});

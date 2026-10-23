@@ -2,6 +2,37 @@
 
 ## Noch nicht veröffentlicht
 
+### Die Meldung zum Spielstart kam zweimal
+
+Gemeldet und bestätigt: Beim Start eines Spiels erschien der Trophäenstand
+doppelt. Mein Fehler, und zwar vom 19.10. — eingeschleppt mit der lokalen
+Spielerkennung.
+
+Steam liefert dieselbe Nummer je nach Weg unterschiedlich:
+
+```
+GetPlayerSummaries  ->  "gameid": "3373660"   (Text)
+RunningAppID        ->   3373660              (Zahl)
+```
+
+Solange nur die Web-Abfrage benutzt wurde, fiel das nie auf. Seit beide Wege
+laufen, verglich die App Text mit Zahl — und `"3373660" !== 3373660` ist wahr.
+Hatte der lokale Weg das Spiel erkannt, hielt die nächste Web-Abfrage es für
+ein **anderes** Spiel und begann die Verfolgung ein zweites Mal. In deinem
+Protokoll steht es schwarz auf weiß:
+
+```
+19:08:17  Spiel erkannt (lokal): Brotato (AppID 1942280)
+19:08:45  Spiel erkannt:         Brotato (AppID 1942280)
+```
+
+Die zweite Meldung kam also bis zu 30 Sekunden nach der ersten — so lange, wie
+die Web-Abfrage im Schongang braucht.
+
+Jetzt geht jede AppID durch eine Umwandlung, bevor sie verglichen oder gemerkt
+wird. Das betraf nebenbei auch die Diamantfeier: Eine Menge, die `"123"` **und**
+`123` enthält, hätte denselben Diamanten zweimal gefeiert.
+
 ### Eine Tönung für den ganzen Schrank
 
 Ein Regler statt vieler Farbwerte: *Einstellungen → Aussehen des Schranks →
