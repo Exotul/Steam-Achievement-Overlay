@@ -416,6 +416,73 @@ Zwei Auflagen, beide ausdrücklich gewünscht:
 Solange die Liste offen ist, geht der Klickfänger nicht auf: Er liegt oben, die
 Liste nicht — er würde ihr die Klicks wegnehmen.
 
+### Mittlere Maustaste: der 100-%-Walkthrough
+
+**Mittlere Maustaste** auf eine herausgezogene Packung — oder der Knopf
+*100 %-Walkthrough* in der Achievement-Liste — öffnet ein Fenster mit zwei
+Teilen:
+
+- **links** die Guide-Seite von Steam, dargestellt von Steam selbst
+- **rechts** die Achievements dieses Spiels mit ihrem echten Stand, jedes mit
+  einem Haken für die **Merkliste** — dieselbe, die im Spiel über die
+  Panel-Taste erscheint. Abgehakt wird also dort, wo man gerade ist.
+
+Gemerkt wird je Spiel, **welcher** Guide gewählt war und **wie weit** man
+gescrollt hatte (`~/.trophaenschrank/guides.json`). Nach Monaten geht er genau
+dort wieder auf. *Anderer Guide* zeigt die Auswahl; die Wahl bleibt, auch wenn
+die Automatik einen anderen vorschlagen würde.
+
+**Es darf während des Spielens offen bleiben** — ausdrücklich gewünscht.
+Deshalb dieselben drei Vorsichtsmaßnahmen wie bei der Zweitmeldung: Es geht mit
+`showInactive()` auf und nimmt beim Öffnen nie den Fokus (ein Fenster, das sich
+den Fokus holt, minimiert ein Vollbildspiel), es liegt nicht oben, und es steht
+auf dem Schrankbildschirm, also dem Nebenbildschirm.
+
+#### Woher die Guides kommen
+
+Steam-Guides sind „published files" wie Workshop-Inhalte, und dafür gibt es
+eine offizielle Schnittstelle: `IPublishedFileService/QueryFiles`. Es muss
+also **nichts** von einer Webseite abgegriffen werden, und der vorhandene
+Schlüssel reicht. Zwei Dinge sind **nachgemessen**, nicht geraten:
+
+- `filetype=10` (IntegratedGuide) sind die Community-Guides. `filetype=9`
+  (WebGuide) liefert für jedes geprüfte Spiel null Treffer.
+- Das Feld `language` taugt nicht zum Filtern — russische Guides stehen dort
+  teils auf `0`, genau wie englische. Verlässlich ist der Sprach-**Tag**, und
+  der lässt sich serverseitig filtern. Gesucht wird deshalb zweimal, einmal je
+  Sprache, **englisch und deutsch** (ausdrücklich so gewünscht).
+
+Die Reihenfolge macht nicht die Bewertung allein: Bei Dead Space steht auf
+Platz 2 der Stimmen eine russische Sprachdatei mit demselben Tag und auf Platz
+3 ein Guide über einen Spruch von Isaac. Der Titel muss mitreden, deshalb
+`bewerte()` in `backend/services/steamGuides.js` — Stimmen als Grundlage, dazu
+Punkte für „100 %" und „alle Achievements" im Titel, Aufrufe nur als leiser,
+gedeckelter Hinweis. Ergebnis für Dead Space: ganz oben der
+*Dead Space Remake 100% Achievement Guide* mit 466 von 471 Stimmen.
+
+#### Der gemerkte Scrollstand
+
+Der Sprung an die alte Stelle wird **mehrmals** versucht und jedes Mal
+nachgelesen. Grund, nachgemessen: Direkt nach dem Laden ist Steams Guide-Seite
+noch nicht so hoch, wie sie wird (18 060 px statt 18 584 px), und Chromium
+kappt den Sprung dann auf das damalige Seitenende — aus 4200 wurden 3752. Wer
+nur einmal springt, landet daneben, und weil anschließend genau dieser Wert
+gemerkt wird, wandert die Fundstelle mit jedem Abend weiter ab.
+
+Verglichen wird dabei gegen den **selbst gesetzten** Wert, nicht gegen das
+Ziel: Sonst gilt die Kappung als „da scrollt jemand", und es bleibt beim
+falschen Stand. Bewegt sich der Stand dagegen, obwohl er gerade gesetzt wurde,
+hört das Nachfassen auf — wer selbst scrollt, wird nicht zurückgerissen.
+Gemerkt wird erst, wenn die Seite still hält.
+
+#### Die fremde Seite bleibt eingesperrt
+
+Die Guide-Seite steckt in einem `<webview>` mit eigener Partition: eigener
+Prozess, kein Preload, kein Node, getrennte Welten. Neue Fenster sind
+abgeschaltet, Links gehen in den richtigen Browser — aber nur `http:` und
+`https:`. Ohne diese Prüfung wäre ein Link auf einer fremden Seite der Weg, mit
+dem eine Webseite etwas auf diesem Rechner startet.
+
 ### Ein Spiel aus dem Schrank starten
 
 Doppelklick auf eine herausgezogene Packung startet sie über

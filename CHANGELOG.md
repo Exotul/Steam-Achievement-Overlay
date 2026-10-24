@@ -2,6 +2,35 @@
 
 ## Noch nicht veröffentlicht
 
+### Der 100-%-Walkthrough im Schrank
+
+Mittlere Maustaste auf eine Packung — oder der Knopf *100 %-Walkthrough* in der
+Achievement-Liste — öffnet ein Fenster mit dem kompletten Guide links und den
+Achievements dieses Spiels rechts. Jedes mit einem Haken für die **Merkliste**,
+derselben, die im Spiel über die Panel-Taste erscheint: Abgehakt wird dort, wo
+du gerade bist.
+
+Gewählter Guide **und** Scrollstand werden je Spiel gemerkt. Nach Monaten geht
+er genau dort wieder auf, wo du aufgehört hast. Und er **darf beim Spielen
+offen bleiben** — er nimmt beim Aufgehen nie den Fokus, liegt nicht oben und
+steht auf dem Schrankbildschirm.
+
+Gesucht wird über Steams offizielle Schnittstelle für Guides, und zwar nur auf
+**Englisch und Deutsch**. Dass die Reihenfolge stimmt, war Arbeit: Bei Dead
+Space steht nach Stimmen auf Platz 2 eine russische Sprachdatei und auf Platz 3
+ein Guide über einen Spruch von Isaac. Jetzt redet der Titel mit, und oben
+steht der *Dead Space Remake 100% Achievement Guide* mit 466 von 471 Stimmen.
+
+Drei Dinge, die beim Bauen schiefgingen und jetzt je einen Test haben:
+
+- Die Ladedecke und der leere Auswahlkasten blieben liegen — `display: flex`
+  sticht das eingebaute `hidden` aus. Der Guide war dauerhaft zugedeckt.
+- Der Sprung an die alte Stelle landete 448 px daneben: Direkt nach dem Laden
+  ist die Seite noch nicht so hoch, wie sie wird, und Chromium kappt den Sprung
+  aufs damalige Seitenende. Jetzt wird nachgefasst und nachgelesen.
+- Mein erster Versuch dagegen hielt die Kappung für „da scrollt jemand" und gab
+  auf — verglichen wird jetzt gegen den selbst gesetzten Wert.
+
 ### Die Meldung zum Spielstart kam zweimal
 
 Gemeldet und bestätigt: Beim Start eines Spiels erschien der Trophäenstand

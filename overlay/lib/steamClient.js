@@ -139,6 +139,16 @@ class SteamClient {
     return this._fetch(`/api/games/${appId}/achievements${fresh ? '?fresh=1' : ''}`);
   }
 
+  /**
+   * Die besten 100-%-Guides zu einem Spiel - englisch und deutsch.
+   *
+   * Das Backend merkt sie sich einen Tag lang; der Aufruf hier ist deshalb in
+   * der Regel kostenlos.
+   */
+  guides(appId) {
+    return this._fetch(`/api/games/${appId}/guides`);
+  }
+
   /** Zeigt den Login sichtbar an; löst auf, sobald die Session steht. */
   /** Der Spieleschrank: Faecher aus den Steam-Sammlungen. */
   async schrank() {

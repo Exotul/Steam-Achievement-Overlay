@@ -333,6 +333,12 @@ async function checkApiKey() {
 }
 
 module.exports = {
+  // Fuer Dienste mit eigenen Steam-Endpunkten (etwa steamGuides): Nur ueber
+  // diesen Weg haengen Warteschlange, Protokoll und Gesundheitspruefung mit
+  // dran. Ein eigener axios-Aufruf daneben waere genau die ungebremste
+  // Anfrage, gegen die es die Warteschlange gibt.
+  steamGet,
+  key,
   checkApiKey,
   getOwnedGames,
   getPlayerAchievements,

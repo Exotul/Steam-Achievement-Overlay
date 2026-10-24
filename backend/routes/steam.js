@@ -10,6 +10,7 @@ const xpSummary = require('../services/xpSummary');
 const queue = require('../services/steamQueue');
 const history = require('../services/history');
 const spieleschrank = require('../services/spieleschrank');
+const steamGuides = require('../services/steamGuides');
 
 const router = express.Router();
 router.use(ensureAuth);
@@ -139,6 +140,27 @@ router.get('/schrank', async (req, res) => {
   } catch (err) {
     logger.error('Schrank konnte nicht gebaut werden: ' + err.message);
     res.status(502).json({ error: 'Spieleschrank konnte nicht geladen werden.' });
+  }
+});
+
+/**
+ * Die besten 100-%-Guides zu einem Spiel (englisch und deutsch).
+ *
+ * Lange gemerkt: Guides aendern sich selten, und die Abfrage kostet zwei
+ * Steam-Anfragen (eine je Sprache). Wer ein Spiel zweimal am Abend
+ * nachschlaegt, soll dafuer nicht viermal bei Steam anklopfen.
+ */
+router.get('/games/:appId/guides', async (req, res) => {
+  try {
+    const guides = await cache.remember(
+      `guides:${req.params.appId}`,
+      24 * 60 * 60 * 1000,
+      () => steamGuides.sucheGuides(req.params.appId)
+    );
+    res.json(guides);
+  } catch (err) {
+    logger.warn(`Guides für ${req.params.appId} nicht abrufbar: ${err.message}`);
+    res.status(502).json({ error: 'Guides konnten nicht geladen werden.' });
   }
 });
 

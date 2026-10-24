@@ -24,6 +24,7 @@ const steamLauf = require('./lib/steamLauf');
 const { waehleBildschirm: waehleSchrankBildschirm } = require('./lib/schrankBildschirm');
 const schrankAussehen = require('./lib/schrankAussehen');
 const schrankListe = require('./lib/schrankListe');
+const guideMerker = require('./lib/guideMerker');
 const logger = require('./lib/logger');
 const path_ = require('path');
 const fs_ = require('fs');
@@ -1097,9 +1098,13 @@ async function setzeKlickziel(ziel) {
     return;
   }
 
-  // Und auch nicht, solange die Achievement-Liste offen steht: Der Faenger
-  // liegt oben, die Liste nicht - er wuerde ihr die Klicks wegnehmen.
-  if (listeFenster && !listeFenster.isDestroyed()) {
+  // Und auch nicht, solange die Achievement-Liste oder der Walkthrough offen
+  // stehen: Der Faenger liegt oben, die beiden nicht - er wuerde ihnen die
+  // Klicks wegnehmen.
+  if (
+    (listeFenster && !listeFenster.isDestroyed()) ||
+    (guideFenster && !guideFenster.isDestroyed())
+  ) {
     verbergeFaenger();
     return;
   }
@@ -1222,6 +1227,19 @@ ipcMain.on('liste:bereit', () => {
 });
 ipcMain.on('liste:schliessen', () => schliesseListe());
 
+// Aus der Achievement-Liste heraus den Walkthrough aufmachen. Das Spiel kommt
+// aus den Daten, die diese Liste gerade zeigt - das Fenster muss es nicht
+// mitschicken.
+ipcMain.on('liste:guide', () => {
+  if (!listeDaten) return;
+  const lage = listeFenster && !listeFenster.isDestroyed() ? listeFenster.getBounds() : null;
+  zeigeGuide(
+    { appId: listeDaten.appId, name: listeDaten.name },
+    lage ? { x: lage.x, y: lage.y, breite: lage.width, hoehe: lage.height } : null
+  );
+  schliesseListe();
+});
+
 ipcMain.on('schrank:liste', () => {
   const spiel = klickSpiel;
   const ziel = letztesKlickziel;
@@ -1237,6 +1255,207 @@ ipcMain.on('schrank:liste', () => {
     breite: ziel.breite,
     hoehe: ziel.hoehe,
   });
+});
+
+/* ==========================================================================
+   Der 100-%-Walkthrough (mittlere Maustaste im Schrank)
+   ==========================================================================
+   Ein Fenster mit zwei Teilen: links die Guide-Seite von Steam, rechts die
+   Achievements dieses Spiels samt Haken fuer die Merkliste. Gemerkt wird, WELCHER
+   Guide gewaehlt war und WIE WEIT man gescrollt hatte - nach Monaten geht er
+   genau dort wieder auf (lib/guideMerker.js).
+
+   ES DARF WAEHREND DES SPIELENS OFFEN BLEIBEN. Deshalb drei Vorsichtsmassnahmen,
+   dieselben wie bei der Zweitmeldung:
+
+     - Es geht mit showInactive() auf, nimmt also beim Oeffnen NIE den Fokus.
+       Ein Fenster, das sich den Fokus holt, minimiert ein Vollbildspiel.
+     - Es liegt nicht oben (kein alwaysOnTop) - wer spielt, soll es nicht im
+       Bild haben.
+     - Es steht auf dem Schrankbildschirm, also dem NEBENbildschirm. Nachgemessen
+       bei der Zweitmeldung: Ein Fenster dort laesst ein Vollbildspiel auf dem
+       anderen Bildschirm unberuehrt.
+   ========================================================================== */
+
+/**
+ * Eine Adresse im richtigen Browser oeffnen - aber nur eine Webadresse.
+ *
+ * Im Walkthrough-Fenster laeuft eine FREMDE Seite. Was von dort kommt, darf
+ * nicht ungeprueft an das Betriebssystem weitergereicht werden: `file:`,
+ * `javascript:` oder ein eigenes Protokoll waeren genau der Weg, auf dem eine
+ * Webseite etwas auf diesem Rechner startet.
+ */
+function oeffneExtern(url) {
+  try {
+    const ziel = new URL(String(url));
+    if (ziel.protocol !== 'http:' && ziel.protocol !== 'https:') {
+      logger.warn(`Adresse nicht geöffnet (Protokoll ${ziel.protocol}): ${String(url).slice(0, 80)}`);
+      return;
+    }
+    shell.openExternal(ziel.href);
+  } catch (err) {
+    logger.warn('Unbrauchbare Adresse nicht geöffnet');
+  }
+}
+
+let guideFenster = null;
+let guideDaten = null;
+let guideMerkliste = guideMerker.laden();
+const GUIDE_MASSE = { breite: 1180, hoehe: 860 };
+
+function schliesseGuide() {
+  if (guideFenster && !guideFenster.isDestroyed()) guideFenster.destroy();
+  guideFenster = null;
+  guideDaten = null;
+}
+
+/**
+ * @param {{appId:number, name:string}} spiel
+ * @param {{x:number,y:number,breite:number,hoehe:number}|null} beiPackung
+ */
+async function zeigeGuide(spiel, beiPackung) {
+  // Schon offen fuer dasselbe Spiel? Dann nur nach vorn holen, nicht neu
+  // bauen - sonst waere der Scrollstand weg.
+  if (guideFenster && !guideFenster.isDestroyed() && guideDaten && guideDaten.appId === spiel.appId) {
+    guideFenster.show();
+    return;
+  }
+  schliesseGuide();
+
+  const anzeige = schrankBildschirm() || screen.getPrimaryDisplay();
+  const lage = schrankListe.listeRechteck(
+    beiPackung || {
+      x: anzeige.workArea.x + anzeige.workArea.width / 2,
+      y: anzeige.workArea.y + anzeige.workArea.height / 2,
+      breite: 0,
+      hoehe: 0,
+    },
+    anzeige.workArea,
+    GUIDE_MASSE
+  );
+
+  guideFenster = new BrowserWindow({
+    ...lage,
+    show: false,
+    frame: false,
+    backgroundColor: '#171310',
+    minWidth: 760,
+    minHeight: 480,
+    alwaysOnTop: false,
+    skipTaskbar: false, // ein Fenster zum Lesen gehoert in die Taskleiste
+    webPreferences: {
+      preload: path.join(__dirname, 'schrank', 'guide-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      // Die Guide-Seite laeuft in einem eigenen Prozess. Sie kommt damit an
+      // nichts von der App heran, und die Aufteilung bleibt reines CSS.
+      webviewTag: true,
+    },
+  });
+
+  guideFenster.loadFile(path.join(__dirname, 'schrank', 'guide.html'));
+  guideFenster.once('ready-to-show', () => {
+    if (!guideFenster || guideFenster.isDestroyed()) return;
+    // showInactive: Beim Oeffnen NIE den Fokus nehmen - sonst minimiert sich
+    // ein laufendes Vollbildspiel. Anklicken darf man es danach jederzeit.
+    guideFenster.showInactive();
+  });
+  guideFenster.on('closed', () => {
+    guideFenster = null;
+    guideDaten = null;
+  });
+
+  // Nichts im Fenster darf woandershin navigieren oder neue Fenster aufmachen -
+  // auch nicht die Guide-Seite. Links gehen in den richtigen Browser.
+  guideFenster.webContents.setWindowOpenHandler(({ url }) => {
+    oeffneExtern(url);
+    return { action: 'deny' };
+  });
+  guideFenster.webContents.on('will-attach-webview', (_e, webPreferences) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+  });
+
+  const gemerkt = guideMerker.fuerSpiel(guideMerkliste, spiel.appId);
+  logger.info(
+    `Schrank: Walkthrough für ${spiel.name} (AppID ${spiel.appId})` +
+      (gemerkt ? ` - gemerkter Guide ${gemerkt.id}, Stand ${gemerkt.stand}` : '')
+  );
+
+  // Guides und Achievements parallel - beide sind in der Regel gemerkt.
+  const [guides, stand] = await Promise.all([
+    steamClient.guides(spiel.appId).catch((err) => {
+      logger.warn(`Guides für ${spiel.name} nicht abrufbar: ${err.message}`);
+      return { guides: [] };
+    }),
+    steamClient.gameAchievements(spiel.appId).catch(() => null),
+  ]);
+
+  guideDaten = {
+    appId: spiel.appId,
+    name: spiel.name,
+    guides: (guides && guides.guides) || [],
+    achievements: (stand && stand.achievements) || [],
+    merkliste: (todoModul.fuerSpiel(merklisten, spiel.appId).achievements || []).slice(),
+    gewaehlt: gemerkt ? gemerkt.id : null,
+    stand: gemerkt ? gemerkt.stand : 0,
+    panelTaste: einstellungen.panelTaste || '',
+  };
+  if (guideFenster && !guideFenster.isDestroyed()) {
+    guideFenster.webContents.send('guide:daten', guideDaten);
+  }
+}
+
+ipcMain.on('guide:bereit', () => {
+  if (guideDaten && guideFenster && !guideFenster.isDestroyed()) {
+    guideFenster.webContents.send('guide:daten', guideDaten);
+  }
+});
+
+ipcMain.on('guide:waehle', (_e, { id, titel } = {}) => {
+  if (!guideDaten) return;
+  guideMerkliste = guideMerker.speichern(
+    guideMerker.merke(guideMerkliste, guideDaten.appId, { id, titel })
+  );
+  guideDaten.gewaehlt = String(id);
+  logger.info(`Walkthrough für ${guideDaten.name}: Guide ${id} gewählt`);
+});
+
+ipcMain.on('guide:stand', (_e, { id, stand } = {}) => {
+  if (!guideDaten) return;
+  // Nur fortschreiben, nicht neu waehlen: Ein Stand ohne vorherige Wahl
+  // gehoert zum Guide, der gerade offen ist.
+  guideMerkliste = guideMerker.speichern(
+    guideMerker.merke(guideMerkliste, guideDaten.appId, { id, stand })
+  );
+});
+
+ipcMain.handle('guide:merkliste', (_e, apiName, angehakt) => {
+  if (!guideDaten) return null;
+  const r = todoModul.setze(merklisten, guideDaten.appId, apiName, angehakt);
+  if (r.geaendert) {
+    merklisten = todoModul.speichern(r.listen);
+    merkGeaendert(guideDaten.appId);
+  }
+  const liste = todoModul.fuerSpiel(merklisten, guideDaten.appId).achievements || [];
+  guideDaten.merkliste = liste.slice();
+  return { merkliste: liste, grund: r.grund || null };
+});
+
+ipcMain.on('guide:browser', (_e, url) => oeffneExtern(url));
+ipcMain.on('guide:schliessen', () => schliesseGuide());
+
+ipcMain.on('schrank:guide', () => {
+  const spiel = klickSpiel;
+  const ziel = letztesKlickziel;
+  if (!spiel || !schrankWindow || schrankWindow.isDestroyed()) return;
+  const b = schrankWindow.getBounds();
+  verbergeFaenger();
+  zeigeGuide(
+    spiel,
+    ziel ? { x: b.x + ziel.x, y: b.y + ziel.y, breite: ziel.breite, hoehe: ziel.hoehe } : null
+  );
 });
 
 /**

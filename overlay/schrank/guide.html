@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Walkthrough</title>
+    <link rel="stylesheet" href="guide.css" />
+  </head>
+  <body>
+    <!--
+      Der 100-%-Walkthrough eines Spiels, geöffnet per mittlerer Maustaste auf
+      einer Packung oder über den Knopf in der Achievement-Liste.
+
+      ZWEI TEILE, UND DAS IST DER PUNKT:
+
+        links   die Guide-Seite von Steam, dargestellt von Steam selbst - die
+                App kopiert keine fremden Texte
+        rechts  die Achievements DIESES Spiels mit ihrem echten Stand, dazu
+                der Haken für die Merkliste
+
+      Dazu gemerkt: welcher Guide gewählt war und wie weit man gescrollt hatte.
+      Nach Monaten geht er genau dort wieder auf.
+
+      Die Guide-Seite steckt in einem <webview>: Sie läuft damit in einem
+      eigenen Prozess, kommt an nichts von der App heran, und die Aufteilung
+      bleibt reines CSS. Eine eigene WebContentsView wäre technisch sauberer,
+      müsste ihre Maße aber bei jeder Größenänderung von Hand nachführen.
+    -->
+    <header class="kopf">
+      <div class="kopf__text">
+        <h1 class="kopf__spiel" id="spiel">…</h1>
+        <p class="kopf__guide" id="guide-titel"></p>
+      </div>
+      <button class="kopf__knopf" id="andere" type="button" title="Anderen Guide wählen">
+        Anderer Guide
+      </button>
+      <button class="kopf__knopf" id="steam" type="button" title="Im Browser öffnen">Browser</button>
+      <button class="kopf__zu" id="zu" type="button" title="Schließen (Esc)">×</button>
+    </header>
+
+    <div class="buehne">
+      <div class="seite" id="seite">
+        <p class="laedt" id="laedt">Guide wird gesucht…</p>
+        <webview id="web" src="about:blank" partition="persist:guides"></webview>
+      </div>
+
+      <aside class="spalte">
+        <p class="spalte__kopf" id="stand">Achievements</p>
+        <ul class="spalte__liste" id="liste"></ul>
+        <p class="spalte__fuss">
+          Haken = auf der Merkliste. Sie erscheint im Spiel über
+          <span id="taste">Strg+Umschalt+A</span>.
+        </p>
+      </aside>
+    </div>
+
+    <!-- Die Auswahl anderer Guides, erst auf Knopfdruck. -->
+    <div class="auswahl" id="auswahl" hidden>
+      <div class="auswahl__kasten">
+        <p class="auswahl__kopf">Welcher Guide?</p>
+        <ul class="auswahl__liste" id="auswahl-liste"></ul>
+        <button class="kopf__knopf" id="auswahl-zu" type="button">Abbrechen</button>
+      </div>
+    </div>
+
+    <script src="guide.js"></script>
+  </body>
+</html>

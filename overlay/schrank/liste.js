@@ -107,6 +107,10 @@ function zeige(daten) {
 
 el.zu.addEventListener('click', () => window.listeAPI.schliessen());
 
+// Der Walkthrough zu diesem Spiel. Welches gemeint ist, weiss der
+// Hauptprozess - er hat dieses Fenster dafuer geoeffnet.
+document.getElementById('guide').addEventListener('click', () => window.listeAPI.guide());
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') window.listeAPI.schliessen();
 });

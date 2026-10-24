@@ -1,0 +1,333 @@
+/*
+ * Das Walkthrough-Fenster: Guide links, Achievements rechts.
+ *
+ * Die Farben sind die der Achievement-Liste - es ist dasselbe Werkzeug, nur
+ * groesser. Die Guide-Seite selbst bringt ihr eigenes Aussehen mit (sie kommt
+ * von Steam); umrahmt wird sie nur.
+ */
+
+:root {
+  --papier: #171310;
+  --papier-hell: #211a15;
+  --linie: rgba(214, 178, 128, 0.18);
+  --schrift: #e8dccb;
+  --schrift-leise: #a8927a;
+  --messing: #d6b280;
+  --kopf-hoehe: 52px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--papier);
+  color: var(--schrift);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  user-select: none;
+  border: 1px solid rgba(214, 178, 128, 0.3);
+  border-radius: 10px;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--kopf-hoehe);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--linie);
+  background: linear-gradient(180deg, var(--papier-hell), var(--papier));
+  /* Das Fenster hat keine Titelleiste - der Kopf ist der Griff. */
+  -webkit-app-region: drag;
+}
+
+.kopf__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.kopf__spiel {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kopf__guide {
+  margin: 1px 0 0;
+  color: var(--schrift-leise);
+  font-size: 0.76rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kopf__knopf,
+.kopf__zu {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--schrift-leise);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  /* Knöpfe im Griff dürfen nicht ziehen, sonst klickt man nie. */
+  -webkit-app-region: no-drag;
+}
+
+.kopf__zu {
+  width: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.kopf__knopf:hover,
+.kopf__zu:hover {
+  color: var(--schrift);
+  border-color: var(--messing);
+}
+
+/* ---------- Bühne: Guide und Spalte ---------- */
+
+.buehne {
+  display: flex;
+  height: calc(100% - var(--kopf-hoehe));
+}
+
+.seite {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: #1b2838; /* Steams eigenes Dunkelblau - kein Blitzen beim Laden */
+}
+
+webview {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Dasselbe wie beim Auswahlkasten: Ohne diese Zeile bliebe die Decke liegen,
+   sobald sie einmal da war - und der Guide waere dauerhaft zugedeckt. */
+.laedt[hidden] {
+  display: none;
+}
+
+.laedt {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--schrift-leise);
+  background: var(--papier);
+  z-index: 2;
+}
+
+/* Die Achievement-Spalte. Fest in der Breite: Sie ist eine Liste, kein Text -
+   mitwachsen würde sie nur leerer machen. */
+.spalte {
+  flex: 0 0 272px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--linie);
+  background: var(--papier);
+}
+
+.spalte__kopf {
+  margin: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--linie);
+  color: var(--messing);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spalte__liste {
+  flex: 1;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.spalte__liste::-webkit-scrollbar,
+.auswahl__liste::-webkit-scrollbar {
+  width: 9px;
+}
+
+.spalte__liste::-webkit-scrollbar-thumb,
+.auswahl__liste::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  background: rgba(214, 178, 128, 0.22);
+}
+
+.spalte__fuss {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--linie);
+  color: var(--schrift-leise);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.eintrag {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 10px;
+  border-left: 3px solid transparent;
+}
+
+.eintrag--erreicht {
+  border-left-color: var(--stufe, #7a6a58);
+  opacity: 0.55;
+}
+
+/* Ein erreichtes Achievement braucht keinen Haken mehr. */
+.eintrag--erreicht .eintrag__haken {
+  visibility: hidden;
+}
+
+.eintrag__haken {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: 4px;
+  background: transparent;
+  color: transparent;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.eintrag__haken[aria-pressed='true'] {
+  border-color: var(--messing);
+  background: rgba(214, 178, 128, 0.16);
+  color: var(--messing);
+}
+
+.eintrag__text {
+  min-width: 0;
+}
+
+.eintrag__name {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.eintrag--erreicht .eintrag__name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(232, 220, 203, 0.4);
+}
+
+.eintrag__meta {
+  margin: 1px 0 0;
+  color: var(--schrift-leise);
+  font-family: 'Space Mono', Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+/* ---------- Die Guide-Auswahl ---------- */
+
+/* Zugeklappt heisst weg: `display: flex` sticht das eingebaute `hidden` aus,
+   sonst steht der leere Kasten beim Aufgehen mitten im Guide. */
+.auswahl[hidden] {
+  display: none;
+}
+
+.auswahl {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 8, 6, 0.78);
+  z-index: 20;
+}
+
+.auswahl__kasten {
+  width: min(560px, 86%);
+  max-height: 76%;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--linie);
+  border-radius: 10px;
+  background: var(--papier-hell);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7);
+}
+
+.auswahl__kopf {
+  margin: 0 0 8px;
+  color: var(--messing);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auswahl__liste {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.auswahl__eintrag {
+  width: 100%;
+  display: block;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--schrift);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.auswahl__eintrag:hover {
+  border-color: var(--messing);
+  background: rgba(214, 178, 128, 0.08);
+}
+
+.auswahl__eintrag--aktiv {
+  border-color: var(--messing);
+}
+
+.auswahl__titel {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.auswahl__meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--schrift-leise);
+  font-family: 'Space Mono', Consolas, monospace;
+  font-size: 0.7rem;
+}

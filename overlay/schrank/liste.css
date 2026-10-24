@@ -94,24 +94,32 @@ body {
   background: linear-gradient(90deg, #b0864f, var(--messing));
 }
 
-.kopf__zu {
+.kopf__zu,
+.kopf__guide {
   flex-shrink: 0;
-  width: 26px;
   height: 26px;
-  padding: 0;
+  padding: 0 10px;
   border: 1px solid var(--linie);
   border-radius: 6px;
   background: transparent;
   color: var(--schrift-leise);
-  font-size: 15px;
+  font: inherit;
+  font-size: 0.78rem;
   line-height: 1;
   cursor: pointer;
-  /* Der Kopf ist Griff - der Knopf darin darf es nicht sein, sonst zieht man
-     das Fenster statt zu klicken. */
+  /* Der Kopf ist Griff - die Knöpfe darin dürfen es nicht sein, sonst zieht
+     man das Fenster statt zu klicken. */
   -webkit-app-region: no-drag;
 }
 
-.kopf__zu:hover {
+.kopf__zu {
+  width: 26px;
+  padding: 0;
+  font-size: 15px;
+}
+
+.kopf__zu:hover,
+.kopf__guide:hover {
   color: var(--schrift);
   border-color: var(--messing);
 }

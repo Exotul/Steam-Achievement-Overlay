@@ -11,5 +11,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('listeAPI', {
   onDaten: (fn) => ipcRenderer.on('liste:daten', (_e, daten) => fn(daten)),
   bereit: () => ipcRenderer.send('liste:bereit'),
+  /** Den 100-%-Walkthrough zu diesem Spiel aufmachen. */
+  guide: () => ipcRenderer.send('liste:guide'),
   schliessen: () => ipcRenderer.send('liste:schliessen'),
 });

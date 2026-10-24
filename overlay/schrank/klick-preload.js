@@ -12,4 +12,7 @@ contextBridge.exposeInMainWorld('klickAPI', {
   starten: () => ipcRenderer.send('schrank:starten'),
   /** Rechtsklick: die Achievement-Liste dieses Spiels aufmachen. */
   liste: () => ipcRenderer.send('schrank:liste'),
+
+  /** Mittlere Maustaste: der 100-%-Walkthrough zu diesem Spiel. */
+  guide: () => ipcRenderer.send('schrank:guide'),
 });

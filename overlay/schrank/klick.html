@@ -40,8 +40,11 @@
         e.preventDefault();
         if (window.klickAPI) window.klickAPI.liste();
       });
-      // Die mittlere Taste hat hier nichts zu suchen.
-      window.addEventListener('auxclick', (e) => e.preventDefault());
+      // Mittlere Maustaste: der 100-%-Walkthrough zu diesem Spiel.
+      window.addEventListener('auxclick', (e) => {
+        e.preventDefault();
+        if (e.button === 1 && window.klickAPI) window.klickAPI.guide();
+      });
     </script>
   </body>
 </html>
